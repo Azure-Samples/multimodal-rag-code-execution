@@ -134,13 +134,9 @@ The user has two options:
 
 This repository contains the Bicep code to deploy an Azure App Services baseline architecture with zonal redundancy and the Azure Open Ai resource deployed in the four regions that are currently (**as of Jan 2024**) supported to run the GPT -4 Vision model.
 
-<br />
-<p align="center">
-<img src="images/deployment.png" width="800" />
-</p>
-<br/>
+![Deployment](https://github.com/Azure-Samples/multimodal-rag-code-execution/assets/41587804/28ebacc8-3042-47cc-8995-492a5e305df4)
 
-![Alt text](./images/deployment.png)
+
 
 ## Architecture Components
 
