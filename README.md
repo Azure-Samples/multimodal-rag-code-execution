@@ -213,6 +213,7 @@ The infrastucture deploys all the PaaS components behind a private endpoint. The
 | App Services Subnet      | '10.0.0.0/24'   |
 | Private Endpoints Subnet | '10.0.2.0/27'   |
 | DevOps Agents or jump box VM Subnet     | '10.0.2.32/27'  |
+| Azure Bastion Subnet     | '10.0.3.0/27'  |
 
 ## Adjusting the network configuration to your needs:
 In the companion deploy.sh file you can see the following variables declared: 
@@ -221,7 +222,7 @@ In the companion deploy.sh file you can see the following variables declared:
 - appGatewaySubnetPrefix: '10.0.1.0/24'
 - appServicesSubnetPrefix: '10.0.0.0/24'
 - privateEndpointsSubnetPrefix: '10.0.2.0/27'
-- agentsSubnetPrefix: '10.0.2.32/27'
+- agentsSubnetPrefix: '10.0.2.32/27'  
 
 **Do adjust** these ones with the required values. **Do not decrease the CDR** as these settings are following Microsoft best practices in terms of IPs allocations. 
 
