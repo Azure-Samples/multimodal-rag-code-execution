@@ -1,0 +1,28 @@
+The image is a flowchart that outlines a structured process for ingesting and processing information. The flowchart begins with "Start: Ingestion Process" and ends with "End of Process," indicating a sequential flow of tasks. The process includes various stages such as "Document Conversion," "Page-Level Processing," "Text Extraction," "Image Detection," "Table Detection," and several post-processing steps involving GPT-4 and the generation of Markdown/Mermaid/Python code. The chart also includes steps for "Consolidation and Indexing" and "Push to Vector Index with Metadata," suggesting a comprehensive approach to organizing and storing processed information.
+
+The flowchart is divided into three main branches after "Page-Level Processing," each dealing with a different aspect of the data: text, images, and tables. Each branch has its own specific steps for extraction and description, with the text and image branches converging at "Harvest Python Code" and "Generate Markdown/Mermaid/Python," while the table branch converges at "Generate Markdown/Python." All branches eventually lead to "Consolidate Text," followed by "Consolidation and Indexing," and finally, the data is pushed to a vector index with metadata.
+
+Here is the Mermaid code to represent the flowchart:
+
+```mermaid
+graph TD
+    A(Start: Ingestion Process) --> B(Document Conversion)
+    B --> C(Page-Level Processing)
+    C -->|Extract Text| D(Text Extraction)
+    C -->|Detect Images| E(Image Detection)
+    C -->|Detect Tables| F(Table Detection)
+    D --> G(Post-process Text with GPT-4)
+    E --> H(Describe Images with GPT-4V)
+    F --> I(Describe Tables with GPT-4V)
+    G --> J(Harvest Python Code)
+    H --> J
+    I --> K(Generate Markdown/Python)
+    J --> L(Generate Markdown/Mermaid/Python)
+    K --> M(Consolidate Text)
+    L --> M
+    M --> N(Consolidation and Indexing)
+    N --> O(Push to Vector Index with Metadata)
+    O --> P(End of Process)
+```
+
+The purpose of including this image in the document is likely to provide a visual representation of the steps involved in the ingestion process, making it easier to understand the sequence and relationship between different tasks. It serves as a guide for the workflow that needs to be followed for efficient data processing and management.
