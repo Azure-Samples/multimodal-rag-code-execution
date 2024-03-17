@@ -33,7 +33,9 @@ text_from_images = col1.toggle("Extract text from images")
 
 col2.write("## Indexing options")
 
-index_name = col2.text_input("Index name:","blackrock")
+index_name = col2.text_input("Index name:", st.session_state.get('index_name', 'blackrock'))
+st.session_state['index_name'] = index_name
+
 number_threads = col2.slider("Number of threads:",1,10,1)
 pdf_password = col2.text_input("PDF password:")
 uploaded_files = col2.file_uploader("Choose a file(s) :file_folder:", accept_multiple_files=True)
@@ -78,7 +80,7 @@ st.write("### Status Log")
 log_placeholder = st.empty()
 
 
-#Periodically check the Azure Cognitive index for the number of documents indexed
+#check the Azure Cognitive index for the number of documents indexed
 def check_index_status(index_name):
     index = CogSearchRestAPI(index_name)
     if index.get_index() is not None:
