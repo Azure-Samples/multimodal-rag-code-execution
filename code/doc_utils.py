@@ -117,21 +117,31 @@ oai_emb_client = AzureOpenAI(
 log_ui_func_hook = None
 
 
-def logc(label, text = None, newline=False, verbose=True):
+def logc(label, text = None, newline=False, timestamp=False, verbose=True):
     if newline: nls = "\n" 
     else: nls = " "
 
     out_s = ""
     out_n = ""
 
-    if text is not None:
-        out_s = f"\n{get_current_time()} :: {bc.OKGREEN}{label}:{nls}{bc.OKBLUE}{text}{bc.ENDC}"
-        out_n = f"\n{get_current_time()} :: {label}:{nls}{text}"
-        if verbose: print(out_s)
+    if timestamp:
+        if text is not None:
+            out_s = f"\n{get_current_time()} :: {bc.OKGREEN}{label}:{nls}{bc.OKBLUE}{text}{bc.ENDC}"
+            out_n = f"\n{get_current_time()} :: {label}:{nls}{text}"
+            if verbose: print(out_s)
+        else:
+            out_s = f"\n{get_current_time()} :: {bc.OKGREEN}{label}{nls}{bc.ENDC}"
+            out_n = f"\n{get_current_time()} :: {label}{nls}"
+            if verbose: print(out_s)
     else:
-        out_s = f"\n{get_current_time()} :: {bc.OKGREEN}{label}{nls}{bc.ENDC}"
-        out_n = f"\n{get_current_time()} :: {label}{nls}"
-        if verbose: print(out_s)
+        if text is not None:
+            out_s = f"\n{bc.OKGREEN}{label}:{nls}{bc.OKBLUE}{text}{bc.ENDC}"
+            out_n = f"\n{label}:{nls}{text}"
+            if verbose: print(out_s)
+        else:
+            out_s = f"\n{bc.OKGREEN}{label}{nls}{bc.ENDC}"
+            out_n = f"\n{label}{nls}"
+            if verbose: print(out_s)
 
     if log_ui_func_hook is not None:
         try:
@@ -2761,73 +2771,20 @@ def try_code_interpreter_for_tables_using_python_exec(assets, query, include_mas
 load_dotenv()
 threads = {}
 
-def try_code_interpreter_for_tables_using_assistants_api(assets, query, user_id = None, include_master_py=True, verbose = False):
 
-    # client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-    # logc(f"https://{os.getenv('AZURE_OPENAI_ASSISTANTSAPI_ENDPOINT')}.openai.azure.com")
-    client = AzureOpenAI(
-        azure_endpoint = f"https://{os.getenv('AZURE_OPENAI_ASSISTANTSAPI_ENDPOINT')}.openai.azure.com", 
-        api_key= AZURE_OPENAI_ASSISTANTSAPI_KEY,  
-        api_version= AZURE_OPENAI_API_VERSION,
-    )
+def process_assistants_api_response(messages, client=oai_client):
+    files = []
+    full_path = ""
 
     download_dir = os.path.join(ROOT_PATH_INGESTION, "downloads")
     os.makedirs(download_dir, exist_ok=True)
-    full_path = ""
 
-    # Create an assistant
-    assistant = client.beta.assistants.create(
-        name="Math Assist",
-        instructions="You are an AI assistant that can write code to help answer math questions.",
-        tools=[{"type": "code_interpreter"}],
-        model="gpt-4",
-        # model="gpt-4-0125-preview" 
-    )
-
-    if threads.get(user_id, None) is None:
-        thread = client.beta.threads.create()
-        threads[user_id] = thread
-    else:
-        thread = threads[user_id]
-    
-    user_query_prompt = prepare_prompt_for_code_interpreter(assets, query, include_master_py=include_master_py, limit=9, verbose=verbose)
-
-    # Add a user question to the thread
-    message = client.beta.threads.messages.create(
-        thread_id=thread.id,
-        role="user",
-        content = user_query_prompt
-    )
-
-    run = client.beta.threads.runs.create(thread_id=thread.id, assistant_id=assistant.id)
-    run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
-    status = run.status
-
-    while status not in ["completed", "cancelled", "expired", "failed"]:
-        time.sleep(1)
-        run = client.beta.threads.runs.retrieve(thread_id=thread.id,run_id=run.id)
-        status = run.status
-
-    messages = client.beta.threads.messages.list(thread_id=thread.id)
-    # logc(json.loads(messages.model_dump_json()))
-
-    # try:
     md = messages.model_dump()["data"]
     for j in range(len(md[0]["content"])):
         if md[0]["content"][j]['type'] == 'text':
             response = md[0]["content"][j]["text"]["value"]
             break
     
-
-    for m in reversed(md):
-        logc("Assistants API Message Raw Content", m["content"])
-        # try:
-        #     logc("Assistants API Message", m["content"][0]["text"]["value"])
-        # except:
-        #     logc("Assistants API Message Raw Content", m["content"])
-
-    # try:
-    files = []
     for i in range(len(md)):
         msg_id = md[i]["id"]
         for j in range(len(md[i]["content"])):
@@ -2851,20 +2808,72 @@ def try_code_interpreter_for_tables_using_assistants_api(assets, query, user_id 
                     file.write(data_bytes)
                 files.append({'type':'assistant_image', 'asset':full_path})
 
+    return response, files
+
+
+
+def create_assistant(client=oai_client, model = AZURE_OPENAI_MODEL, name="Math Assistant", instructions="You are an AI assistant that can write code to help answer math questions."):
+    # Create an assistant
+    assistant = client.beta.assistants.create(
+        name=name,
+        instructions=instructions,
+        tools=[{"type": "code_interpreter"}],
+        model=model
+    )
+
+    try:
+        if threads.get(user_id, None) is None:
+            thread = client.beta.threads.create()
+            threads[user_id] = thread
+        else:
+            thread = threads[user_id]
+    except:
+        thread = client.beta.threads.create()
+
+    return assistant, thread
+
+
+def retrieve_assistant(assistant_id, client=oai_client):
+    assistant = client.beta.assistants.retrieve(assistant_id)
+    return assistant
+
+def retrieve_thread(thread_id, client=oai_client):
+    thread = client.beta.threads.retrieve(thread_id)
+    return thread
+
+
+def query_assistant(query, assistant, thread, client=oai_client):
+    # Add a user question to the thread
+    message = client.beta.threads.messages.create(
+        thread_id=thread.id,
+        role="user",
+        content = query
+    )
+
+    run = client.beta.threads.runs.create(thread_id=thread.id, assistant_id=assistant.id)
+    run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+    status = run.status
+
+    while status not in ["completed", "cancelled", "expired", "failed"]:
+        time.sleep(1)
+        run = client.beta.threads.runs.retrieve(thread_id=thread.id,run_id=run.id)
+        status = run.status
+
+    messages = client.beta.threads.messages.list(thread_id=thread.id)
+    return messages
+
+
+def try_code_interpreter_for_tables_using_assistants_api(assets, query, user_id = None, include_master_py=True,  model = AZURE_OPENAI_MODEL, client=oai_client, verbose = False):
+
+    assistant, thread = create_assistant(client)    
+    user_query_prompt = prepare_prompt_for_code_interpreter(assets, query, include_master_py=include_master_py, limit=9, verbose=verbose)
+    messages = query_assistant(user_query_prompt, assistant, thread, client)
+    response, files = process_assistants_api_response(messages, client)
+
     logc("Response from Assistants API", response)
     logc("Files from Assistants API", files)
 
     return response, files
-
-    #     except:
-    #         logc("No GPT Files Retrieved through Assistants API")
-
-    #     return response
-    # except:
-    #     return "No computation results."
-
-
-
 
 
 
