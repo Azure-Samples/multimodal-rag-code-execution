@@ -1,0 +1,50 @@
+"""
+Develop an executive summary that encapsulates the potential investment in a point-of-care testing company within the in-vitro diagnostics market. The summary should 
+
+##Grounding:
+#Present an overview of the company's business model, product offerings, market reach, and financial highlights without specifying exact sales figures or margins.
+#Give an account of the company's historical background, current ownership, and ongoing bid process, mentioning interest from other equity firms without naming them.
+#Formulate an investment thesis that emphasizes the company's market position, growth strategy, and business model strengths, such as recurring revenue streams and proprietary technology.
+#List key investment considerations and due diligence items that an investor should evaluate, focusing on market share, product portfolio, and technological innovation.
+#Conclude with a preliminary valuation outlook and recommendations for proceeding with an investment procedure, without including specific multiples or revenue projections."
+
+## Self-evaluation: 
+
+Evaluate or check your own responses before producing them: ​
+
+    # Think step by step 
+    # Make sure to limit your response to few sentences, ​
+    # Rate your work on a scale of 1-10 for conciseness, ​
+    # Do you think that you are correct?`
+    # You will get a tip if the response is satisfactory.
+
+#below is an example for a company but adapt your generation based on the knowedlge you have about the industry: 
+## START OF EXAMPLE
+Company Overview:
+
+Aidan is an IVD company offering products primarily for primary care, focusing on a razor/razorblade model with QuikRead platform.
+They distribute third-party products, including COVID-19 tests.
+The company has direct market access in 12 EU countries and, via distributors, to approximately 60 other markets.
+Expected sales and EBITDA figures for a recent year are provided, with a specific percentage of sales attributed to COVID-19 tests and a stated gross margin.
+Situation Overview:
+
+Aidan was originally a diagnostics division of a Finnish listed company and was divested to a private equity firm.
+There is an ongoing process to find binding bids for the company, with a timeline and interested parties mentioned.
+A significant investment opportunity alongside another entity (Essex Woodlands) is highlighted, with investment amounts and management involvement detailed.
+Investment Thesis:
+
+Points here argue for investing in Aidan due to its diversified and profitable position in a large, growing market.
+The company’s business model is based on recurring revenue and a stable consumer base.
+Expansion plans include developing proprietary technology, enlarging the product portfolio, and leveraging expertise for M&A and US market expansion.
+Investment Considerations and DD (Due Diligence) Items:
+
+This section outlines the factors to be considered when investing, like resource allocation, market share maintenance, new market penetration, and execution risks.
+Due diligence considerations include price/volume analysis, COVID exposure, M&A pipeline, and the proprietary SIBA technology.
+Preliminary Valuation & Recommendations:
+
+A preliminary valuation is given, with an enterprise value to EBITDA multiple and a management plan yield stated.
+The recommendation is for a potential investment procedure (PIP), with no consideration of upside from M&A or multiple expansion.
+## END OF EXAMPLE
+
+
+"""

@@ -1,0 +1,49 @@
+"""
+Give work on a inormational of the top 5 products of the copany or less products if 5 are not availabile. Focus on the following elements:
+
+##Grounding:
+#Product Categories: Break down the content into its constituent product categories, describing the key features of each.
+#Detailed Product Sections: For each product category, provide:
+    *An 'Overview' that summarizes the product or technology and its purpose.
+    *A list of their applications.
+#Any 'Selected customers' or 'Selected partners' mentioned, and what their inclusion signifies for the company.
+
+#Financial Metrics: INclude an overview sales contributions and gross margins for the recent years, and explain what these figures might imply about the company's performance and market focus.
+
+## Self-evaluation: 
+
+Evaluate or check your own responses before producing them: ​
+
+    # Think step by step 
+    # Make sure to limit your response to few sentences, ​
+    # Rate your work on a scale of 1-10 for conciseness, ​
+    # Do you think that you are correct?
+
+#below is an example for a pharmaceutical company but adapt your generation based on the knowedlge you have about the industry: 
+## START OF EXAMPLE
+
+*Product Categories:
+
+The  ivided into several sections, each representing a different product category or aspect of the company's offerings:
+QuikRead: Instrument and tests
+Other own products: Tests
+POC molecular diagnostic: SIBA Technology
+Third-party products: COVID-19 tests and Non-COVID-19 tests
+Individual Product Sections:
+
+Each section has an "Overview," "Tests offered," and other relevant sub-sections like "Selected customers" and "Selected partners."
+The QuikRead section mentions it is fully automated and portable, compatible with off-the-shelf tests, and lists various tests like CRP tests, HbA1c, iFOBT, and Strep A, targeting customers such as GPs, hospitals, and elderly care facilities.
+The "Other own products" section lists tests for urinary tract infections, microbial contaminations, and monitoring collagen and soft tissue metabolism, catering to laboratories, hospitality, and industrial sectors.
+The "POC molecular diagnostic" section describes the SIBA Technology, which is used for diagnosis in a variety of infectious diseases, including COVID-19, influenza RSV, and HIV among others.
+The "Third-party products" section mentions the inclusion of third-party diagnostics from established POC diagnostics manufacturers, with partners like SD BIOSENSOR and MERIDIAN highlighted.
+Financial Metrics:
+
+Below each product section, there are percentages indicating the sales contribution and gross margin for the year 2021E (probably an estimate for 2021).
+QuikRead is showing 33% of 2021E Sales and 42% of 2021E Gross Margin.
+Other own products indicate 10% of 2021E Sales and 11% of 2021E Gross Margin.
+POC molecular diagnostic shows 2% of 2021E Sales and 3% of 2021E Gross Margin.
+Third-party products indicate 45% of 2021E Sales and 37% 2021E GM for COVID-19 tests, and 10% of 2021E Sales and 8% 2021E GM for Non-COVID-19 tests.
+## END OF EXAMPLE
+
+
+"""
