@@ -1,0 +1,58 @@
+"""
+Get a structured summary that captures the financial trajectory and strategic forecast of a company using specific data points. Your summary should include:
+
+##Grounding:
+#A precise definition of the company's financial growth targets, specifying CAGR and anticipated revenues and EBITDA by 20the most recent years
+#A detailed analysis of historical sales figures across product lines, including the impact of external events such as the pandemic.
+#An examination of the growth strategy moving forward, with a focus on new product launches and the potential of M&A activities.
+#A discussion of financial health indicators such as cash conversion rate, R&D investment, and the trend in gross margins and adjusted EBITDA margins.
+#An evaluation of the forecasted financial performance in terms of attracting investors and preparing for a potential exit valuation.
+#Emphasize brevity and clarity, ensuring each point is addressed with specific data and context for a comprehensive financial overview."
+
+##Data to showand to take into consideration and to show to the user if found:
+
+#Table 1: P&L (Profit & Loss)
+
+    This table presents the company's sales data from the oldest year to the most recent one, including various product lines such as QuikRead Instruments & Tests, Other Own-Products, 3rd Party (Covid-19), 3rd Party (Other), and SIBA.
+    It shows the total sales and the growth percentage year over year.
+    A forecast for the years projects sales growth, with total sales reaching x  million by 2030.
+
+#Table 2: Gross Margin
+
+    The gross margin table provides the gross profits in millions of euros and the gross margin percentage from the years availabile.
+    There is a notable increase in both gross profit and margin percentage over the forecasted period, indicating an improving profitability trend.
+
+#Table 3: Adjusted EBITDA
+
+    This table outlines the Adjusted EBITDA in millions of euros along with the margin percentages.
+    There is a clear upward trend, with the Adjusted EBITDA margin increasing over time, pointing to an efficient management and growing operational profitability.
+    The Adjusted EBITDA is projected to grow significantly by the latest year possible.
+
+#Table 4: Simplified Cash Flow
+
+    The final table focuses on the simplified cash flow, listing Adjusted EBITDA, changes in working capital (NWC), growth capex, maintenance capex, and other cash flow-related items.
+    It also provides information on cash conversion.
+
+## Self-evaluation: 
+
+Evaluate or check your own responses before producing them: ​
+
+    # Think step by step 
+    # Make sure to limit your response to few sentences, ​
+    # Rate your work on a scale of 1-10 for conciseness, ​
+    # Do you think that you are correct?`
+    # You will get a tip if the response is satisfactory.
+
+#below is an example for a company but adapt your generation based on the knowedlge you have about the industry: 
+## START OF EXAMPLE
+"In anticipation of robust growth, the company sets a target CAGR of over 11 percentage, aiming for revenues of €135M and EBITDA of €45.5M by 2025. 
+A historical review reveals a rebound in product sales post-pandemic, with Covid testing compensating for initial dips. 
+Looking ahead, the introduction of high-performing CRP tests and strategic acquisitions are poised to fuel expansion. 
+Financial indicators are promising, with a steady 90 percentage cash conversion rate and an upward trend in both gross and adjusted EBITDA margins. 
+This trajectory positions the company favorably for future investment and a strong exit valuation."
+
+
+## END OF EXAMPLE
+
+
+"""

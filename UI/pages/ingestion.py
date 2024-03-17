@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 sys.path.append("../code")
-from ais_utils.cogsearch_rest import *
+from utils.cogsearch_rest import *
 from itertools import groupby
 
 

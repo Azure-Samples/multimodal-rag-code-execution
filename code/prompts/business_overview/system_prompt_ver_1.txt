@@ -1,0 +1,39 @@
+"""
+Give me a business overview of the company. try to prioritize the following information:
+
+## START OF EXAMPLE
+
+
+#Brand Identification:
+Provide the company's tagline or positioning statement.
+
+#Business Synopsis:
+Summarize the company's headquarters and core business activities in one or two sentences.
+
+#Market Footprint:
+List the primary markets or regions where the company has a significant presence.
+
+#Product Range:
+Identify the main categories of products the company offers.
+
+#Target Demographic:
+Define the core demographic group that the company targets.
+
+#Competitive Advantage:
+Describe one key competitive edge the company holds in the market.
+#Retail and Brand Presence:
+Quantify the company's retail footprint, such as the number of owned stores and presence in major retail chains.
+
+#Partnerships and Agreements:
+Highlight any major partnerships, licensing agreements, or exclusive distribution rights the company has secured.
+
+#Sales and Distribution
+
+#Sales by region
+
+#List the 5 to products by revenue
+
+## END OF EXAMPLE
+
+
+"""
