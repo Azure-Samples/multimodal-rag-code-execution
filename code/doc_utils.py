@@ -43,6 +43,9 @@ import sys
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
+taskweaver_logger = logging.getLogger('taskweaver.logging')
+taskweaver_logger.setLevel(logging.ERROR)
+
 load_dotenv()
 
 from env_vars import *
@@ -153,12 +156,35 @@ def logc(label, text = None, newline=False, timestamp=False, verbose=True):
         # print("log_ui_func_hook is None")
 
 
+
+def read_pdf(pdf_doc):
+    doc = fitz.open(pdf_doc)
+    print(f"PDF File {os.path.basename(pdf_doc)} has {len(doc)} pages.")
+    return doc
+
+
+def extract_pages_as_png_files(doc, work_dir = os.path.join(ROOT_PATH_INGESTION, 'downloads')):
+    os.makedirs(work_dir, exist_ok=True)
+    png_files = []
+
+    for page in doc:
+        page_num = page.number
+        img_path = f"{work_dir}/page_{page_num}.png"
+        page_pix = page.get_pixmap(dpi=300)
+        page_pix.save(img_path)
+        print(f"Page {page_num} saved as {img_path}")
+        png_files.append(img_path)
+    
+    return png_files
+
+
+
 def show_json(obj):
     display(json.loads(obj.model_dump_json()))
 
 
 
-# @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(12), after=after_log(logger, logging.ERROR))             
+@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(12), after=after_log(logger, logging.ERROR))             
 def get_chat_completion(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
     # print(f"\n{bc.OKBLUE}Calling OpenAI APIs:{bc.OKGREEN} {len(messages)} messages - {AZURE_OPENAI_MODEL} - {oai_client}\n{bc.ENDC}")
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages)
@@ -1928,6 +1954,9 @@ Try to answer the following questions:
     8. Try to guess the purpose of why the authors have included this image in the document.
     9. If the attached is a screenshot of a document page with multiple images in it, then you **MUST* repeat the above steps per image and generate it all in the same output. 
     10. If any point in the above is not applicable, you do **NOT** have to say "Not applicable" or "Not applicable as this is not ...", you can just skip that point. No need for needless text or explanations to be generated.
+    11. **IMPORTANT**: If the image is a screenshot of a document page with multiple images in it, then you **MUST* repeat the above steps per image and generate it all in the same output.
+
+As previously highlighted and stressed already, if the attached is a screenshot of a document page with multiple images in it, then you **MUST* repeat the above steps per image and generate it all in the same output.
 
 """
 
@@ -2026,7 +2055,7 @@ def get_image_base64(image_path):
 
 
 
-# @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(15), after=after_log(logger, logging.DEBUG))
+@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(15), after=after_log(logger, logging.DEBUG))
 def call_gpt4v(imgs, gpt4v_prompt = "describe the attached image", prompt_extension = "", temperature = 0.2, model_info=None):
 
     if model_info is None:
@@ -2087,7 +2116,6 @@ def call_gpt4v(imgs, gpt4v_prompt = "describe the attached image", prompt_extens
 
     content = content + img_msgs
     endpoint = f"{base_url}/extensions/chat/completions?api-version={AZURE_OPENAI_VISION_API_VERSION}" 
-    # endpoint = f"{base_url}/extensions/chat/completions?api-version=2023-12-01-preview" 
 
     print("endpoint", endpoint)
     data = { 
@@ -2116,7 +2144,7 @@ def call_gpt4v(imgs, gpt4v_prompt = "describe the attached image", prompt_extens
     }   
    
     response = requests.post(endpoint, headers=headers, data=json.dumps(data), timeout=300)   
-    # logc(json.dumps(recover_json(response.text), indent=4))
+    # print(json.dumps(recover_json(response.text), indent=4))
     result = recover_json(response.text)['choices'][0]['message']['content']
     description = f"Image was successfully explained, with Status Code: {response.status_code}"
     logc(f"End of GPT4V Call to process file(s) {img_arr} with model: {api_base}")   
@@ -2594,8 +2622,6 @@ class TWHandler():
             else:
                 is_end = True
 
-            # if (event.extra is None) or (event.extra.get("is_end", None) is None):
-            #     print(event)
         else: 
             is_end = True
 
@@ -2609,16 +2635,16 @@ class TWHandler():
                 self.buffer = "\n".join(event.msg)
             else:
                 self.buffer += event.msg
-            if self.verbose: logc("Taskweaver", f">>> Agent: {self.role}\n>>> Message:\n{self.buffer}")
+
+            if self.buffer not in ["NONE", "No code verification is performed.", "verifying code", "composing prompt", 
+                                   "calling LLM endpoint", "receiving LLM response", "Post created"]:
+                if self.verbose: logc("Taskweaver", f">>> Agent: {self.role}\n>>> Message:\n{self.buffer}")
             self.buffer = ""
 
     def handle(self, event):
-        # print(event)
         if event.extra is not None: 
             if event.extra.get('role', None) is not None:
-                # print(">>> Role", event.extra['role'])
                 self.role = event.extra['role']
-        
         
         self.process_buffer(event)
 
@@ -2701,6 +2727,9 @@ def try_code_interpreter_for_tables_using_taskweaver(assets, query, include_mast
     
     app = TaskWeaverApp(app_dir=test_project_path)
     session = app.get_session()
+    taskweaver_logger = logging.getLogger('taskweaver.logging')
+    taskweaver_logger.setLevel(logging.ERROR)
+
     if verbose: logc("Taskweaver", f"Taskweaver Processing Started ...")
 
     if len(assets['python_code']) == 0: return "No computation results."
@@ -3144,9 +3173,9 @@ From the above Text, please perform the following tasks:
     6. You **MUST NOT** generate tags that include example-specific information from any few-shot examples included in the text. These are usually delimited by ### START OF EXAMPLE and ### END OF EXAMPLE, or some similar delimiters.
     7. If the text include entity names, dates, numbers or money amounts, you **MUST** include them in the list of tags. 
     8. Finally, you **MUST** refactor the list of tags to make sure that there are no redundancies, and to remove the less relevant tags, and to reduce the number of elements in the list so that the list is optimized. 
-    9. Limit the total number to more than 20 tags. These **MUST BE THE MOST ESSENTIAL 20 TAGS.**
+    9. Limit the total number to more than {tag_limit} tags. These **MUST BE THE MOST ESSENTIAL {tag_limit} TAGS.**
 
-Do **NOT** generate any other text other than the comma-separated keyword and tag list. 
+Do **NOT** generate any other text other than the comma-separated keyword and tag list. Do **NOT** exceed the number of tags to more than {tag_limit} tags.
 
 """
 
@@ -3154,9 +3183,9 @@ Do **NOT** generate any other text other than the comma-separated keyword and ta
 
 
 
-def get_query_entities(query, temperature = 0.2):
+def get_query_entities(query, approx_tag_limit=20, temperature = 0.2):
 
-    query_entities = query_entities_prompt.format(query=query)
+    query_entities = query_entities_prompt.format(query=query, tag_limit=approx_tag_limit)
     # query_entities = optimize_embeddings_prompt.format(text=query)
 
     messages = []
@@ -3179,25 +3208,20 @@ def call_ai_search(query, index_name, top=7, computation_approach = "Taskweaver"
     index = CogSearchRestAPI(index_name)
     select_fields = ["asset_id", "asset_path", "pdf_path", "filename", "image_file", "asset_filename", "page_number", "type", "document_id", "python_block", "python_code", "markdown", "mermaid", "text"], 
 
-    # if computation_approach == "NoComputationTextOnly":    
-    #     results = index.search_documents(query, top=top, filter_query="type eq 'text'", count=count)
-    # else:
-    t = float(random.randrange(4000))/1000.0
+    t = float(random.randrange(1000))/1000.0
     time.sleep(t)
 
     results = index.search_documents(query, top=top, count=count)
-    
-    # if count: print("Document Count: ", results['@odata.count'])
-    
+     
     results = results['value']
     for r in results: del r['vector']
     search_results = copy.deepcopy(results)
     return search_results
 
 
-def aggregate_ai_search(query, index_name, top=5, computation_approach = "Taskweaver", count=False, temperature=0.2, verbose = False):
+def aggregate_ai_search(query, index_name, top=5, approx_tag_limit=20, computation_approach = "Taskweaver", count=False, temperature=0.2, verbose = False):
 
-    entities = get_query_entities(query, temperature=temperature)
+    entities = get_query_entities(query, approx_tag_limit=approx_tag_limit, temperature=temperature)
     entities = [x.strip() for x in entities.split(',')]
     logc("Search Intent Identification", f"Found {len(entities)} entities: {entities}")
 
@@ -3207,24 +3231,24 @@ def aggregate_ai_search(query, index_name, top=5, computation_approach = "Taskwe
     tops = [top] * num_threads
     computation_approaches = [computation_approach] * num_threads
     counts = [count] * num_threads
-    
-
-    # logc("tops", tops)
 
     results = pool.starmap(call_ai_search,  zip(entities, index_names, tops, computation_approaches, counts))
-
     max_items = max([len(r) for r in results])
 
     query_results = call_ai_search(query, index_name, top=top, computation_approach = computation_approach, count=count)
-
     res = list(itertools.chain(*zip(*results))) 
     res = query_results + res
 
     unique_results = []
 
-    for result in res:
-        if result['asset_path'] not in [r['asset_path'] for r in unique_results]:
-            unique_results.append(result)
+    try:
+        for result in res:
+            if result['asset_path'] not in [r['asset_path'] for r in unique_results]:
+                unique_results.append(result)
+    except:
+        for result in res:
+            if result['text'] not in [r['text'] for r in unique_results]:
+                unique_results.append(result)
 
     if verbose: logc("Found the following asset results:", [r['asset_path'] for r in unique_results])
     # for r in unique_results: logc(r['asset_path'])

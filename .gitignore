@@ -160,3 +160,6 @@ cython_debug/
 #.idea/
 
 .env
+
+TaskWeaver/
+test_project/
