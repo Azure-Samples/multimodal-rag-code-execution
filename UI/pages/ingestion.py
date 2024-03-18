@@ -27,7 +27,7 @@ col1, col2 = st.columns(2)
 col1.write("## Extraction modes")
 text_extraction = col1.selectbox("Text extraction:", ["GPT", "PDF"] )
 
-image_extraction = col1.selectbox("Image extraction:", ["GPT", "Doc Intelligence"] )
+image_extraction = col1.selectbox("Image extraction:", ["GPT", "PDF"] )
 
 text_from_images = col1.toggle("Extract text from images")
 

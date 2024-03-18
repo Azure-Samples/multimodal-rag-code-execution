@@ -161,5 +161,6 @@ cython_debug/
 
 .env
 
+small_coyote/
 TaskWeaver/
 test_project/

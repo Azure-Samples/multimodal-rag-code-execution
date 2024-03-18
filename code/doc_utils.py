@@ -3088,74 +3088,7 @@ If you think the image is not relevant to the User Query or does not offer concr
 
 """
 
-query_entities_prompt = """
-Given the following query, identify and extract the top 5 main entities or components, ranked by importance. These are the most important and most relevant entities, do **NOT** extract everything. **Only** extract the essential entities to serach for. Present these entities in a comma-separated string ranked by importance. These entities will be used for search purposes, as each entity will be searched separately and then eventually search results aggregated.
 
-Chain of Thought:
-    1. Identify the main entities or components in the query
-    2. Rank the entities or components by importance
-    3. If the number of entities is higher than 5, then rank and return the top 5 most important entities or components
-    4. If the number entities is equal or less than 5, then return all the entities or components
-
-Query:
-## START OF Query
-{query}
-## END OF Query
-
-Below are examples.
-
-Example 1:
-Query: What are the effects of climate change on polar bears, coral reefs, and coastal cities?
-Output: climate change, polar bears, coral reefs, coastal cities
-
-Example 2:
-Query: How do economic policies impact job growth, inflation, and foreign investment in developing countries?
-Output: economic policies, job growth, inflation, foreign investment, developing countries
-
-Example 3:
-Query: What are the historical influences of Greek and Roman architecture on modern building designs?
-Output: historical influences, Greek architecture, Roman architecture, modern building designs
-
-Example 4:
-Query: How does technology advancement affect education, healthcare, and communication industries?
-Output: technology advancement, education, healthcare, communication industries
-
-Example 5:
-Query: What are the main causes and potential solutions for air pollution in large metropolitan areas?
-Output: main causes, potential solutions, air pollution, large metropolitan areas
-
-Example 6:
-Query: How do dietary habits influence cardiovascular health, diabetes, and obesity rates?
-Output: dietary habits, cardiovascular health, diabetes, obesity rates
-
-Output:
-The list of the top 5 most essential entities or components, in a comma-separated list format, ranked by importance.
-
-"""
-
-
-
-query_entities_prompt = """
-Text:
-## START OF TEXT
-{query}
-## END OF TEXT
-
-
-From the above Text, please perform the following tasks:
-    1. You **MUST** extract the important and meaningful keywords to make a comprehensive list. Extract them verbatim, word-for-word, and add a few words as context around the keywords so as to make them ultra-descriptive. They keywords are about topical content only. Do **NOT** extract keywords about form, style or text structure like 'bullet points for ease of understanding', 'dates inclusion', 'embedded Python code exclusion', 'redundancies removal' or 'optimized keyword and tag list'.
-    2. You **MUST** also extract the very important and ultra-descriptive tags, and add the tags to the comprehensive list of keywords. These combined keywords and tags will be used to generate embeddings and then used for search purposes. You **MUST** be exhaustive and comprehensive in generating the tags. Do NOT LEAVE OUT any details in the text, and do NOT generate tags that are not in the text.
-    3. Be **VERY** details-oriented, **make sure** you capture ALL the details of the text in the form of keywords or tags. Do **NOT** make up or generate keywords or tags that are not in the text.
-    4. The keywords and the tags needs to be ultra-descriptive, elaborate and detailed. Each keyword or tag needs to capture and relay all the relationships and connections in the text. For example, when the text says "the actual and estimated revenues of company X", then the ideal tags would be "actual revenues of company X" and "estimated revenues of company X". For this example and instance, do **NOT** generate tags such as "actual", "estimated" and "revenues" which do not capture the full relationships and connections of the tag.
-    5. Each keyword or tag needs to have enough information so that the user would understand it without knowing the original text or the context.
-    6. You **MUST** ignore any embedded Python code. 
-    7. You **MUST NOT** generate tags that include example-specific information from any few-shot examples included in the text. These are usually delimited by ### START OF EXAMPLE and ### END OF EXAMPLE, or some similar delimiters.
-    8. If the text include entity names, dates, numbers or money amounts, you **MUST** include them in the list of tags. 
-    9. Finally, after combining the lists of keywords and tags combined in a comma-separated format, you **MUST** refactor the combined list to make sure that there are no redundancies, and to remove the lower-accuracy keywords and tags, and to reduce the number of elements in the list so that the list is optimized. 
-
-Do **NOT** generate any other text other than the comma-separated keyword and tag list. 
-
-"""
 
 query_entities_prompt = """
 Text:
@@ -3170,10 +3103,11 @@ From the above Text, please perform the following tasks:
     3. The tags needs to be ultra-descriptive, elaborate and detailed. Each tag needs to capture and relay all the relationships and connections in the text. For example, when the text says "the actual and estimated revenues of company X", then the ideal tags would be "actual revenues of company X" and "estimated revenues of company X". For this example and instance, do **NOT** generate tags such as "actual", "estimated" and "revenues" which do not capture the full relationships and connections of the tag.
     4. Each tag needs to have enough information so that the user would understand it without knowing the original text or the context.
     5. You **MUST** ignore any embedded Python code. 
-    6. You **MUST NOT** generate tags that include example-specific information from any few-shot examples included in the text. These are usually delimited by ### START OF EXAMPLE and ### END OF EXAMPLE, or some similar delimiters.
+    6. You **MUST NOT** generate tags that include example-specific information from any few-shot examples included in the text. These are usually delimited by either ###Example###, or by ### START OF EXAMPLE and ### END OF EXAMPLE, or some similar delimiters.
     7. If the text include entity names, dates, numbers or money amounts, you **MUST** include them in the list of tags. 
-    8. Finally, you **MUST** refactor the list of tags to make sure that there are no redundancies, and to remove the less relevant tags, and to reduce the number of elements in the list so that the list is optimized. 
-    9. Limit the total number to more than {tag_limit} tags. These **MUST BE THE MOST ESSENTIAL {tag_limit} TAGS.**
+    8. Do **NOT** generate tags about Self-Evaluation Guidelines. 
+    9. Finally, you **MUST** refactor the list of tags to make sure that there are no redundancies, and to remove the less relevant tags, and to reduce the number of elements in the list so that the list is optimized. 
+    10. Limit the total number to more than {tag_limit} tags. These **MUST BE THE MOST ESSENTIAL {tag_limit} TAGS.**
 
 Do **NOT** generate any other text other than the comma-separated keyword and tag list. Do **NOT** exceed the number of tags to more than {tag_limit} tags.
 
