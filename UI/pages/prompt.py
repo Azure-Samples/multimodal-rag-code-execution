@@ -1,13 +1,11 @@
 import streamlit as st
-
-st.markdown("# Page Promt ❄️")
 import os
 import shutil
+import time
+
 
 # Base directory for categories
 base_dir = "../code/prompts"
-
-
 
 # Ensure the base directory exists
 if not os.path.exists(base_dir):
@@ -72,7 +70,8 @@ categories = get_categories()
 category_name = st.sidebar.selectbox("Select a category:", [""] + categories)
 
 # Main UI
-if category_name:
+if category_name:   
+    max_text_area_height_lines = 15 # Placeholder for the maximum height of the text area
     latest_file_path, current_version = get_latest_file_version(category_name)
     if latest_file_path:
         with open(latest_file_path, 'r') as f:
@@ -82,16 +81,72 @@ if category_name:
         content = ""
         st.write("This category has no prompts yet.")
     
-    # Dynamically adjust the height of the text area as before
+    # Dynamically adjust the height of the text area based on content
     lines = content.count('\n') + 1
     min_height = 300
-    dynamic_height = max(min_height, lines * 20)
-    edited_content = st.text_area("Edit the prompt:", value=content, height=dynamic_height)
-    
+    dynamic_height = max(min_height, lines * max_text_area_height_lines)  # Example dynamic height calculation
+
+    # Create two columns for the text areas and place the "Improve -->" button above them
+    col1, col2 = st.columns([0.5, 0.5])  # Evenly split screen space between columns
+
+    with col1:
+        edited_content = st.text_area("Edit the prompt:", value=content, height=dynamic_height, key="textarea1")
+
+    with col2:
+        if 'improved_content' not in st.session_state:
+            st.session_state.improved_content = ""  # Initialize with empty string if not set
+        # improved_content = st.text_area("Improved prompt:", value=st.session_state.improved_content, height=dynamic_height, key="textarea2")
+        improved_content = st.text_area("Improved prompt:", value=st.session_state.improved_content, height=dynamic_height, key="textarea2")
+
+    # Place the "Improve -->" button
+    if st.button("Improve -->"):
+        st.session_state.processing = True  # Flag to indicate processing
+
+        # Example messages
+        messages = [
+                        "Tip: Break down complex tasks into simpler prompts for better results.",
+                        "Did you know? The most common English phrase is 'Your task is'.",
+                        "Quote of the moment: 'The only way to do great work is to love what you do.' - Steve Jobs",
+                        "Remember: Use affirmative directives like 'do' instead of negative language like 'don’t'.",
+                        "Suggestion: Use leading words like 'think step by step'.",
+                        "Hint: Use output primers by ending your prompt with the start of the anticipated response.",
+                        "Advice: Use delimiters when formatting your prompt.",
+                        "Note: Implement example-driven prompting for clarity or deeper understanding.",
+                        "Guideline: Add 'Ensure that your answer is unbiased and avoids relying on stereotypes' to your prompt.",
+                        "Tip: Clearly state the model’s requirements in the form of keywords, regulations, hints, or instructions.",
+                        "Idea: Allow the model to ask you questions until it has enough information to provide the needed output.",
+                        "Suggestion: To write a detailed text, ask the model to 'Write a detailed [text] on [topic] by adding all the necessary information'.",
+                        "Remember: You can assign a role to the language model.",
+                        "Note: No need to be polite with the language model, get straight to the point.",
+                        "Tip: For complex coding prompts, generate a script that can be run to automatically create the specified files or make changes to existing files.",
+                    ]
+        message_index = 0
+
+        # Placeholder to display rotating messages
+        message_placeholder = st.empty()
+
+        for _ in range(10):  # Adjust loop count based on expected duration
+            if message_index >= len(messages):
+                message_index = 0  # Loop back to the first message
+            message_placeholder.markdown(messages[message_index])
+            message_index += 1
+            time.sleep(3)  # Adjust sleep time as necessary
+
+        # Place the logic to improve the prompt here
+        # Simulate processing time
+        time.sleep(5)  # Placeholder for the time it takes to process the improvement
+        
+        # Update the prompt
+        st.session_state.improved_content = edited_content  # Update with actual improved content
+        st.session_state.processing = False  # Reset processing flag
+
+    # Include buttons for saving new version and handling cancellation
     if st.button("Save to a New Version"):
         create_new_prompt_version(category_name, edited_content)
+
     if st.button("Cancel"):
-        st.session_state.show_cancel_warning = True  # Set the flag to show the warning
+        # Set the flag to show the cancellation warning
+        st.session_state.show_cancel_warning = True
     
     if st.session_state.show_cancel_warning:
         # Display the warning and provide an option to confirm cancellation
@@ -100,7 +155,6 @@ if category_name:
             # Reload the latest version by rerunning the app to reset the text area
             st.session_state.show_cancel_warning = False  # Reset the warning flag
             st.experimental_rerun()
-
 
 # Creating new category handled in the sidebar
 new_category_name = st.sidebar.text_input("Create new category:")
