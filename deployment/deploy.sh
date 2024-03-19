@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 # Load the environment variables from the .env file
 source ./.env
 
-SUBSCRIPTION=af509a4e-4374-4998-8d0d-15fc7b54f668
+SUBSCRIPTION=
 
 
 while [[ -z "$SUBSCRIPTION" ]] || ! az account list --query "[].id" -o tsv | grep -q "$SUBSCRIPTION"; do
@@ -719,11 +719,8 @@ DOCKER_USER_PASSWORD=$(echo $acr_credentials | jq -r '.passwords[0].value')
 echo "Docker User ID: $DOCKER_USER_ID"
 echo "Docker User Password: $DOCKER_USER_PASSWORD"
 
-#DOCKER_USER_ID=$ACR_NAME
-#DOCKER_USER_PASSWORD="SIz1wjrZqC8zefSZK57l48p5/hheR6WCk2uYKWwUZ9+ACRCZidt2"
-# DOCKERFILE_PATH_API="docker/api.dockerfile.old.dockerfile"
-DOCKERFILE_PATH_API="docker/Dockerfile_powerpoint_addin"
-DOCKERFILE_PATH_UI="docker/Dockerfile_powerpoint_addin"
+
+DOCKERFILE_PATH_UI="docker/Dockerfile_chainlit_app"
 
 echo "Script Execution Flow:"
 echo "--------------------------"

@@ -57,22 +57,12 @@ WORKDIR /home/appuser/app/TaskWeaver
 RUN pip install -r requirements.txt
 
 WORKDIR /home/appuser/app
-COPY test_project/ /home/appuser/app/test_project
-# COPY /deployment/ui_webapp_settings_samer.json /home/appuser/app/test_project/ui_webapp_settings.json
+COPY ./deployment/test_project/ /home/appuser/app/test_project
 
 COPY ./requirements.txt /home/appuser/app/requirements.txt
 RUN pip install -r requirements.txt 
 
 COPY ./app/ /home/appuser/app/app
-# COPY ./app/chainlit.md /home/appuser/app/chainlit.md
-# COPY ./app/.chainlit /home/appuser/app/.chainlit
-
-# COPY ./app/chainlit.md /home/appuser/code/chainlit.md
-# COPY ./app/.chainlit /home/appuser/code/.chainlit
-
-# COPY ./app/.chainlit /home/appuser/app/app/.chainlit
-# COPY ./app/chainlit.md /home/appuser/app/app/chainlit.md
-#making the chailit.md availabile in the web app with the latest changes, it needs to be in the code folder.
 COPY ./app/.chainlit /home/appuser/app/code/.chainlit
 COPY ./app/chainlit.md /home/appuser/app/code/chainlit.md
 

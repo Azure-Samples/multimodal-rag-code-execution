@@ -1,3 +1,4 @@
+#docker build -t streamlitui -f ./docker/Dockerfile_streamlit_app .
 FROM python:3.9.10-slim-buster
 RUN apt-get update && apt-get install -y \
     graphviz \
@@ -7,7 +8,9 @@ RUN apt-get update && apt-get install -y \
     tk-dev
 COPY ./requirements.txt /usr/local/src/myscripts/requirements.txt
 WORKDIR /usr/local/src/myscripts
+COPY ./requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 COPY ./code/ /usr/local/src/myscripts
+COPY  ./UI/ /usr/local/src/myscripts/UI
 EXPOSE 80
-CMD ["streamlit", "run", "main_extractor.py", "--server.port", "80", "--server.enableXsrfProtection", "false"]
+CMD ["streamlit", "run", "./UI/main.py", "--server.port", "80"]

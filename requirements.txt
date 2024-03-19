@@ -5,7 +5,7 @@ matplotlib>=3.4
 python-dotenv>=1.0.0
 openai>=1.2.4
 pyyaml>=6.0
-scikit-learn>=1.2.2
+# scikit-learn>=1.2.2
 click>=8.0.1
 urllib3>=1.26.17
 jsonschema==4.20.0
@@ -26,11 +26,11 @@ pdfplumber
 pdf2image
 pdfminer.six
 pymupdf
-pikepdf
+# pikepdf
 ipywidgets
 pypdf
 Pillow
-chainlit
+# chainlit
 openpyxl
 
 ## Use 2023-10-31-preview
@@ -44,17 +44,17 @@ python-docx
 urllib3
 json_repair
 # pysqlite3 #required for chroma
-chromadb
+# chromadb
 chainlit
 mermaid-python
 # pygraphviz
 streamlit
 accelerate
 tiktoken
-pyautogen
-langchain
+# pyautogen
+# langchain
 debugpy
 #numexpr required for Langchain
 numexpr 
-langchain_openai
+# langchain_openai
 tabulate
