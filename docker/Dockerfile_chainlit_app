@@ -1,0 +1,83 @@
+# The builder image, used to build the virtual environment
+FROM continuumio/miniconda3:4.10.3 as builder
+
+# Environment setup for build
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/conda/bin:${PATH}"
+
+USER root
+
+# RUN groupadd -g 1001 appgroup && \
+#     adduser --uid 1001 --gid 1001 --disabled-password --gecos '' appuser && \
+#     chown -R 1001:1001 /opt/conda/
+
+WORKDIR /home/appuser/app/
+RUN conda create -n myenv python=3.10
+RUN echo "source activate myenv" > ~/.bashrc
+ENV PATH /opt/conda/envs/myenv/bin:$PATH
+
+COPY requirements.txt /home/appuser/app/
+RUN pip install --requirement requirements.txt
+
+# The runtime image, used to just run the code provided its virtual environment
+# FROM continuumio/miniconda3:4.10.3 as runtime
+FROM python:3.10-slim-buster
+
+# Environment setup for runtime
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/conda/envs/myenv/bin:${PATH}" \
+    HOST=0.0.0.0 \
+    LISTEN_PORT=8000
+
+# RUN groupadd -g 1001 appgroup && \
+#     adduser --uid 1001 --gid 1001 --disabled-password --gecos '' appuser
+
+EXPOSE 8000
+WORKDIR /home/appuser/app/
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/conda/envs/myenv /opt/conda/envs/myenv
+
+WORKDIR /home/appuser/app/
+
+RUN apt-get update && apt-get install -y \
+    graphviz \
+    libgraphviz-dev \
+    python-tk \
+    python3-tk \
+    tk-dev \
+    libffi-dev \
+    git
+
+RUN git clone https://github.com/microsoft/TaskWeaver.git
+WORKDIR /home/appuser/app/TaskWeaver
+#TASKweaver requirements: (not app requirements)
+RUN pip install -r requirements.txt
+
+WORKDIR /home/appuser/app
+COPY test_project/ /home/appuser/app/test_project
+# COPY /deployment/ui_webapp_settings_samer.json /home/appuser/app/test_project/ui_webapp_settings.json
+
+COPY ./requirements.txt /home/appuser/app/requirements.txt
+RUN pip install -r requirements.txt 
+
+COPY ./app/ /home/appuser/app/app
+# COPY ./app/chainlit.md /home/appuser/app/chainlit.md
+# COPY ./app/.chainlit /home/appuser/app/.chainlit
+
+# COPY ./app/chainlit.md /home/appuser/code/chainlit.md
+# COPY ./app/.chainlit /home/appuser/code/.chainlit
+
+# COPY ./app/.chainlit /home/appuser/app/app/.chainlit
+# COPY ./app/chainlit.md /home/appuser/app/app/chainlit.md
+#making the chailit.md availabile in the web app with the latest changes, it needs to be in the code folder.
+COPY ./app/.chainlit /home/appuser/app/code/.chainlit
+COPY ./app/chainlit.md /home/appuser/app/code/chainlit.md
+
+COPY ./code/ /home/appuser/app/code
+
+EXPOSE 8000
+WORKDIR /home/appuser/app/code
+CMD ["chainlit", "run", "../app/test-app.py"]

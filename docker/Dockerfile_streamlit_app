@@ -1,0 +1,13 @@
+FROM python:3.9.10-slim-buster
+RUN apt-get update && apt-get install -y \
+    graphviz \
+    libgraphviz-dev \
+    python-tk \
+    python3-tk \
+    tk-dev
+COPY ./requirements.txt /usr/local/src/myscripts/requirements.txt
+WORKDIR /usr/local/src/myscripts
+RUN pip install -r requirements.txt
+COPY ./code/ /usr/local/src/myscripts
+EXPOSE 80
+CMD ["streamlit", "run", "main_extractor.py", "--server.port", "80", "--server.enableXsrfProtection", "false"]
