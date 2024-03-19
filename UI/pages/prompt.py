@@ -1,6 +1,4 @@
 import streamlit as st
-import os
-import shutil
 import sys
 sys.path.append("../code")
 from doc_utils import generate_section
@@ -106,18 +104,7 @@ if category_name:
         save(category_name, {"Content": edited_content, "Sections": prompt['Sections']})
         st.session_state.processing = False  # Reset processing flag
 
-    # if st.button("Cancel"):
-    #     # Set the flag to show the cancellation warning
-    #     st.session_state.show_cancel_warning = True
-    
-    # if st.session_state.show_cancel_warning:
-    #     # Display the warning and provide an option to confirm cancellation
-    #     st.warning("Are you sure you want to cancel? Unsaved changes will be lost.", icon="🚨")
-    #     if st.button("Yes, discard changes"):
-    #         # Reload the latest version by rerunning the app to reset the text area
-    #         st.session_state.show_cancel_warning = False  # Reset the warning flag
-    #         st.experimental_rerun()
-
+  
 # Creating new category handled in the sidebar
 new_category_name = st.sidebar.text_input("Create new category:")
 if st.sidebar.button("Create"):
