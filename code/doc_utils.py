@@ -240,7 +240,9 @@ def ask_LLM_with_JSON(prompt, temperature = 0.2, model_info = None):
 
     return result.choices[0].message.content
 
-    
+def generate_section(section):
+    prompt = section_generation_prompt.format(section=section)
+    return ask_LLM(prompt)
 
 general_prompt_template = """
 
@@ -3113,6 +3115,91 @@ Do **NOT** generate any other text other than the comma-separated keyword and ta
 
 """
 
+section_generation_prompt= """
+Section:
+## START OF SECTION
+{section}
+## END OF SECTION
+
+You are prompt expert.
+Given the section above, you need to generate a prompt that can summarize documents relevant to that section.
+
+
+##Examples
+
+#Example 1:
+
+Section:
+# Start Section
+Sales segmentation
+# End section
+
+#Output 1
+###Sales Segmentation or Revenue Split###
+
+* Provide sales segmentation by detailing customer demographics (such as age groups, geographic regions, and buying patterns), sales methods (including online, in-store, and direct sales), and distribution methods (like third-party or direct shipping).
+* If full data is available, synthesize sales segmentation and revenue split data, pinpointing trends.
+* In the absence of complete data, utilize available information to offer a reasoned approximation of these elements.
+#END Output 1
+
+#Example 2:
+
+Section:
+# Start Section
+Key financials
+# End section
+
+#Output 1
+###Key Financials###
+
+* Extract and list key financial metrics such as:
+     - EBITDA,
+     - Profit Margins over the past five years,
+     - Annual Revenue,
+     - Compound Annual Growth Rate (CAGR).
+#END Output 2
+
+#Example 3:
+
+Section:
+# Start Section
+Market Outlook
+# End section
+
+#Output 3
+###Market Outlook###
+    *Market Growth Forecast: Investigate and summarize the projected annual growth rate for the Market up to the year 2026. Emphasize any specific growth trends, such as the impact of post-COVID recovery.
+    *Regional Sales Distribution: Present a breakdown of the  market sales by region. Pay special attention to the growth rates and market sizes in key regions such as Asia, Europe, and the Americas, with a specific focus on the biggest market contribution.
+    *Demographic Shifts:Report on the purchasing trends among different consumer demographics, particularly noting the influence of Generation Z and their expected contribution to market growth.
+    *Digital Transformation: Describe the impact on digital purchasing trends and the shift towards online sales within the market. Forecast the role of omnichannel strategies and direct-to-consumer sales as emerging dominant channels in the market.
+    *Market Dynamics: Highlight the most important country anticipated position in the  market by 2025 and the factors contributing to its significant role in the market's growth.
+
+#END Output 3
+
+#Example 4:
+
+Section:
+# Start Section
+Market Growth
+# End section
+
+#Output 4
+###Market Growth###
+    *Historical Growth Rates: Review and summarize the historical growth rates of the Market. Provide context on how these rates have trended over time, up until the present.
+    *Post Recovery and Projections:    Detail the expected recovery path of the market following the downturn. Highlight any forecasts about the market's growth up to 2026, including expectations for sales levels to surpass recent peaks. Analyze the anticipated Compound Annual Growth Rate (CAGR) for the near future, noting differences between the luxury and super-luxury segments.
+    Segment-Specific Growth:
+    *Identify which segments within the market are expected to see the highest growth. Provide specific CAGR figures for these segments from 2022 to 2026, if available.
+    *Influencing Factors: Discuss any external or internal factors that are expected to influence market growth within the forecast period. This may include technological advancements, shifts in consumer behavior, or economic trends.
+#END Output 4
+##End Examples
+
+###Self-evaluation Guidelines###
+
+* Before delivering your response, please do a self-evaluation:
+   - Ensure clarity and brevity by reviewing your response, aiming for succinctness without sacrificing completeness.
+   - Rate the conciseness of your work on a scale of 1-10.
+   - Confirm the accuracy of your answer internally.
+"""
 
 
 
