@@ -10,6 +10,15 @@ from utils.cogsearch_rest import CogSearchHttpRequest
 
 load_dotenv()
 
+if "page_config" not in st.session_state:
+
+    st.set_page_config(
+        page_title="Multi RAG application",
+        page_icon="🧊",
+        layout="wide",
+    )
+    st.session_state.page_config = True
+
 CHAINLIT_APP = os.getenv("CHAINLIT_APP")
 
 def get_indexes():

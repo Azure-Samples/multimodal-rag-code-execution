@@ -19,6 +19,14 @@ if "prompt_index" not in st.session_state:
 if 'show_cancel_warning' not in st.session_state:
     st.session_state.show_cancel_warning = False
 
+if "page_config" not in st.session_state:
+
+    st.set_page_config(
+        page_title="Multi RAG application",
+        page_icon="🧊",
+        layout="wide",
+    )
+    st.session_state.page_config = True
 
 def get_indexes():
     cogrequest = CogSearchHttpRequest()
@@ -140,7 +148,9 @@ if category_name:
             st.title("prompt result...")
             answer = generate_content(consolidated_content)
             st.write(answer)
-  
+else:
+    st.markdown("## Please select a category to view or edit the prompt.")  
+
 # Creating new category handled in the sidebar
 new_category_name = st.sidebar.text_input("Create new category:")
 if st.sidebar.button("Create"):
