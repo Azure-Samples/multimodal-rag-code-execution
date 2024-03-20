@@ -18,6 +18,7 @@ from tenacity import (
 
 import os
 from dotenv import load_dotenv
+from azure.search.documents.indexes import SearchIndexClient
 
 # os.environ['USE_PTU'] = '0'
 
@@ -81,7 +82,7 @@ upload_doc_json = {
 
 class CogSearchHttpRequest(HTTPRequest):
 
-    def __init__(self, api_key, search_service_name, index_name, api_version):
+    def __init__(self, api_key = COG_SEARCH_ADMIN_KEY, search_service_name=COG_SEARCH_ENDPOINT, index_name="", api_version=COG_VEC_SEARCH_API_VERSION):
         self.api_key = api_key
         self.search_service_name = search_service_name
         self.index_name = index_name
@@ -89,6 +90,7 @@ class CogSearchHttpRequest(HTTPRequest):
         self.url        = f"{search_service_name}/indexes/{index_name}?api-version={api_version}"
         self.post_url   = f"{search_service_name}/indexes/{index_name}/docs/index?api-version={api_version}"
         self.search_url = f"{search_service_name}/indexes/{index_name}/docs/search?api-version={self.api_version}"
+        self.index_url = f"{search_service_name}/indexes?api-version={self.api_version}"
         
         
         self.default_headers = {'Content-Type': 'application/json', 'api-key': self.api_key}
@@ -100,10 +102,15 @@ class CogSearchHttpRequest(HTTPRequest):
             url = self.post_url
         elif op == 'search':
             url = self.search_url
+        elif op == 'indexes':
+            url = self.index_url
         else:
             url = self.url
 
         return url
+    
+    def get_indexes(self):
+        return self.get(op='indexes')
 
 
 
