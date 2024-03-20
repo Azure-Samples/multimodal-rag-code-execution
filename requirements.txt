@@ -48,12 +48,12 @@ json_repair
 chainlit
 mermaid-python
 # pygraphviz
-streamlit
+streamlit>=1.32.2
 #accelerate
 tiktoken
 # pyautogen
 # langchain
-debugpy
+# debugpy
 #numexpr required for Langchain
 numexpr 
 # langchain_openai
