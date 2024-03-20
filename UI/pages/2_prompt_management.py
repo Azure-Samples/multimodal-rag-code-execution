@@ -90,7 +90,7 @@ def generate_content(content):
 # Sidebar UI for category selection
 st.sidebar.title("Options")
 categories = get_prompts_category()
-category_name = st.sidebar.selectbox("Select a category:", [""] + categories)
+category_name = st.sidebar.selectbox("Select a section:", [""] + categories)
 
 mainCol, secondCol = st.columns([1, 1])
 # Main UI
@@ -117,8 +117,8 @@ if category_name:
     else:
         prompt['Sections'] = []
     
-    new_section = mainCol.text_input("New section title:", key="newSectionTitle")
-    if mainCol.button("Generate new section"):
+    new_section = mainCol.text_input("New prompt part title:", key="newSectionTitle")
+    if mainCol.button("Generate new prompt part"):
         st.session_state.processing = True  # Flag to indicate processing
         new_prompt = generate_new_section(new_section)
         edited_new_prompt = sections_container.text_area(new_section, value=new_prompt, height=dynamic_height, key="newSectionContent")
@@ -143,34 +143,34 @@ if category_name:
 
     if test_prompt:
         if (st.session_state.prompt_index == ""):
-            st.warning("Please select an index to test the prompt.")
+            st.warning("Please select a Deal to test the prompt.")
         else:
             st.title("prompt result...")
             answer = generate_content(consolidated_content)
             st.write(answer)
 else:
-    st.markdown("## Please select a category to view or edit the prompt.")  
+    st.markdown("## Please select a section to view or edit the prompt.")  
 
 # Creating new category handled in the sidebar
-new_category_name = st.sidebar.text_input("Create new category:")
+new_category_name = st.sidebar.text_input("Create new section:")
 if st.sidebar.button("Create"):
     create_new_prompt(new_category_name)
 
 
 # UI for deleting a category
-st.sidebar.title("Delete a Category")
-delete_category_name = st.sidebar.selectbox("Select a category to delete:", [""] + categories)
-if st.sidebar.button("Delete Category"):
+st.sidebar.title("Delete a Section")
+delete_category_name = st.sidebar.selectbox("Select a section to delete:", [""] + categories)
+if st.sidebar.button("Delete Section"):
     if delete_category_name:
         # Confirmation dialog to prevent accidental deletion
         if st.sidebar.checkbox("I understand this action cannot be undone and all data in the category will be lost."):
             delete_prompt(delete_category_name)
     else:
-        st.sidebar.warning("Please select a category to delete.")
+        st.sidebar.warning("Please select a section to delete.")
 
 
 st.sidebar.markdown("""---""")
-select_index = st.sidebar.selectbox("Select an index:", [""] + st.session_state.Indexes)
+select_index = st.sidebar.selectbox("Select a Deal:", [""] + st.session_state.Indexes)
 if select_index:
     st.session_state.prompt_index = select_index
     
