@@ -151,7 +151,7 @@ async def main(message: cl.Message):
 
     index_name = index_names[cl.user_session.get("id")]
     if index_name is None or index_name == "":
-        await cl.Message(content="Please choose an Index first").send()
+        await cl.Message(content="Please choose a Deal first").send()
         return
     
     message_content = message.content.strip().lower()
@@ -164,7 +164,7 @@ async def main(message: cl.Message):
         cmd = message_content[4:]
 
         if cmd == 'gen':
-            res = await cl.AskUserMessage(content="What is the Category name?", timeout=1000).send()
+            res = await cl.AskUserMessage(content="What is the Section name?", timeout=1000).send()
             if res:
                 category_name = res['output'].strip()
                 await generate_prompt(category_name)
