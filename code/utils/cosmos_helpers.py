@@ -32,8 +32,6 @@ class SCCosmosClient():
 
 
     def get_all_documents(self):
-        print('\nReading all items in a container\n')
-
         # NOTE: Use MaxItemCount on Options to control how many items come back per trip to the server
         #       Important to handle throttles whenever you are doing operations such as this that might
         #       result in a 429 (throttled request)

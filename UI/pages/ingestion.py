@@ -20,7 +20,15 @@ log_entries = []
 files_ingested = {}
 import streamlit as st
 
+if "page_config" not in st.session_state:
 
+    st.set_page_config(
+        page_title="Multi RAG application",
+        page_icon="🧊",
+        layout="wide",
+    )
+    st.session_state.page_config = True
+    
 #Main UI
 st.title("Document ingestion and indexing")
 col1, col2 = st.columns(2)
