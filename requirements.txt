@@ -48,7 +48,7 @@ json_repair
 chainlit
 mermaid-python
 # pygraphviz
-streamlit
+streamlit>=1.31.1
 accelerate
 tiktoken
 # pyautogen
