@@ -41,7 +41,7 @@ text_from_images = col1.toggle("Extract text from images")
 index_name = col2.text_input("Deal name:", st.session_state.get('index_name', 'adiya'))
 st.session_state['index_name'] = index_name
 
-number_threads = col2.slider("Number of threads:",1,10,1)
+number_threads = col2.slider("Number of threads:",1,4,1)
 pdf_password = col2.text_input("PDF password:")
 uploaded_files = col2.file_uploader("Choose a file(s) :file_folder:", accept_multiple_files=True)
 
