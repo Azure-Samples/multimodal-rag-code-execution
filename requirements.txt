@@ -49,7 +49,7 @@ chainlit
 mermaid-python
 # pygraphviz
 streamlit
-accelerate
+#accelerate
 tiktoken
 # pyautogen
 # langchain
