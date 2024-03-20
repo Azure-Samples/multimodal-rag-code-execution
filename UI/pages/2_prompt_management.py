@@ -82,7 +82,7 @@ def generate_consolidated_content(content, sections):
    return content + "\n\n" + "\n\n".join(sections)
 
 def generate_content(content):
-    final_answer, references, output_excel, search_results, files  = search(content, index_name=st.session_state.prompt_index)
+    final_answer, references, output_excel, search_results, files  = search(content, index_name=st.session_state.prompt_index, computation_approach= "AssistantsAPI", computation_decision="LLM")
     return final_answer
 
 
