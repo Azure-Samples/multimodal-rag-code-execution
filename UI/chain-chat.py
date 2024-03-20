@@ -19,6 +19,8 @@ sys.path.append("C:\\Users\\selhousseini\\Documents\\GitHub\\mm-doc-analysis-rag
 from env_vars import *
 import doc_utils
 from doc_utils import *
+import utils.cosmos_helpers as cs
+
 
 def log_message(message, level):
     if level == 'debug':
@@ -136,15 +138,13 @@ def get_latest_file_version(directory, file_pattern):
 
 
 async def generate_prompt(prompt_name):
-    prompts_path = os.environ.get("PROMPTS_PATH")
-    if not prompts_path:
-        #if it is empty it means the user does not have the environment variable set, 
-        #so we assume its a local developer and will not populate paths from file share
-        prompts_path = "../code/prompts"
+    cosmos = cs.SCCosmosClient()
+    prompts = cosmos.get_all_documents()
+    prompt= next((item for item in prompts if item['Category'] == prompt_name), None)
+    if (prompt is None):
+        await cl.Message(content=f"Prompt {prompt_name} not found").send()
+        return
 
-    prompt_dir = os.path.join(prompts_path, prompt_name)
-    prompt_file = get_latest_file_version(prompt_dir, file_pattern)
-    prompt = read_asset_file(prompt_file)[0]
     logc("Generating the contents for the prompt: {prompt}")
     await app_search(prompt)
 
