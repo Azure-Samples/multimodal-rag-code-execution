@@ -35,7 +35,7 @@ components.iframe(CHAINLIT_APP, height=1000, width=1300, scrolling=False)
 # Call the CHAINLIT_APP endpoint with chatsettings to set the index_name and code execution
 
 
-index_name = st.sidebar.selectbox("Index name:",[""] + st.session_state.Indexes)
+index_name = st.sidebar.selectbox("Deal name:",[""] + st.session_state.Indexes)
 code_execution = st.sidebar.selectbox("Code execution:", ["AssistantsAPI", "TaskWeaver"])
 top_results = st.sidebar.slider("Top results:",1,10,1 )
 

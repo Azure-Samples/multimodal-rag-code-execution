@@ -30,18 +30,15 @@ if "page_config" not in st.session_state:
     st.session_state.page_config = True
     
 #Main UI
-st.title("Document ingestion and indexing")
+st.title("Document(s) ingestion")
 col1, col2 = st.columns(2)
-col1.write("## Extraction modes")
 text_extraction = col1.selectbox("Text extraction:", ["GPT", "PDF"] )
 
 image_extraction = col1.selectbox("Image extraction:", ["GPT", "PDF"] )
 
 text_from_images = col1.toggle("Extract text from images")
 
-col2.write("## Indexing options")
-
-index_name = col2.text_input("Index name:", st.session_state.get('index_name', 'blackrock'))
+index_name = col2.text_input("Deal name:", st.session_state.get('index_name', 'adiya'))
 st.session_state['index_name'] = index_name
 
 number_threads = col2.slider("Number of threads:",1,10,1)
