@@ -36,7 +36,7 @@ openpyxl
 ## Use 2023-10-31-preview
 azure-core
 azure-ai-formrecognizer
-azure-ai-documentintelligence
+azure-ai-documentintelligence>=1.0.0b2
 azure-search-documents
 python-pptx
 python-docx 

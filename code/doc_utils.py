@@ -2655,7 +2655,7 @@ class TWHandler():
 
 
 
-def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, limit=1000, chars_limit = 32768, verbose = True):
+def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, limit=False, chars_limit = 32768, verbose = True):
     global user_query, table_info
     codeblocks = []
     added = []
@@ -2666,31 +2666,6 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
     #                                 codeblock=read_asset_file(asset)[0], 
     #                                 markdown = read_asset_file(replace_extension(asset, ".md"))[0]) \
     #                                 for index, asset in enumerate(assets['python_block'])]
-
-
-    for index, asset in enumerate(assets['python_block']):
-        if asset not in added:
-            # logc("Assistants API", f"Adding Asset: {asset} to the Prompt ...")
-            filename = replace_extension(asset, ".py")
-            pdf_filename = assets['filenames'][index]
-            page_number = extract_page_number(assets['asset_filenames'][index])
-            codeblock = read_asset_file(asset)[0]
-            codeblock = codeblock if codeblock != "" else "No Python Code available."
-            markdown = read_asset_file(replace_extension(asset, ".md"))[0]  
-            markdown = markdown if markdown != "" else "No Markdown available."
-            mermaid = read_asset_file(replace_extension(asset, ".mermaid"))[0]
-            mermaid = mermaid if mermaid != "" else "No Mermaid available."
-            added.append(asset)
-
-            if len('\n'.join(codeblocks)) > (chars_limit - 9000):                          
-                break
-
-            codeblocks.append(table_info.format(filename=filename, pdf_filename=pdf_filename, page_number=page_number, codeblock=codeblock, markdown=markdown, mermaid=mermaid))      
-            if index > limit: break  
-
-
-
-    if verbose: logc("Taskweaver", f"Added Codeblocks\n{added}")
 
     py_code = [os.path.abspath(asset) for asset in assets['python_code']]
     py_code = []
@@ -2713,6 +2688,30 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
     if verbose: logc("run_py_files", run_py_files)
     if verbose: logc("py_code", py_code)
     if verbose: logc("codeblocks", codeblocks)
+
+
+    for index, asset in enumerate(assets['python_block']):
+        if asset not in added:
+            # logc("Assistants API", f"Adding Asset: {asset} to the Prompt ...")
+            filename = replace_extension(asset, ".py")
+            pdf_filename = assets['filenames'][index]
+            page_number = extract_page_number(assets['asset_filenames'][index])
+            codeblock = read_asset_file(asset)[0]
+            codeblock = codeblock if codeblock != "" else "No Python Code available."
+            markdown = read_asset_file(replace_extension(asset, ".md"))[0]  
+            markdown = markdown if markdown != "" else "No Markdown available."
+            mermaid = read_asset_file(replace_extension(asset, ".mermaid"))[0]
+            mermaid = mermaid if mermaid != "" else "No Mermaid available."
+            added.append(asset)
+
+            if limit and (len('\n'.join(codeblocks)) > (chars_limit - 3000 - len(user_query) - len(run_py_files) - len("\n".join(py_code)))):                          
+                print(f"Limit Reached: {len(codeblocks)} > {chars_limit - len(user_query) - len(run_py_files) - len(py_code) - 3000} | breakdown: {chars_limit} - 3000 - {len(user_query)} - {len(run_py_files)} - {len(py_code)}")
+                break
+
+            codeblocks.append(table_info.format(filename=filename, pdf_filename=pdf_filename, page_number=page_number, codeblock=codeblock, markdown=markdown, mermaid=mermaid))      
+            if index > limit: break  
+
+    if verbose: logc("Taskweaver", f"Added Codeblocks\n{added}")
 
 
     user_query_prompt = user_query.format(query=query, run_py_files=run_py_files, py_files = "\n".join(py_code), py_code = "\n\n".join(codeblocks))
@@ -2886,7 +2885,7 @@ def query_assistant(query, assistant, thread, client=oai_client):
     status = run.status
 
     while status not in ["completed", "cancelled", "expired", "failed"]:
-        time.sleep(1)
+        time.sleep(5)
         run = client.beta.threads.runs.retrieve(thread_id=thread.id,run_id=run.id)
         status = run.status
 
@@ -2897,7 +2896,7 @@ def query_assistant(query, assistant, thread, client=oai_client):
 def try_code_interpreter_for_tables_using_assistants_api(assets, query, user_id = None, include_master_py=True,  model = AZURE_OPENAI_MODEL, client=oai_client, verbose = False):
 
     assistant, thread = create_assistant(client)    
-    user_query_prompt = prepare_prompt_for_code_interpreter(assets, query, include_master_py=include_master_py, limit=9, verbose=verbose)
+    user_query_prompt = prepare_prompt_for_code_interpreter(assets, query, include_master_py=include_master_py, limit=True, verbose=verbose)
     messages = query_assistant(user_query_prompt, assistant, thread, client)
     response, files = process_assistants_api_response(messages, client)
 

@@ -164,3 +164,9 @@ cython_debug/
 small_coyote/
 TaskWeaver/
 test_project/
+blackrock*/
+blk*/
+deniz.ipynb
+mm_doc_analysis_aidan/
+.chainlit/
+.files/

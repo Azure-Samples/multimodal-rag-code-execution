@@ -218,7 +218,7 @@ async def generate_prompt(prompt_name):
     prompt_dir = os.path.join(prompts_path, prompt_name)
     prompt_file = get_latest_file_version(prompt_dir, file_pattern)
     prompt = read_asset_file(prompt_file)[0]
-    logc("Generating the contents for the prompt: {prompt}")
+    logc(f"Generating the contents for the prompt: {prompt}")
     await app_search(prompt)
 
 

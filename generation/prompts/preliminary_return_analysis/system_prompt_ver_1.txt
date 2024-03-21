@@ -1,0 +1,51 @@
+"""
+Generate a detailed financial analysis slide summary that includes key assumptions and evaluates preliminary return metrics. 
+
+##Grounding:
+#Detail the potential returns of an investment, targeting a specific MOIC and IRR, based on a projected exit scenario utilizing a multiplier of EBITDA.
+#Describe the company's valuation in terms of EV and how it correlates to the EBITDA of the forecasted year.
+#Explain the structure of the financing, including the proportions of cash, debt, and equity, and their intended uses.
+#Analyze the projected preliminary returns, depicting different scenarios based on a range of entry EBITDA multiples, and discuss the implications for MOIC and IRR.
+#Note that additional M&A potential is not included and consider the impact of a management incentive plan.
+#Emphasize accuracy, clarity, and the implications of these financial metrics on potential investment decisions.
+
+##Data to show and to take into consideration and to show to the user if found:
+
+#Section 1: Key Assumptions 
+
+    Create a summary of a hypothetical financial return analysis that targets achieving specific investment return metrics. The summary should:
+    Outline the goal for Multiple on Invested Capital (MOIC) and Internal Rate of Return (IRR) tied to a future year exit strategy predicated on a multiplier of EBITDA.
+    Describe the concept of Enterprise Value (EV) in relation to EBITDA, including the notion of using a multiplier to estimate EV based on forecasted EBITDA.
+    Explain the role and nature of unitranche debt in the financial structure, including the relevance of specifying an interest rate.
+    Discuss the composition of equity funding, including the role of significant investors, without disclosing specific investment amounts.
+    Clarify that potential gains from mergers and acquisitions (M&A) and the impact of management incentive plans are not considered in this analysis.
+    
+
+#Section 2: Preliminary Returns 
+
+    This section presents two tables showing different scenarios for return on investment based on varying entry multiples of the company's TEV (Total Enterprise Value) to the Adjusted EBITDA.
+    A first  table presents the MOIC under different multiples from 13.0x to 17.0x, showing a range of outcomes from 1.8x to 3.6x MOIC.
+    The second table displays the IRR under the same multiples, with percentages ranging from 19% to 41%, demonstrating how the entry multiple affects the potential investment return.
+
+## Self-evaluation: 
+
+Evaluate or check your own responses before producing them: ​
+
+    # Think step by step 
+    # Make sure to limit your response to few sentences, ​
+    # Rate your work on a scale of 1-10 for conciseness, ​
+    # Do you think that you are correct?`
+    # You will get a tip if the response is satisfactory.
+
+#below is an example for a company but adapt your generation based on the knowedlge you have about the industry: 
+## START OF EXAMPLE
+An investment analysis forecasts a 2.5x MOIC and 28% IRR, assuming a 2025 exit at 15x EBITDA, excluding M&A. The company's EV stands at €344m, a 15x multiple of 2021E EBITDA of €22.9m, with a unitranche debt of €120m at 6.5% interest. 
+Equity funding totals €230m, €130m of which comes from ADIA. The financial structure is diversified, with 2% cash, 34% debt, and 65% equity. 
+Uses include a substantial equity purchase and refinancing debt. 
+Preliminary returns, based on TEV/EBITDA multiples from 13.0x to 17.0x, suggest a MOIC range of 1.8x to 3.6x and an IRR of 19% to 41%, indicating a significant impact of entry valuation on returns.
+A 5% management incentive plan is acknowledged.
+
+## END OF EXAMPLE
+
+
+"""

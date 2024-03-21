@@ -1,0 +1,72 @@
+"""
+Give me a Industry or market overview and generate a detailed summary of its contents. 
+if the below section containins an image, use similar to the format provided in the image overview
+
+##Image Overview
+
+##End Image Overview
+
+Focus on the following elements:
+
+##Grounding:
+
+#Industry Highlights: Provide few bullet points with the following information: 
+
+    *Growth Drivers: Research and identify the primary factors contributing to the long-term growth of the Market. Highlight the role of the consumers, generational consumer demand, and the competition from others.
+    *if there is recovery information please g t that.
+    *Market Share and Brand Positioning: Detail the market position of notable Brands in the market, particularly mentioning any significant moves in their rankings, such as Breitling's position by revenue.
+                                        Report on the market share percentages, especially within the core luxury segment.
+    *Key Players: Identify the four major luxury groups acting as consolidators in the industry and list any prominent independent  manufacturers. Note their contributions to the market.
+    *Sales Channels: Analyze the shift from wholesale to direct-to-consumer sales within the industry. Report on the percentage of sales from each channel in the most recent year available and forecast the expected growth of D2C by 2026
+    *Marketing Strategies: Investigate the importance of social media as a marketing tool for the market brands and provide insights on how it's being prioritized in their marketing strategies.
+
+#Market outlook: 
+    *Market Growth Forecast: Investigate and summarize the projected annual growth rate for the Market up to the year 2026. Emphasize any specific growth trends, such as the impact of post-COVID recovery.
+    *Regional Sales Distribution: Present a breakdown of the  market sales by region. Pay special attention to the growth rates and market sizes in key regions such as Asia, Europe, and the Americas, with a specific focus on China's contribution.
+    *Demographic Shifts:Report on the purchasing trends among different consumer demographics, particularly noting the influence of Generation Z and their expected contribution to market growth.
+    *Digital Transformation: Describe the impact on digital purchasing trends and the shift towards online sales within the market. Forecast the role of omnichannel strategies and direct-to-consumer sales as emerging dominant channels in the market.
+    *Market Dynamics: Highlight China's anticipated position in the  market by 2025 and the factors contributing to its significant role in the market's growth.
+    
+#Market Growth:
+    *Historical Growth Rates: Review and summarize the historical growth rates of the Market. Provide context on how these rates have trended over time, up until the present.
+
+    *Post Recovery and Projections:    Detail the expected recovery path of the market following the downturn. Highlight any forecasts about the market's growth up to 2026, including expectations for sales levels to surpass recent peaks. Analyze the anticipated Compound Annual Growth Rate (CAGR) for the near future, noting differences between the luxury and super-luxury segments.
+    Segment-Specific Growth:
+
+    *Identify which segments within the market are expected to see the highest growth. Provide specific CAGR figures for these segments from 2022 to 2026, if available.
+    *Influencing Factors: Discuss any external or internal factors that are expected to influence market growth within the forecast period. This may include technological advancements, shifts in consumer behavior, or economic trends.
+
+
+## Self-evaluation: 
+
+Evaluate or check your own responses before producing them: ​
+
+    # Think step by step 
+    # Make sure to limit your response to few sentences, ​
+    # Rate your work on a scale of 1-10 for conciseness, ​
+    # Do you think that you are correct?
+    # You will get a tip if the response is satisfactory.
+
+Below is an example: 
+## START OF EXAMPLE
+Industry Overview – Swiss Luxury Watch Market
+Long-term growth trend particularly driven by demand from Asia
+
+Industry Highlights
+Growth driven by increasing wealthy households, next-generation demand, and limited smartwatch substitution.
+Post-COVID recovery expected, with a ~6percentage annual growth rate until 2025.
+Breitling ranks #11 in Swiss Watch Brands by revenue, holding 2percentage of the market (~8percentage in luxury).
+Dominance of four luxury groups (Richemont, Swatch, Kering, LVMH) and major independents like Rolex, Patek, AP, and Breitling.
+Wholesale dominated 2019 sales, but direct-to-consumer is growing, projected to reach 30-40percentage by 2026.
+Social media is a significant marketing channel.
+5% Market Growth p.a. until 2026
+Historical growth of 6%, with post-COVID recovery expected by 2022.
+Ultra and super luxury segments forecasted to experience the highest growth (5-6% CAGR) from 2022-2026.
+Luxury Market Outlook
+China to become the largest market by 2025, driving 80percentage of growth.
+Gen Z's luxury purchases expected to double.
+COVID has accelerated the shift to digital and omnichannel sales.
+## END OF EXAMPLE
+
+
+"""
