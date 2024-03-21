@@ -38,7 +38,7 @@ image_extraction = col1.selectbox("Image extraction:", ["GPT", "PDF"] )
 
 text_from_images = col1.toggle("Extract text from images")
 
-index_name = col2.text_input("Deal name:", st.session_state.get('index_name', 'adiya'))
+index_name = col2.text_input("Deal name:", st.session_state.get('index_name', 'adia'))
 st.session_state['index_name'] = index_name
 
 number_threads = 1 # col2.slider("Number of threads:",1,4,1)

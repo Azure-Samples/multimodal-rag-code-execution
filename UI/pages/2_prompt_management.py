@@ -28,6 +28,9 @@ if "page_config" not in st.session_state:
     )
     st.session_state.page_config = True
 
+if 'processing' not in st.session_state:
+    st.session_state.processing = False
+
 def get_indexes():
     cogrequest = CogSearchHttpRequest()
     indexes = cogrequest.get_indexes()
@@ -117,17 +120,18 @@ if category_name:
     else:
         prompt['Sections'] = []
     
-    new_section = mainCol.text_input("New prompt part title:", key="newSectionTitle")
-    if mainCol.button("Generate new prompt part"):
+    new_section = mainCol.text_input("New sub prompt title:", key="newSectionTitle")
+    if mainCol.button("Generate new sub prompt", disabled=st.session_state.processing):
         st.session_state.processing = True  # Flag to indicate processing
-        new_prompt = generate_new_section(new_section)
-        edited_new_prompt = sections_container.text_area(new_section, value=new_prompt, height=dynamic_height, key="newSectionContent")
-        prompt['Sections'].append({"Title": new_section, "Content": edited_new_prompt}) 
+        with st.spinner("Generating new sub prompt..."):
+            new_prompt = generate_new_section(new_section)
+            edited_new_prompt = sections_container.text_area(new_section, value=new_prompt, height=dynamic_height, key="newSectionContent")
+            prompt['Sections'].append({"Title": new_section, "Content": edited_new_prompt}) 
         st.session_state.processing = False  # Reset processing flag
 
    
 
-    if mainCol.button("Save changes"):
+    if mainCol.button("Save changes", disabled=st.session_state.processing):
         index = 0
         for section in prompt['Sections']:
             section['Content'] = edited_sections[index]
@@ -135,18 +139,18 @@ if category_name:
 
         st.session_state.processing = True  # Flag to indicate processing
         save(category_name, {"Content": edited_content, "Sections": prompt['Sections']})
-        st.session_state.processing = False  # Reset processing flag
 
     consolidated_content = generate_consolidated_content(edited_content, edited_sections)
     consolidated_prompt = secondCol.text_area("Consolidated prompt:", value=consolidated_content, height=1200, key="consolidatedContentText", disabled=True)
     test_prompt = secondCol.button("Test prompt")
-
+ 
     if test_prompt:
         if (st.session_state.prompt_index == ""):
             st.warning("Please select a Deal to test the prompt.")
         else:
             st.title("prompt result...")
-            answer = generate_content(consolidated_content)
+            with st.spinner('Generating results...'):
+                answer = generate_content(consolidated_content)
             st.write(answer)
 else:
     st.markdown("## Please select a section to view or edit the prompt.")  
