@@ -1,7 +1,6 @@
 
 import os
 import logging
-from typing import Optional
 import os
 from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -14,11 +13,14 @@ from time import sleep
 
 import sys
 sys.path.append("../code")
-sys.path.append("C:\\Users\\selhousseini\\Documents\\GitHub\\mm-doc-analysis-rag-ce\\code\\")
 
 from env_vars import *
 import doc_utils
 from doc_utils import *
+import utils.cosmos_helpers as cs
+from chainlit.server import app
+from fastapi.responses import HTMLResponse
+
 
 def log_message(message, level):
     if level == 'debug':
@@ -46,13 +48,6 @@ def log_message(message, level):
 # init_ingestion_directory = init_ingestion_directory + '/'+ init_index_name
 # init_ingestion_directory=ROOT_PATH_INGESTION
 
-
-from chainlit.server import app
-from fastapi import Query, Request
-from chainlit.context import init_http_context
-from fastapi.responses import (
-    HTMLResponse,
-)
 
 # Define a Pydantic model for your request body
 class Settings(BaseModel):
@@ -95,12 +90,14 @@ def change_to_container_path(path, root_path):
 
 
 init_code_interpreter = "AssistantsAPI"
-init_index_name = "doc_ingestion_project_minions_v5"
+init_index_name = None
 index_names = {}
 conversations = {}
 code_interpreters = {}
 top_results = {}
 
+cosmos = cs.SCCosmosClient()
+prompts = cosmos.get_all_documents()
 
 async def post_message(label, message):
     async with cl.Step(name=label) as step:
@@ -136,74 +133,41 @@ def get_latest_file_version(directory, file_pattern):
 
 
 async def generate_prompt(prompt_name):
-    prompts_path = os.environ.get("PROMPTS_PATH")
-    if not prompts_path:
-        #if it is empty it means the user does not have the environment variable set, 
-        #so we assume its a local developer and will not populate paths from file share
-        prompts_path = "../code/prompts"
 
-    prompt_dir = os.path.join(prompts_path, prompt_name)
-    prompt_file = get_latest_file_version(prompt_dir, file_pattern)
-    prompt = read_asset_file(prompt_file)[0]
-    logc("Generating the contents for the prompt: {prompt}")
+    prompt= next((item for item in prompts if item['Category'] == prompt_name), None)
+    if (prompt is None):
+        await cl.Message(content=f"Prompt {prompt_name} not found").send()
+        return
+
+    logc(f"Generating the contents for the prompt: {prompt_name}")
     await app_search(prompt)
 
-
-@cl.action_callback('Business Overview')
-async def on_action(action):
-    await generate_prompt(action.value)
-
-@cl.action_callback('Executive Summary')
-async def on_executive_summary(action):
-    await generate_prompt(action.value)
-
-@cl.action_callback('Historical Financials')
-async def on_historical_financials(action):
-    await generate_prompt(action.value)
-
-@cl.action_callback('Industry Overview')
-async def on_industry_overview(action):
-    await generate_prompt(action.value)
-
-@cl.action_callback('Preliminary Return Analysis')
-async def on_preliminary_return_analysis(action):
-    await generate_prompt(action.value)
-
-@cl.action_callback('Products Overview')
-async def on_products_overview(action):
-    await generate_prompt(action.value)
-
+def get_prompt_categories():
+    return [item['Category'] for item in prompts]
 
 
 @cl.on_message
 async def main(message: cl.Message):
+
+    index_name = index_names[cl.user_session.get("id")]
+    if index_name is None or index_name == "":
+        await cl.Message(content="Please choose an Index first").send()
+        return
+    
     message_content = message.content.strip().lower()
 
     if conversations.get(cl.user_session.get("id")) is None:
         conversations[cl.user_session.get("id")] = []
     
-
+   
     if message_content.startswith('cmd'):
         cmd = message_content[4:]
 
         if cmd == 'gen':
-            dirs = ['business_overview', 'executive_summary', 'historical_financials', 'Industry_overview', 'preliminary_return_analysis', 'Products_overview']
-            descs = [
-                'Description of the business and its operations',
-                'Summary of key points and highlights',
-                'Financial information from previous years',
-                'Overview of the industry and market',
-                'Analysis of potential returns on investment',
-                'Overview of the company\'s products'
-            ]
-
-            button_names = ['Business Overview', 'Executive Summary', 'Historical Financials', 'Industry Overview', 'Preliminary Return Analysis', 'Products Overview']
-
-            actions = [
-                cl.Action(name=button_names[index], value=d, description=descs[index]) for index, d in enumerate(dirs)
-            ]
-
-            await cl.Message(content="Please choose which prompt to generate:", actions=actions).send()
+            res = await cl.AskUserMessage(content="What is the Section name?", timeout=1000).send()
+            if res:
+                category_name = res['output'].strip()
+                await generate_prompt(category_name)
         else:
             await cl.Message(content="Please choose a correct command").send()
 

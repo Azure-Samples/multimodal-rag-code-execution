@@ -1,9 +1,9 @@
 import streamlit as st
-import os
-import shutil
 import sys
 sys.path.append("../code")
-from doc_utils import generate_section
+from doc_utils import *
+from utils.cogsearch_rest import CogSearchHttpRequest
+
 import utils.cosmos_helpers as cs
 
 # Base directory for categories
@@ -13,9 +13,32 @@ cosmos = cs.SCCosmosClient()
 if "Prompts" not in st.session_state:
     st.session_state.Prompts = cosmos.get_all_documents()
 
+if "prompt_index" not in st.session_state:
+    st.session_state.prompt_index = ""
 
 if 'show_cancel_warning' not in st.session_state:
     st.session_state.show_cancel_warning = False
+
+if "page_config" not in st.session_state:
+
+    st.set_page_config(
+        page_title="Multi RAG application",
+        page_icon="🧊",
+        layout="wide",
+    )
+    st.session_state.page_config = True
+
+if 'processing' not in st.session_state:
+    st.session_state.processing = False
+
+def get_indexes():
+    cogrequest = CogSearchHttpRequest()
+    indexes = cogrequest.get_indexes()
+    return [index["name"] for index in indexes["value"]] 
+        
+
+if "Indexes" not in st.session_state:
+    st.session_state.Indexes = get_indexes()
 
 def get_prompts_category():
     return [item['Category'] for item in st.session_state.Prompts]
@@ -56,13 +79,23 @@ def delete_prompt(category_name):
 def generate_new_section(section):
     section_prompt = generate_section(section)
     return section_prompt
-   
+
+
+def generate_consolidated_content(content, sections):
+   return content + "\n\n" + "\n\n".join(sections)
+
+def generate_content(content):
+    final_answer, references, output_excel, search_results, files  = search(content, index_name=st.session_state.prompt_index, computation_approach= "AssistantsAPI", computation_decision="LLM")
+    return final_answer
+
+
 
 # Sidebar UI for category selection
 st.sidebar.title("Options")
 categories = get_prompts_category()
-category_name = st.sidebar.selectbox("Select a category:", [""] + categories)
+category_name = st.sidebar.selectbox("Select a section:", [""] + categories)
 
+mainCol, secondCol = st.columns([1, 1])
 # Main UI
 if category_name:   
     max_text_area_height_lines = 15 # Placeholder for the maximum height of the text area
@@ -77,9 +110,9 @@ if category_name:
     min_height = 300
     dynamic_height = max(min_height, lines * max_text_area_height_lines)  # Example dynamic height calculation
    
-    edited_content = st.text_area("Main prompt:", value=content, height=dynamic_height, key="mainContentText")   
+    edited_content = mainCol.text_area("Main prompt:", value=content, height=dynamic_height, key="mainContentText")   
 
-    sections_container = st.container()
+    sections_container = mainCol.container()
     edited_sections = []
     if 'Sections' in prompt:
         for section in prompt['Sections']:
@@ -87,16 +120,18 @@ if category_name:
     else:
         prompt['Sections'] = []
     
-    new_section = st.text_input("New section title:", key="newSectionTitle")
-    if st.button("Generate new section"):
+    new_section = mainCol.text_input("New sub prompt title:", key="newSectionTitle")
+    if mainCol.button("Generate new sub prompt", disabled=st.session_state.processing):
         st.session_state.processing = True  # Flag to indicate processing
-        new_prompt = generate_new_section(new_section)
-        edited_new_prompt = sections_container.text_area(new_section, value=new_prompt, height=dynamic_height, key="newSectionContent")
-        prompt['Sections'].append({"Title": new_section, "Content": edited_new_prompt}) 
+        with st.spinner("Generating new sub prompt..."):
+            new_prompt = generate_new_section(new_section)
+            edited_new_prompt = sections_container.text_area(new_section, value=new_prompt, height=dynamic_height, key="newSectionContent")
+            prompt['Sections'].append({"Title": new_section, "Content": edited_new_prompt}) 
         st.session_state.processing = False  # Reset processing flag
 
-    # Include buttons for saving new version and handling cancellation
-    if st.button("Save changes"):
+   
+
+    if mainCol.button("Save changes", disabled=st.session_state.processing):
         index = 0
         for section in prompt['Sections']:
             section['Content'] = edited_sections[index]
@@ -104,33 +139,42 @@ if category_name:
 
         st.session_state.processing = True  # Flag to indicate processing
         save(category_name, {"Content": edited_content, "Sections": prompt['Sections']})
-        st.session_state.processing = False  # Reset processing flag
 
-    # if st.button("Cancel"):
-    #     # Set the flag to show the cancellation warning
-    #     st.session_state.show_cancel_warning = True
-    
-    # if st.session_state.show_cancel_warning:
-    #     # Display the warning and provide an option to confirm cancellation
-    #     st.warning("Are you sure you want to cancel? Unsaved changes will be lost.", icon="🚨")
-    #     if st.button("Yes, discard changes"):
-    #         # Reload the latest version by rerunning the app to reset the text area
-    #         st.session_state.show_cancel_warning = False  # Reset the warning flag
-    #         st.experimental_rerun()
+    consolidated_content = generate_consolidated_content(edited_content, edited_sections)
+    consolidated_prompt = secondCol.text_area("Consolidated prompt:", value=consolidated_content, height=1200, key="consolidatedContentText", disabled=True)
+    test_prompt = secondCol.button("Test prompt")
+ 
+    if test_prompt:
+        if (st.session_state.prompt_index == ""):
+            st.warning("Please select an Index to test the prompt.")
+        else:
+            st.title("prompt result...")
+            with st.spinner('Generating results...'):
+                answer = generate_content(consolidated_content)
+            st.write(answer)
+else:
+    st.markdown("## Please select a section to view or edit the prompt.")  
 
 # Creating new category handled in the sidebar
-new_category_name = st.sidebar.text_input("Create new category:")
+new_category_name = st.sidebar.text_input("Create new section:")
 if st.sidebar.button("Create"):
     create_new_prompt(new_category_name)
 
 
 # UI for deleting a category
-st.sidebar.title("Delete a Category")
-delete_category_name = st.sidebar.selectbox("Select a category to delete:", [""] + categories)
-if st.sidebar.button("Delete Category"):
+st.sidebar.title("Delete a Section")
+delete_category_name = st.sidebar.selectbox("Select a section to delete:", [""] + categories)
+if st.sidebar.button("Delete Section"):
     if delete_category_name:
         # Confirmation dialog to prevent accidental deletion
         if st.sidebar.checkbox("I understand this action cannot be undone and all data in the category will be lost."):
             delete_prompt(delete_category_name)
     else:
-        st.sidebar.warning("Please select a category to delete.")
+        st.sidebar.warning("Please select a section to delete.")
+
+
+st.sidebar.markdown("""---""")
+select_index = st.sidebar.selectbox("Select an Index:", [""] + st.session_state.Indexes)
+if select_index:
+    st.session_state.prompt_index = select_index
+    

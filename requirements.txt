@@ -26,7 +26,7 @@ pdfplumber
 pdf2image
 pdfminer.six
 pymupdf
-# pikepdf
+pikepdf
 ipywidgets
 pypdf
 Pillow
@@ -40,7 +40,7 @@ azure-ai-documentintelligence>=1.0.0b2
 azure-search-documents
 python-pptx
 python-docx 
-# comtypes
+comtypes
 urllib3
 json_repair
 # pysqlite3 #required for chroma
@@ -48,7 +48,7 @@ json_repair
 chainlit
 mermaid-python
 # pygraphviz
-streamlit
+streamlit>=1.31.1
 accelerate
 tiktoken
 # pyautogen
@@ -58,3 +58,4 @@ debugpy
 numexpr 
 # langchain_openai
 tabulate
+azure-cosmos

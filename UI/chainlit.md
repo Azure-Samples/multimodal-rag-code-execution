@@ -14,5 +14,6 @@ This document outlines the primary commands and options available in the testing
 | **cmd code_interpreter**    | Type `cmd delete_dir` to change the used Code Interpreter. Allowed values are "NoComputationTextOnly", "Taskweaver", "AssistantsAPI", or "LocalPythonExec".                  |
 | **cmd upload**        | Type `cmd upload` to upload document files for ingestion.                                        |
 | **cmd ingest**        | Type `cmd ingest` to start the ingestion process of the uploaded files.                         |
+| **cmd prompts**        | Type `cmd prompts` to display all available generation prompts.                                |
 | **cmd gen**           | Type `cmd gen` to generate from pre-existing prompts.                                             |
 | **Query**             | Type your query in plain English and wait for the response.                                     |
