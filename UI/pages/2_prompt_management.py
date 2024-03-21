@@ -146,7 +146,7 @@ if category_name:
  
     if test_prompt:
         if (st.session_state.prompt_index == ""):
-            st.warning("Please select a Deal to test the prompt.")
+            st.warning("Please select an Index to test the prompt.")
         else:
             st.title("prompt result...")
             with st.spinner('Generating results...'):
@@ -174,7 +174,7 @@ if st.sidebar.button("Delete Section"):
 
 
 st.sidebar.markdown("""---""")
-select_index = st.sidebar.selectbox("Select a Deal:", [""] + st.session_state.Indexes)
+select_index = st.sidebar.selectbox("Select an Index:", [""] + st.session_state.Indexes)
 if select_index:
     st.session_state.prompt_index = select_index
     
