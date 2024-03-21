@@ -151,7 +151,7 @@ async def main(message: cl.Message):
 
     index_name = index_names[cl.user_session.get("id")]
     if index_name is None or index_name == "":
-        await cl.Message(content="Please choose a Deal first").send()
+        await cl.Message(content="Please choose an Index first").send()
         return
     
     message_content = message.content.strip().lower()
