@@ -8,29 +8,21 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-import random
-import json
-
-import traceback
-import uuid
-import asyncio
 import chainlit as cl
 from chainlit.playground.providers import ChatOpenAI
 from chainlit import run_sync
 from time import sleep
 
-import fitz  # PyMuPDF
 import shutil
 import sys
 sys.path.append("../code")
 sys.path.append("C:\\Users\\selhousseini\\Documents\\GitHub\\mm-doc-analysis-rag-ce\\code\\")
 
-import doc_utils
-
 from env_vars import *
 import doc_utils
 from doc_utils import *
-from bcolors import bcolors as bc  
+import utils.cosmos_helpers as cs
+
 
 def log_message(message, level):
     if level == 'debug':
@@ -47,6 +39,7 @@ def log_message(message, level):
         logging.info('Invalid log level, defaulting to info')
         logging.info(message)
 
+cosmos = cs.SCCosmosClient()
 
 
 ######################  TEST INSTALLATION  ######################
@@ -118,9 +111,6 @@ delete_existing_output_directory = {}
 code_interpreters = {}
 conversations = {}
 
-
-
-
 async def post_message(label, message):
     async with cl.Step(name=label) as step:
         step.output = message
@@ -189,62 +179,21 @@ async def start():
     
     await update_task_list()
 
-
-
-file_pattern = re.compile(r'system_prompt_ver_(\d+)\.txt')
-
-def get_latest_file_version(directory, file_pattern):
-    max_version = -1
-    latest_file = None
-
-    for filename in os.listdir(directory):
-        match = file_pattern.match(filename)
-        if match:
-            version = int(match.group(1))
-            if version > max_version:
-                max_version = version
-                latest_file = filename
-
-    return os.path.join(directory, latest_file) if latest_file else None
-
-
 async def generate_prompt(prompt_name):
-    prompts_path = os.environ.get("PROMPTS_PATH")
-    if not prompts_path:
-        #if it is empty it means the user does not have the environment variable set, 
-        #so we assume its a local developer and will not populate paths from file share
-        prompts_path = "../code/prompts"
+   
+    prompts = cosmos.get_all_documents()
+    prompt= next((item for item in prompts if item['Category'] == prompt_name), None)
+    if (prompt is None):
+        await cl.Message(content=f"Prompt {prompt_name} not found").send()
+        return
 
-    prompt_dir = os.path.join(prompts_path, prompt_name)
-    prompt_file = get_latest_file_version(prompt_dir, file_pattern)
-    prompt = read_asset_file(prompt_file)[0]
-    logc("Generating the contents for the prompt: {prompt}")
+    logc(f"Generating the contents for the prompt: {prompt_name}")
     await app_search(prompt)
 
+def get_prompt_categories():
 
-@cl.action_callback('Business Overview')
-async def on_action(action):
-    await generate_prompt(action.value)
-
-@cl.action_callback('Executive Summary')
-async def on_executive_summary(action):
-    await generate_prompt(action.value)
-
-@cl.action_callback('Historical Financials')
-async def on_historical_financials(action):
-    await generate_prompt(action.value)
-
-@cl.action_callback('Industry Overview')
-async def on_industry_overview(action):
-    await generate_prompt(action.value)
-
-@cl.action_callback('Preliminary Return Analysis')
-async def on_preliminary_return_analysis(action):
-    await generate_prompt(action.value)
-
-@cl.action_callback('Products Overview')
-async def on_products_overview(action):
-    await generate_prompt(action.value)
+    prompts = cosmos.get_all_documents()
+    return [item['Category'] for item in prompts]
 
     
 @cl.on_message
@@ -406,26 +355,17 @@ async def main(message: cl.Message):
 
             await cl.Message(content=f"Ingestion of '{ingestion_directory}' into '{index_name}' complete.").send()
 
+        elif cmd == "prompts":
+            await cl.Message(content="Available prompts: " + '\n\n'.join(get_prompt_categories())).send()
 
         elif cmd == "gen":
 
-            dirs = ['business_overview', 'executive_summary', 'historical_financials', 'Industry_overview', 'preliminary_return_analysis', 'Products_overview']
-            descs = [
-                'Description of the business and its operations',
-                'Summary of key points and highlights',
-                'Financial information from previous years',
-                'Overview of the industry and market',
-                'Analysis of potential returns on investment',
-                'Overview of the company\'s products'
-            ]
-
-            button_names = ['Business Overview', 'Executive Summary', 'Historical Financials', 'Industry Overview', 'Preliminary Return Analysis', 'Products Overview']
-
-            actions = [
-                cl.Action(name=button_names[index], value=d, description=descs[index]) for index, d in enumerate(dirs)
-            ]
-
-            await cl.Message(content="Please choose which prompt to generate:", actions=actions).send()
+            res = await cl.AskUserMessage(content="What is the Section name?", timeout=1000).send()
+            if res:
+                category_name = res['output'].strip()
+                await generate_prompt(category_name)
+        else:
+            await cl.Message(content="Please choose a correct command").send()
 
     else:
         await app_search(message.content)
