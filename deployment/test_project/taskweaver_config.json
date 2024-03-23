@@ -1,6 +1,6 @@
 {
-    "llm.api_base": "https://oai-tst-sweden.openai.azure.com/",
-    "llm.api_key": "3b32428e172a42329d8b7b1ef042ec1c",
+    "llm.api_base": "https://<resource>.openai.azure.com/",
+    "llm.api_key": "<key>",
     "llm.api_type": "azure",
     "llm.api_version": "2023-07-01-preview",
     "llm.model": "gpt-4",
