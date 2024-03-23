@@ -65,7 +65,7 @@ Multimodal Document Analysis with RAG and Code Execution: using Text, Images and
 
 # Enterprise Deployment
 
-Please check our [Enterprise Deployment](ENTERPRISE_DEPLOYMENT.md) guide for how to deploy this in a secure manner to a client's tenant. For local development testing, please use the tutorial notebooks or the Chainlit app described below.
+Please check our [Enterprise Deployment](ENTERPRISE_DEPLOYMENT.md) guide for how to deploy this in a secure manner to a client's tenant. For local development or testing the solution, please use the tutorial notebooks or the Chainlit app described below.
 
 <br/>
 <br/>
