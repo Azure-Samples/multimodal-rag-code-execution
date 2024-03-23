@@ -45,6 +45,11 @@ _______   ____    ______  ____  _____  _______   ____  |  |__        ____   ____
 ( o.o )
  > ^ <
 
+  /~\\
+ C oo
+ _( ^)
+/   ~\\
+
 ${RESET}"
 
 
@@ -934,7 +939,6 @@ fi
 ACCOUNT_NAME='storageseh0003'
 SHARE_NAME='research-copilot-storage'
 STORAGE_ACCESS_KEY= $(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
-#STORAGE_ACCESS_KEY='XHx8VlKJqEvnZUlT9lnVWmJ66voMmy0jvqA5/1paUASBbKooQUWowtdznpRWOHHzs4NF59o4fR14+AStLpUyEA=='
 CUSTOM_ID='fileshare'
 # Get the current path mappings
 path_mappings=$(az webapp config storage-account list --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query "[?name=='$CUSTOM_ID']")
