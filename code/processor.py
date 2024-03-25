@@ -15,9 +15,6 @@ class Processor():
                 index_name = 'mm_doc_analysis', 
                 delete_existing_output_dir = False,
                 password = None, 
-                extract_text_mode="GPT", 
-                extract_images_mode="GPT", 
-                extract_text_from_images=True, 
                 models = gpt4_models, 
                 vision_models = gpt4_models, 
                 num_threads=7
@@ -34,13 +31,10 @@ class Processor():
         self.models = models
         self.vision_models = vision_models
         self.num_threads = num_threads
-        self.extract_text_mode = extract_text_mode
-        self.extract_images_mode = extract_images_mode
-        self.extract_text_from_images = extract_text_from_images
         self.password = password
 
         self.ingestion_pipeline_dict = create_ingestion_pipeline_dict(doc_path, ingestion_directory = ingestion_directory, index_name = 
-        index_name, delete_existing_output_dir = delete_existing_output_dir, password = password, extract_text_mode=extract_text_mode, extract_images_mode=extract_images_mode, extract_text_from_images=extract_text_from_images, models = models, vision_models = vision_models, num_threads=num_threads)
+        index_name, delete_existing_output_dir = delete_existing_output_dir, password = password, models = models, vision_models = vision_models, num_threads=num_threads)
 
         doc_proc_directory = self.ingestion_pipeline_dict['document_processing_directory'] 
 
@@ -85,8 +79,11 @@ class Processor():
 
     def save_ingestion_dict_to_text(self, stage):
         doc_proc_directory = self.ingestion_pipeline_dict['document_processing_directory'] 
+        stages_dir = os.path.join(doc_proc_directory, 'stages')
+        os.makedirs(stages_dir, exist_ok=True)
+
         dict_path = os.path.join(doc_proc_directory, f'{self.base_name}.dict.txt')
-        dict_path_stage = os.path.join(doc_proc_directory, f'{self.base_name}.{stage}.dict.txt')
+        dict_path_stage = os.path.join(stages_dir, f'{self.base_name}.{stage}.dict.txt')
         ingestion_dict = {}
 
         for k in self.ingestion_pipeline_dict:
@@ -126,6 +123,7 @@ class Processor():
         save_proc_plan = copy.deepcopy(self.processing_plan)
 
         for index, stage in enumerate(self.processing_plan):
+            if stage == "Completed": continue
             logc(f"Ingestion Stage {index+1}/{total_stages} of {full_basename}", f"Processing Stage: {stage}", verbose=verbose)
             self.ingestion_pipeline_dict = getattr(doc_utils, stage)(self.ingestion_pipeline_dict)
             save_proc_plan.remove(stage)
@@ -161,23 +159,72 @@ class Processor():
 
 class PdfProcessor(Processor):
 
+    def __init__(self, doc_path, ingestion_directory=None, index_name='mm_doc_analysis', delete_existing_output_dir=False, password=None, models=gpt4_models, vision_models=gpt4_models, num_threads=7, processing_mode = 'GPT-4-Vision'):
+        
+        self.processing_mode = processing_mode
+        if self.processing_mode not in ['GPT-4-Vision', 'PyMuPDF', 'document-intelligence']:
+            logc(f"Processing Mode Not Supported {self.processing_mode}. Defaulting to 'GPT-4-Vision'")
+            
+        super().__init__(doc_path, ingestion_directory, index_name, delete_existing_output_dir, password, models, vision_models, num_threads)
+
+
     def develop_processing_plan(self):
-        self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'harvest_code', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
+        
+        if self.processing_mode == 'GPT-4-Vision':
+            self.ingestion_pipeline_dict['extract_text_mode'] = "GPT"
+            self.ingestion_pipeline_dict['extract_images_mode'] = "GPT"
+            self.ingestion_pipeline_dict['extract_text_from_images'] = True
+
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'harvest_code', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
+
+        elif self.processing_mode == 'document-intelligence':
+            self.ingestion_pipeline_dict['extract_text_mode'] = "PDF"
+            self.ingestion_pipeline_dict['extract_images_mode'] = "PDF"
+            self.ingestion_pipeline_dict['extract_text_from_images'] = False
+
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks', 'harvest_code', 'post_process_images']
+
+            # self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks']
 
 
     def execute_processing_plan(self, verbose=False):
         super().execute_processing_plan(verbose=verbose)
 
-        # Close the PDF document
-        self.ingestion_pipeline_dict['pdf_document'].close()
+        try:
+            # Close the PDF document
+            self.ingestion_pipeline_dict['pdf_document'].close()
+        except:
+            pass
 
 
 
 
 class DocxProcessor(Processor):
 
+    def __init__(self, doc_path, ingestion_directory=None, index_name='mm_doc_analysis', delete_existing_output_dir=False, password=None, models=gpt4_models, vision_models=gpt4_models, num_threads=7, processing_mode = 'py-docx'):
+
+        self.processing_mode = processing_mode
+        if self.processing_mode not in ['py-docx', 'document-intelligence']:
+            logc(f"Processing Mode Not Supported {self.processing_mode}. Defaulting to 'py-docx'")
+            logc("Processing Mode Not Supported", self.processing_mode)
+            
+        super().__init__(doc_path, ingestion_directory, index_name, delete_existing_output_dir, password, models, vision_models, num_threads)
+
+
+
     def develop_processing_plan(self):
-        self.processing_plan = ['extract_docx_using_py_docx', 'create_docx_chunks', 'harvest_code', 'post_process_images']
+
+        if self.processing_mode == 'py-docx':
+            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks', 'harvest_code', 'post_process_images']
+
+        elif self.processing_mode == 'document-intelligence':
+            self.processing_plan = ['extract_doc_using_doc_int', 'create_doc_chunks', 'harvest_code', 'post_process_images']
+
+        else:
+            logc("Processing Mode Not Supported - defaulting to 'py-docx'")
+            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks', 'harvest_code', 'post_process_images']
+            
+            
 
 
         

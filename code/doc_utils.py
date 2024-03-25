@@ -41,6 +41,13 @@ import numpy as np
 import logging
 import sys
 
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.ai.documentintelligence.models import AnalyzeResult
+from azure.ai.documentintelligence.models import AnalyzeDocumentRequest, ContentFormat
+
+
+
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
@@ -681,6 +688,48 @@ def extract_mermaid(s):
         return ""
 
 
+
+def extract_markdown_table(s):
+    try:
+        table_pattern = r"(\|.*\|\s*\n\|[-| ]+\|\s*\n(\|.*\|\s*\n)+)"
+        tables = re.findall(table_pattern, s, re.MULTILINE)
+    except:
+        tables = []
+        logc("Error extracting markdown tables", f"Error extracting markdown tables from text '{s[:50]}'.")
+
+    return tables
+
+
+def extract_table_rows(markdown_table):
+    lines = markdown_table.strip().split('\n')
+    row_data = []
+
+    for line in lines:
+        if re.match(r"\|\s*[-]+\s*\|", line):
+            continue  # Skip separator lines
+        else:
+            cells = re.findall(r"\|\s*([^|\n]+)\s*", line)
+            if cells:
+                row_data.append(tuple(cells))
+    
+    return row_data
+
+
+def extract_markdown_table_as_df(s):
+    try:
+        matches = extract_table_rows(s)
+        header = matches[0]
+        data = matches[1:]
+
+        df = pd.DataFrame(data, columns=header)
+    except Exception as e:
+        df = pd.DataFrame()
+        logc("Error extracting markdown tables as DataFrame", f"Error extracting markdown tables as DataFrame from text '{s[:50]}'. Error: {e}")
+        print(s)
+
+    return df
+
+
 def remove_code(s):
     return re.sub(r"```python(.*?)```", "", s, flags=re.DOTALL)
 
@@ -754,13 +803,53 @@ def read_asset_file(text_filename):
         status = True
     except Exception as e:
         text = ""
-        print(f"Error reading text file: {e}")
+        print(f"WARNING ONLY - reading text file: {e}")
         status = False
 
     return text, status
 
 
 
+def get_dpi(image):
+    try:
+        dpi = image.info['dpi']
+        # print("DPI", dpi)
+    except KeyError:
+        dpi = (300, 300)
+    return dpi
+
+def polygon_to_bbox(polygon):
+    xs = polygon[::2]  # Extract all x coordinates
+    ys = polygon[1::2]  # Extract all y coordinates
+    left = min(xs)
+    top = min(ys)
+    right = max(xs)
+    bottom = max(ys)
+    return (left, top, right, bottom)
+
+
+def inches_to_pixels(inches, dpi):
+    dpi_x, dpi_y = dpi
+    return [int(inches[i] * dpi_x if i % 2 == 0 else inches[i] * dpi_y) for i in range(len(inches))]
+
+
+def extract_figure(image_path, polygon, target_filename):
+    bbox_in_inches = polygon_to_bbox(polygon)
+
+    # Load the image
+    image = Image.open(image_path)
+    # print(f"Cropped image will be saved under name: {target_filename}")
+
+    # Get DPI from the image
+    dpi = get_dpi(image)
+
+    # Convert the bounding box to pixels using the image's DPI
+    bbox_in_pixels = inches_to_pixels(bbox_in_inches, dpi)
+    # print("bbox_in_pixels", bbox_in_pixels)
+
+    # Crop the image
+    cropped_image = image.crop(bbox_in_pixels)
+    cropped_image.save(target_filename)  
 
 
 
@@ -952,7 +1041,7 @@ def semantic_chunk_text_file(file_path, verbose = False):
 
 
 
-def create_docx_chunks(ingestion_pipeline_dict):
+def create_doc_chunks(ingestion_pipeline_dict):
 
     chunks = []
 
@@ -1060,6 +1149,81 @@ def create_docx_chunks(ingestion_pipeline_dict):
 
 
 
+def extract_doc_using_doc_int(ingestion_pipeline_dict):
+
+    doc_path = ingestion_pipeline_dict['document_path'] 
+    images_folder = ingestion_pipeline_dict['images_directory'] 
+    tables_folder = ingestion_pipeline_dict['tables_directory']
+
+    document_intelligence_client = DocumentIntelligenceClient(endpoint=DI_ENDPOINT, credential=AzureKeyCredential(DI_KEY))
+
+    with open(doc_path, "rb") as f:
+        poller = document_intelligence_client.begin_analyze_document(
+            "prebuilt-layout", analyze_request=f, output_content_format=ContentFormat.MARKDOWN, content_type="application/octet-stream"
+        )
+    result: AnalyzeResult = poller.result()
+    
+    content = result['content']
+    tables = extract_markdown_table(content)
+
+    tables_txt = []
+    tables_dfs = []
+    tables_md = []
+    table_count = 0
+
+    for table in tables:
+        try:
+            table = table[0]
+            table_path_md = os.path.join(tables_folder, f'chunk_{table_count}_table_0.md')
+            table_path = os.path.join(tables_folder, f'chunk_{table_count}_table_0.txt')
+            table_path_py = os.path.join(tables_folder, f'chunk_{table_count}_table_0.py')
+
+            write_to_file(table, table_path_md, 'w')
+            write_to_file(table, table_path, 'w')
+            df = extract_markdown_table_as_df(table)
+            py_script = f"df_{generate_uuid_from_string(str(df.to_dict())).replace('-', '_')} = pd.DataFrame.from_dict({df.to_dict()})"
+            write_to_file(py_script, table_path_py, 'w')
+
+            tables_dfs.append(table_path_py)
+            tables_md.append(table_path_md)
+            tables_txt.append(table_path)
+            table_count += 1
+        except Exception as e:
+            logc("Error extracting tables", f"Error extracting tables from text '{table[:50]}'. Error: {e}")
+
+
+    images = []
+
+    ### WARNING: DOC INT DOES EXTRACT FIGURES FOR MS WORD DOCX 
+    if (ingestion_pipeline_dict['extension'] == '.docx') or (ingestion_pipeline_dict['extension'] == '.doc'):
+        logc("WARNING", f"Document Intelligence does not extract images from MS DOC or DOCX files. If images are important, please use the 'py-docx' mode to extract images from DOCX files.")
+
+    image_bounds = []
+    if 'figures' in result: image_bounds = result['figures']
+
+    try:
+        for bounding in image_bounds:
+            page_number = bounding['boundingRegions'][0]['pageNumber']
+            polygon = bounding['boundingRegions'][0]['polygon']
+            img_number = bounding['elements'][0].replace('/paragraphs/', '')
+            png_file = os.path.join(ingestion_pipeline_dict['chunks_as_images_directory'], f'chunk_{page_number}.png')
+            target_filename = os.path.join(images_folder, f'chunk_{page_number}_image_{img_number}.png')
+            extract_figure(png_file, polygon, target_filename)
+            images.append(target_filename)
+    except Exception as e:
+        print(f"Error extracting image: {e}")
+
+
+    ingestion_pipeline_dict['full_text'] = result['content']
+    write_to_file(result['content'], ingestion_pipeline_dict['full_text_file'], 'w')
+
+    ingestion_pipeline_dict['table_files'] = tables_txt
+    ingestion_pipeline_dict['tables_py'] = tables_dfs
+    ingestion_pipeline_dict['tables_md'] = tables_md
+    ingestion_pipeline_dict['image_files'] = images
+    
+    return ingestion_pipeline_dict
+
 
 
 def extract_docx_using_py_docx(ingestion_pipeline_dict):
@@ -1097,7 +1261,7 @@ def extract_docx_using_py_docx(ingestion_pipeline_dict):
         table_path_py = os.path.join(tables_folder, f'chunk_{table_count}_table_0.py')
         write_to_file(df.to_markdown(), table_path_md, 'w')
         write_to_file(df.to_markdown(), table_path, 'w')
-        py_script = f"df_{generate_uuid_from_string(str(df.to_dict()))} = pd.DataFrame.from_dict({df.to_dict()})"
+        py_script = f"df_{generate_uuid_from_string(str(df.to_dict())).replace('-', '_')} = pd.DataFrame.from_dict({df.to_dict()})"
         write_to_file(py_script, table_path_py, 'w')
         tables_dfs.append(table_path_py)
         tables_md.append(table_path_md)
@@ -1128,8 +1292,9 @@ def extract_docx_using_py_docx(ingestion_pipeline_dict):
 
 
 
-def create_pdf_chunks(self):
+def create_pdf_chunks(ingestion_pipeline_dict):
     document_file_path = ingestion_pipeline_dict['document_path']
+    password = ingestion_pipeline_dict.get('password', None)
 
     # Open the PDF file
     pdf_document = fitz.open(document_file_path)
@@ -1897,7 +2062,7 @@ def get_ingested_document_png_table_images(directory):
 
 
 
-def create_ingestion_pipeline_dict(doc_path, ingestion_directory = None, index_name = 'mm_doc_analysis', delete_existing_output_dir = False, password = None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models = gpt4_models, vision_models = gpt4_models, num_threads=7): #, processing_plan=None):
+def create_ingestion_pipeline_dict(doc_path, ingestion_directory = None, index_name = 'mm_doc_analysis', delete_existing_output_dir = False, password = None, models = gpt4_models, vision_models = gpt4_models, num_threads=7): #, processing_plan=None):
 
     if ingestion_directory is None:
         ingestion_directory = os.path.join(ROOT_PATH_INGESTION, index_name)
@@ -1991,10 +2156,11 @@ def create_ingestion_pipeline_dict(doc_path, ingestion_directory = None, index_n
         'markdown_files': [],
         'mermaid_files': [],
         "basename": base_name,
+        "extension": extension,
         "password": password,
-        'extract_text_mode': extract_text_mode,
-        'extract_images_mode': extract_images_mode,
-        'extract_text_from_images': extract_text_from_images,
+        'extract_text_mode': 'GPT',
+        'extract_images_mode': 'GPT',
+        'extract_text_from_images': True,
         'models': models,
         'vision_models': vision_models,
         'num_threads': num_threads,
