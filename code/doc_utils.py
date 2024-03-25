@@ -15,6 +15,7 @@ import openai
 import requests
 import base64
 from PIL import Image
+import pandas as pd
 import openai
 from openai import AzureOpenAI, OpenAI
 import io
@@ -54,6 +55,22 @@ from utils.http_helpers import *
 from utils.cogsearch_rest import *
 from utils.sc_sync import *
 
+
+try:
+    from docx import Document
+except:
+    print("WARNING: docx module not found. Please install python-docx")
+
+try:
+    from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+    from llama_index.core import SimpleDirectoryReader
+    from llama_index.core import Settings
+    from llama_index.core.node_parser import (
+        SentenceSplitter,
+        SemanticSplitterNodeParser,
+    )
+except:
+    print("WARNING: one of the llama_index module(s) not found. Please install llama_index modules.")
 
 
 # https://techcommunity.microsoft.com/t5/ai-azure-ai-services-blog/gpt-4-turbo-with-vision-is-now-available-on-azure-openai-service/ba-p/4008456#:~:text=GPT%2D4%20Turbo%20with%20Vision%20can%20be%20accessed%20in%20the,Switzerland%20North%2C%20and%20West%20US.
@@ -159,20 +176,20 @@ def logc(label, text = None, newline=False, timestamp=False, verbose=True):
 
 def read_pdf(pdf_doc):
     doc = fitz.open(pdf_doc)
-    print(f"PDF File {os.path.basename(pdf_doc)} has {len(doc)} pages.")
+    print(f"PDF File {os.path.basename(pdf_doc)} has {len(doc)} chunks.")
     return doc
 
 
-def extract_pages_as_png_files(doc, work_dir = os.path.join(ROOT_PATH_INGESTION, 'downloads')):
+def extract_chunks_as_png_files(doc, work_dir = os.path.join(ROOT_PATH_INGESTION, 'downloads')):
     os.makedirs(work_dir, exist_ok=True)
     png_files = []
 
-    for page in doc:
-        page_num = page.number
-        img_path = f"{work_dir}/page_{page_num}.png"
-        page_pix = page.get_pixmap(dpi=300)
-        page_pix.save(img_path)
-        print(f"Page {page_num} saved as {img_path}")
+    for chunk in doc:
+        chunk_num = chunk.number
+        img_path = f"{work_dir}/chunk_{chunk_num}.png"
+        chunk_pix = chunk.get_pixmap(dpi=300)
+        chunk_pix.save(img_path)
+        print(f"Chunk {chunk_num} saved as {img_path}")
         png_files.append(img_path)
     
     return png_files
@@ -252,7 +269,7 @@ Context:
 ## END OF CONTEXT
 
 Given the Context above, first please identify the main topics of the text in the Context, then please generate three questions that can be answered by the main topics in the Context. Then please generate a very concise answers to these questions. Make the questions elaborate and super clear, so that it can be searched in a search engine. When this question is used in a search engine, the user will not have access to the Context, and so do **NOT** generate questions that cannot be answered in a search query and which reference cannot be known, such as "How many objects are described in the image?" (which image are you referring to?) or "How many columns in the given table?" (which table are you referring to?), or "What is the total number of strategic challenges and opportunities sections mentioned in the context?" (which context are you referring to?)
-Please generate **ONLY** the 3 questions and the 3 answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about pages numbers, the current page of the document, or the publishing date of the document from which the Context has been generated.  
+Please generate **ONLY** the 3 questions and the 3 answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about chunks numbers, the current chunk of the document, or the publishing date of the document from which the Context has been generated.  
 
 List of formerly generated questions:
 ## START OF PAST QUESTIONS
@@ -291,7 +308,7 @@ Context:
 ## END OF CONTEXT
 
 Given the Context above, first please identify the multiple topics of the text in the Context and identify all the details for each one of those topics, then please generate three very specific questions that can be answered by specialized details in the Context. Then please generate very concise answers to these 3 questions. Make sure the questions are elaborate and super clear, so that it can be searched in a search engine. When the questions are used in a search engine, the user will not have access to the Context, and so do **NOT** generate questions that cannot be answered in a search query and which reference cannot be known, such as "How many objects are described in the image?" (which image are you referring to?) or "How many columns in the given table?" (which table are you referring to?), or "What is the total number of strategic challenges and opportunities sections mentioned in the context?" (which context are you referring to?).
-Please generate **ONLY** the 3 questions and the answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about pages numbers, the current page of the document, or the publishing date of the document from which the Context has been generated. 
+Please generate **ONLY** the 3 questions and the answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about chunks numbers, the current chunk of the document, or the publishing date of the document from which the Context has been generated. 
 
 List of formerly generated questions:
 ## START OF PAST QUESTIONS
@@ -330,7 +347,7 @@ Context:
 ## END OF CONTEXT
 
 Given the Context above, first please identify all the numerical quantities in the Context, where these were digits or expressed in text, then please generate three questions that can be answered by using those numerical quantities. Then please generate very concise answers to these 3 questions. Make sure the questions are super clear, so that it can be searched in a search engine.  Make the questions elaborate and super clear, so that they can be searched in a search engine. When the questions are used in a search engine, the user will not have access to the Context, and so do **NOT** generate questions that cannot be answered in a search query and which reference cannot be known, such as "How many objects are described in the image?" (which image are you referring to?) or "How many columns in the given table?" (which table are you referring to?), or "What is the total number of strategic challenges and opportunities sections mentioned in the context?" (which context are you referring to?)
-Please generate **ONLY** the 3 questions and the answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about the pages numbers, current page of the document, or the publishing date of the document from which the Context has been generated. 
+Please generate **ONLY** the 3 questions and the answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about the chunks numbers, current chunk of the document, or the publishing date of the document from which the Context has been generated. 
 
 List of formerly generated questions:
 ## START OF PAST QUESTIONS
@@ -370,7 +387,7 @@ Context:
 ## END OF CONTEXT
 
 Given the Context above, locate one of the tables extracted in the Context, then please generate three questions that can **ONLY** be answered by using those tables. The question should address summation or averaging, or forecasting numbers in the table. Then please generate very concise answers to these 3 questions. Make sure the questions are super clear, so that it can be searched in a search engine.  Make the questions elaborate and super clear, so that they can be searched in a search engine. When the questions are used in a search engine, the user will not have access to the Context, and so do **NOT** generate questions that cannot be answered in a search query and which reference cannot be known, such as "How many objects are described in the image?" (which image are you referring to?) or "How many columns in the given table?" (which table are you referring to?), or "What is the total number of strategic challenges and opportunities sections mentioned in the context?" (which context are you referring to?)
-Please generate **ONLY** the 3 questions and the answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about the pages numbers, current page of the document, or the publishing date of the document from which the Context has been generated. 
+Please generate **ONLY** the 3 questions and the answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about the chunks numbers, current chunk of the document, or the publishing date of the document from which the Context has been generated. 
 
 List of formerly generated questions:
 ## START OF PAST QUESTIONS
@@ -410,7 +427,7 @@ Context:
 ## END OF CONTEXT
 
 Given the Context above, locate one of the images extracted in the Context, then please generate three questions that can **ONLY** be answered by using those images. The question should address features or labels or characteristics that are found only in the image. The image can be a line chart, a bar chart, an organization chart, a process flow, or a natural image. Then please generate very concise answers to these 3 questions. Make sure the questions are super clear, so that it can be searched in a search engine.  Make the questions elaborate and super clear, so that they can be searched in a search engine. When the questions are used in a search engine, the user will not have access to the Context, and so do **NOT** generate questions that cannot be answered in a search query and which reference cannot be known, such as "How many objects are described in the image?" (which image are you referring to?) or "How many columns in the given table?" (which table are you referring to?), or "What is the total number of strategic challenges and opportunities sections mentioned in the context?" (which context are you referring to?)
-Please generate **ONLY** the 3 questions and the answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about the pages numbers, current page of the document, or the publishing date of the document from which the Context has been generated. 
+Please generate **ONLY** the 3 questions and the answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about the chunks numbers, current chunk of the document, or the publishing date of the document from which the Context has been generated. 
 
 List of formerly generated questions:
 ## START OF PAST QUESTIONS
@@ -472,11 +489,6 @@ The JSON dictionary output should include the rating only. The JSON dictionary *
 Do **NOT** generate any other text or explanations other than the JSON dictionary with the above format.
 
 """
-
-
-
-
-
 
 
 
@@ -550,7 +562,7 @@ def get_solution_path_components(asset_path: str) -> dict:
         components.append(arr_split[-1])
         stem = arr_split[0]
 
-    dd = { "index_name": components[3], "pdf_filename": components[2], "type_dir": components[1], "filename": components[0]}
+    dd = { "index_name": components[3], "proc_filename": components[2], "type_dir": components[1], "filename": components[0]}
 
     return dd
 
@@ -569,7 +581,7 @@ def update_document_in_index(asset_file, new_doc, index_name):
 
     dd = get_solution_path_components(asset_file)
 
-    unique_identifier = f"{dd['index_name']}_{dd['pdf_filename']}_{os.path.basename(asset_file)}"
+    unique_identifier = f"{dd['index_name']}_{dd['proc_filename']}_{os.path.basename(asset_file)}"
     asset_id = generate_uuid_from_string(unique_identifier)
     new_doc["asset_id"] = asset_id
 
@@ -584,11 +596,11 @@ def update_document_in_index(asset_file, new_doc, index_name):
 
 
 
-    unique_identifier = f"{dd['index_name']}_{dd['pdf_filename']}"
-    pdf_document_id = generate_uuid_from_string(unique_identifier)
+    unique_identifier = f"{dd['index_name']}_{dd['proc_filename']}"
+    document_id = generate_uuid_from_string(unique_identifier)
     
-    if doc['document_id'] != pdf_document_id: 
-        logc("Error updating document in index", f"Document {asset_id} is not associated with the correct pdf document {pdf_document_id}")
+    if doc['document_id'] != document_id: 
+        logc("Error updating document in index", f"Document {asset_id} is not associated with the correct pdf document {document_id}")
         return None
    
     for f in ["@odata.context", "@search.score", "@search.rerankerScore", "@search.captions"]:
@@ -750,6 +762,10 @@ def read_asset_file(text_filename):
 
 
 
+
+
+
+
 # def save_pptx_as_pdf(pptx_path, output_directory):
 #     comtypes.CoInitialize()
 
@@ -757,11 +773,11 @@ def read_asset_file(text_filename):
 #     base_name = os.path.splitext(os.path.basename(pptx_path))[0]
 #     extension = os.path.splitext(os.path.basename(pptx_path))[1]
 
-#     output_pdf_path = os.path.join(output_directory, base_name + '.pdf')
+#     output_document_path = os.path.join(output_directory, base_name + '.pdf')
 
 #     print("Basename: ", base_name)
 #     print("Extension: ", extension)
-#     print("Output PDF Path: ", output_pdf_path)
+#     print("Output PDF Path: ", output_document_path)
     
 #     try:
 #         try:
@@ -772,8 +788,8 @@ def read_asset_file(text_filename):
 #             presentation = powerpoint.Presentations.Open(pptx_path)
 
 #             # Save the presentation as a PDF
-#             presentation.SaveAs(output_pdf_path, FileFormat=32)  # 32 corresponds to the PDF format in PowerPoint
-#             description = f"The file has been successfully converted to PDF and saved at {output_pdf_path}."
+#             presentation.SaveAs(output_document_path, FileFormat=32)  # 32 corresponds to the PDF format in PowerPoint
+#             description = f"The file has been successfully converted to PDF and saved at {output_document_path}."
         
 #         finally:
 #             # Close the presentation and PowerPoint
@@ -782,7 +798,7 @@ def read_asset_file(text_filename):
 
 #     except Exception as e:
 #         description = f"The file could not be converted to PDF.\n{e}"
-#         output_pdf_path = ''
+#         output_document_path = ''
 
 
 #     # Release COM objects
@@ -791,7 +807,7 @@ def read_asset_file(text_filename):
 #     print("Status: ", description)
 
 #     # Result variable
-#     return output_pdf_path, 
+#     return output_document_path, 
 
 
 
@@ -806,34 +822,34 @@ def read_asset_file(text_filename):
 #     base_name = os.path.splitext(os.path.basename(docx_path))[0]
 #     extension = os.path.splitext(os.path.basename(docx_path))[1]
 
-#     output_pdf_path = os.path.join(output_directory, base_name + '.pdf')
+#     output_document_path = os.path.join(output_directory, base_name + '.pdf')
 
 #     print("\n\nDocx Path: ", docx_path)
 #     print("Basename: ", base_name)
 #     print("Extension: ", extension)
-#     print("Output PDF Path: ", output_pdf_path)
+#     print("Output PDF Path: ", output_document_path)
 
 #     try:
 #         try:
 #             doc = word.Documents.Open(os.path.abspath(docx_path))
 #             print(f"Word Document successfully opened. {os.path.abspath(docx_path)}")
-#             doc.SaveAs(os.path.abspath(output_pdf_path), FileFormat=17)  
+#             doc.SaveAs(os.path.abspath(output_document_path), FileFormat=17)  
 #             # FileFormat=17 is for PDFs
-#             print(f"PDF Document successfully saved. {os.path.abspath(output_pdf_path)}")
-#             description = f"The file has been successfully converted to PDF and saved at {output_pdf_path}."      
+#             print(f"PDF Document successfully saved. {os.path.abspath(output_document_path)}")
+#             description = f"The file has been successfully converted to PDF and saved at {output_document_path}."      
 #         finally:
 #             doc.Close()
 #             word.Quit()
                 
 #     except Exception as e:
 #         description = f"The file could not be converted to PDF.\n{e}"
-#         output_pdf_path = ''
+#         output_document_path = ''
 
 #     # Release COM objects
 #     comtypes.CoUninitialize()
 
 #     print("Status: ", description)
-#     return output_pdf_path
+#     return output_document_path
 
 
 
@@ -916,14 +932,263 @@ gpt4_models = [
 
 
 
-def harvest_code_from_text(ingestion_pipeline_dict, page_dict, model_info = None, index = 0, args = None, verbose = False):
+def semantic_chunk_text_file(file_path, verbose = False):
 
-    text_filename = page_dict['text_file']
+    embed_model = AzureOpenAIEmbedding(
+        model=AZURE_OPENAI_EMBEDDING_MODEL,
+        deployment_name=AZURE_OPENAI_EMBEDDING_MODEL,
+        api_key=AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY,
+        azure_endpoint=AZURE_OPENAI_EMBEDDING_API_BASE,
+        api_version=AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION,
+    )
+
+    documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
+    splitter = SemanticSplitterNodeParser(buffer_size=1, breakpoint_percentile_threshold=95, embed_model=embed_model)
+    nodes = splitter.get_nodes_from_documents(documents)
+
+    if verbose: logc(f"Semantic Chunking Step", f"Number of nodes: {len(nodes)} from file {file_path}")
+
+    return [n.get_content() for n in nodes]
+
+
+
+def create_docx_chunks(ingestion_pipeline_dict):
+
+    chunks = []
+
+    text_directory = ingestion_pipeline_dict['text_directory']
+    images_directory = ingestion_pipeline_dict['images_directory'] 
+    tables_directory = ingestion_pipeline_dict['tables_directory']
+
+    images = ingestion_pipeline_dict['image_files']
+    tables_dfs = ingestion_pipeline_dict['tables_py'] 
+    tables_md = ingestion_pipeline_dict['tables_md'] 
+    tables = ingestion_pipeline_dict['table_files'] 
+
+    text_files = []
+    image_text_files = []
+    table_text_files = []
+
+    text_chunks = semantic_chunk_text_file(ingestion_pipeline_dict['full_text_file'])
+
+    chunk_index = 0
+
+    for index, tc in enumerate(text_chunks):
+        text_filename = os.path.join(text_directory, f"chunk_{index}.txt")
+        write_to_file(tc, text_filename, 'w')
+        chunks.append({
+            'chunk_number':chunk_index+1, 
+            'text_file': text_filename,
+            'full_chunk_text':'',
+            'images': [],
+            'tables': [],
+            'image_py': [],
+            'image_codeblock': [],
+            'image_markdown': [],
+            'image_mm': [],
+            'image_text': [],
+            'table_text': [],
+            'table_py': [],
+            'table_codeblock': [],
+            'table_markdown': [],
+            'type': 'text'
+        })
+
+        text_files.append(text_filename)
+        chunk_index += 1
+
+
+    for index, tc in enumerate(tables):
+        text_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.txt")
+        md_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.md")
+        py_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.py")
+
+        table_text_files.append(text_filename)
+
+        chunks.append({
+            'chunk_number':chunk_index+1, 
+            'text_file': text_filename,
+            'full_chunk_text':'',
+            'images': [],
+            'tables': [],
+            'image_py': [],
+            'image_codeblock': [],
+            'image_markdown': [],
+            'image_mm': [],
+            'image_text': [],
+            'table_text': [text_filename],
+            'table_py': [py_filename],
+            'table_codeblock': [],
+            'table_markdown': [md_filename],    
+            'type': 'table'    
+        })
+
+        chunk_index += 1
+
+
+    for index, tc in enumerate(images):   
+        chunks.append({
+            'chunk_number':chunk_index+1, 
+            'text_file': '',
+            'full_chunk_text':'',
+            'chunk_image_path': tc,
+            'images': [tc],
+            'tables': [],
+            'image_py': [],
+            'image_codeblock': [],
+            'image_markdown': [],
+            'image_mm': [],
+            'image_text': [],            
+            'table_text': [],
+            'table_py': [],
+            'table_codeblock': [],
+            'table_markdown': [],        
+            'post_process_image_with_context': False, 
+            'type': 'image'
+        })
+
+        chunk_index += 1
+
+    ingestion_pipeline_dict['chunks'] = chunks
+
+    ingestion_pipeline_dict['text_files'] = text_files
+    ingestion_pipeline_dict['image_text_files'] = image_text_files
+    ingestion_pipeline_dict['table_text_files'] = table_text_files
+
+
+    return ingestion_pipeline_dict
+
+
+
+
+
+def extract_docx_using_py_docx(ingestion_pipeline_dict):
+    
+    doc_path = ingestion_pipeline_dict['document_path'] 
+    images_folder = ingestion_pipeline_dict['images_directory'] 
+    tables_folder = ingestion_pipeline_dict['tables_directory']
+
+    doc = Document(doc_path)
+    all_text = []
+    tables = []
+    tables_dfs = []
+    tables_md = []
+    images = []
+    image_count = 0
+    table_count = 0
+    
+    # Ensure the images_folder exists
+    if not os.path.exists(images_folder):
+        os.makedirs(images_folder)
+    
+    # Extract all text
+    for para in doc.paragraphs:
+        all_text.append(para.text)
+    
+    # Extract all tables
+    for table in doc.tables:
+        headers = [cell.text for cell in table.rows[0].cells]
+        data = []
+        for row in table.rows[1:]:  # Skip header row
+            data.append([cell.text for cell in row.cells])
+        df = pd.DataFrame(data, columns=headers)
+        table_path_md = os.path.join(tables_folder, f'chunk_{table_count}_table_0.md')
+        table_path = os.path.join(tables_folder, f'chunk_{table_count}_table_0.txt')
+        table_path_py = os.path.join(tables_folder, f'chunk_{table_count}_table_0.py')
+        write_to_file(df.to_markdown(), table_path_md, 'w')
+        write_to_file(df.to_markdown(), table_path, 'w')
+        py_script = f"df_{generate_uuid_from_string(str(df.to_dict()))} = pd.DataFrame.from_dict({df.to_dict()})"
+        write_to_file(py_script, table_path_py, 'w')
+        tables_dfs.append(table_path_py)
+        tables_md.append(table_path_md)
+        tables.append(table_path)
+    
+    # Extract all images
+    for rel in doc.part.rels.values():
+        if "image" in rel.target_ref:
+            img = rel.target_part.blob
+            image_path = os.path.join(images_folder, f'chunk_{image_count}_image_0.jpg')
+            with open(image_path, 'wb') as img_file:
+                img_file.write(img)
+            image_count += 1
+            images.append(image_path)
+    
+    concatenated_text = '\n'.join(all_text)
+
+    ingestion_pipeline_dict['full_text'] = concatenated_text
+    write_to_file(concatenated_text, ingestion_pipeline_dict['full_text_file'], 'w')
+
+    ingestion_pipeline_dict['tables_py'] = tables_dfs
+    ingestion_pipeline_dict['tables_md'] = tables_md
+    ingestion_pipeline_dict['image_files'] = images
+    ingestion_pipeline_dict['table_files'] = tables
+
+    return ingestion_pipeline_dict
+    
+
+
+
+def create_pdf_chunks(self):
+    document_file_path = ingestion_pipeline_dict['document_path']
+
+    # Open the PDF file
+    pdf_document = fitz.open(document_file_path)
+    full_basename = os.path.basename(document_file_path)
+
+    if password is not None: 
+        r = pdf_document.authenticate(password)
+        if r == 0: raise ValueError("Password is incorrect.")
+        filename = document_file_path + '.decrypted.pdf'
+        pdf_document.save(filename)
+        logc(f"Ingestion Stage of {full_basename}- Info", f"Opened the file with the password. Status: {r}")
+
+    logc(f"Ingestion Stage of {full_basename} - Info", f"PDF File with num chunks -> {len(pdf_document)}")
+
+    ingestion_pipeline_dict['num_chunks'] = len(pdf_document)
+    ingestion_pipeline_dict['document_file_path'] = document_file_path
+    ingestion_pipeline_dict['pdf_document'] = pdf_document
+    
+    if 'chunks' in ingestion_pipeline_dict:
+        for index, chunk in enumerate(pdf_document):
+            ingestion_pipeline_dict['chunks'][index]['chunk'] = chunk
+    else:
+        ingestion_pipeline_dict['chunks'] = [{
+            'chunk':chunk, 
+            'text_file': '',
+            'chunk_number':index+1, 
+            'full_chunk_text':'',
+            'images': [],
+            'tables': [],
+            'image_py': [],
+            'image_codeblock': [],
+            'image_markdown': [],
+            'image_mm': [],
+            'image_text': [],
+            'table_text': [],
+            'table_py': [],
+            'table_codeblock': [],
+            'table_markdown': [],   
+            'post_process_image_with_context': True,     
+        } for index, chunk in enumerate(pdf_document)]
+
+    return ingestion_pipeline_dict
+
+
+
+
+def harvest_code_from_text(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
+
+    text_filename = chunk_dict['text_file']
     py_file = replace_extension(text_filename, '.py')
     codeblock_file = replace_extension(text_filename, '.codeblock')
     markdown_file = replace_extension(text_filename, '.md')
 
     data = read_asset_file(text_filename)[0]
+
+    if data == '': 
+        logc("Harvesting Code from Text", f"Empty text file: {text_filename}")
+        return []
+
     code_harvesting_prompt = code_harvesting_from_text.format(text=data, random_block_id=str(uuid.uuid4())[:8])
 
     messages = []
@@ -940,7 +1205,7 @@ def harvest_code_from_text(ingestion_pipeline_dict, page_dict, model_info = None
 
             result = get_chat_completion(messages, model=model_info['AZURE_OPENAI_MODEL'], client = client)
             response = result.choices[0].message.content
-            # print(f"Harvested Code from page {extract_page_number(text_filename)}:", response)
+            # print(f"Harvested Code from chunk {extract_chunk_number(text_filename)}:", response)
 
             py_code = extract_code(response)
             codeblock = "```python\n" + py_code + "\n```"
@@ -950,25 +1215,25 @@ def harvest_code_from_text(ingestion_pipeline_dict, page_dict, model_info = None
             write_to_file(py_code, py_file)
             write_to_file(markdown_table, markdown_file)
 
-            page_dict['codeblock_file'] = codeblock_file
-            page_dict['py_file'] = py_file
-            page_dict['markdown_file'] = markdown_file
+            chunk_dict['codeblock_file'] = codeblock_file
+            chunk_dict['py_file'] = py_file
+            chunk_dict['markdown_file'] = markdown_file
 
             return [{'codeblock_file':codeblock_file, 'py_file':py_file, 'markdown_file':markdown_file}]
         except Exception as e:
             print("harvest_code_from_text Error:", e)
             return []
     else:
-        if os.path.exists(codeblock_file): page_dict['codeblock_file'] = codeblock_file
-        if os.path.exists(py_file): page_dict['py_file'] = py_file
-        if os.path.exists(markdown_file): page_dict['markdown_file'] = markdown_file
+        if os.path.exists(codeblock_file): chunk_dict['codeblock_file'] = codeblock_file
+        if os.path.exists(py_file): chunk_dict['py_file'] = py_file
+        if os.path.exists(markdown_file): chunk_dict['markdown_file'] = markdown_file
 
         return [{'codeblock_file':codeblock_file, 'py_file':py_file, 'markdown_file':markdown_file}]
 
 
 
-def harvest_code(ingestion_pipeline_dict, models = gpt4_models, num_threads = 4):
-    harvested_code, _ = execute_multithreaded_funcs(harvest_code_from_text, ingestion_pipeline_dict, models=models, num_threads = num_threads)
+def harvest_code(ingestion_pipeline_dict):
+    harvested_code, _ = execute_multithreaded_funcs(harvest_code_from_text, ingestion_pipeline_dict)
     ingestion_pipeline_dict['harvested_code'] = harvested_code
     for code_dict in harvested_code:
         code = read_asset_file(code_dict['py_file'])[0]
@@ -982,40 +1247,40 @@ def harvest_code(ingestion_pipeline_dict, models = gpt4_models, num_threads = 4)
 
 
 
-def extract_high_res_page_images(ingestion_pipeline_dict):
+def pdf_extract_high_res_chunk_images(ingestion_pipeline_dict):
 
-    high_res_page_images = []
-    pages_as_images_directory = ingestion_pipeline_dict['pages_as_images_directory']
+    high_res_chunk_images = []
+    chunks_as_images_directory = ingestion_pipeline_dict['chunks_as_images_directory']
 
-    for page_dict in ingestion_pipeline_dict['pages']:
-        page = page_dict['page']
-        page_number = page_dict['page_number']
+    for chunk_dict in ingestion_pipeline_dict['chunks']:
+        chunk = chunk_dict['chunk']
+        chunk_number = chunk_dict['chunk_number']
 
-        page_pix = page.get_pixmap(dpi=300)
-        cropbox = page.cropbox
-        page.set_cropbox(page.mediabox)
-        image_filename = f'page_{page_number}.png'
-        image_path = os.path.join(pages_as_images_directory, image_filename)
-        page_pix.save(image_path)
-        high_res_page_images.append(image_path)
-        page_dict['page_image_path'] = image_path
-        # page_dict['cropbox'] = cropbox
-        # page_dict['a4_or_slide'] = 'a4' if cropbox[2] < cropbox[3] else 'slide'
+        chunk_pix = chunk.get_pixmap(dpi=300)
+        cropbox = chunk.cropbox
+        chunk.set_cropbox(chunk.mediabox)
+        image_filename = f'chunk_{chunk_number}.png'
+        image_path = os.path.join(chunks_as_images_directory, image_filename)
+        chunk_pix.save(image_path)
+        high_res_chunk_images.append(image_path)
+        chunk_dict['chunk_image_path'] = image_path
+        # chunk_dict['cropbox'] = cropbox
+        # chunk_dict['a4_or_slide'] = 'a4' if cropbox[2] < cropbox[3] else 'slide'
 
-    ingestion_pipeline_dict['high_res_page_images']  = high_res_page_images
+    ingestion_pipeline_dict['high_res_chunk_images']  = high_res_chunk_images
 
     return ingestion_pipeline_dict
 
 
 
 
-def process_images_with_GPT4V(ingestion_pipeline_dict, page_dict, model_info = None, index = 0, args = None, verbose = False):
+def process_images_with_GPT4V(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     
     image_count = 0
-    page_number = page_dict['page_number']
-    image_path = page_dict['page_image_path']
+    chunk_number = chunk_dict['chunk_number']
+    image_path = chunk_dict['chunk_image_path']
     images_directory = ingestion_pipeline_dict['images_directory']
-    print(f"Processing image {index} on page {page_number} with model {model_info['AZURE_OPENAI_RESOURCE']}")
+    print(f"Processing image {index} on chunk {chunk_number} with model {model_info['AZURE_OPENAI_RESOURCE']}")
     image_filename = None
     detected_filename = replace_extension(image_path, '.detected.txt')
 
@@ -1024,7 +1289,7 @@ def process_images_with_GPT4V(ingestion_pipeline_dict, page_dict, model_info = N
             count, description, _ = get_asset_explanation_gpt4v(image_path, None, gpt4v_prompt = detect_num_of_diagrams_prompt, with_context=False, extension='dont_save', model_info=model_info)
             write_to_file(count, detected_filename, 'w')
             image_count = int(count)
-            print(f"Number of Images Detected in page number {page_number} : {count}.")
+            print(f"Number of Images Detected in chunk number {chunk_number} : {count}.")
         except Exception as e:
             print(f"Error in image detection: {e}")
     else:
@@ -1036,30 +1301,30 @@ def process_images_with_GPT4V(ingestion_pipeline_dict, page_dict, model_info = N
 
 
     if image_count > 0:
-        print("Image Detection", f"{bc.OKBLUE}Image Detection Status on page {page_number}: {bc.OKGREEN}OK - Detected {image_count} images.{bc.ENDC}")
-        image_filename = os.path.join(images_directory, f'page_{page_number}_image_{index+1}.jpg')
+        print("Image Detection", f"{bc.OKBLUE}Image Detection Status on chunk {chunk_number}: {bc.OKGREEN}OK - Detected {image_count} images.{bc.ENDC}")
+        image_filename = os.path.join(images_directory, f'chunk_{chunk_number}_image_{index+1}.jpg')
         shutil.copyfile(image_path, image_filename)
-        print(f"Saved Image {image_count+1} on page {page_number} to '{image_filename}'")
-        page_dict['images'] = [image_filename]
+        print(f"Saved Image {image_count+1} on chunk {chunk_number} to '{image_filename}'")
+        chunk_dict['images'] = [image_filename]
         return [image_filename]
     
     return []
 
 
-def process_images_with_PDF(ingestion_pipeline_dict, page_dict):
+def process_images_with_PDF(ingestion_pipeline_dict, chunk_dict):
     image_count = 0
-    page_number = page_dict['page_number']
+    chunk_number = chunk_dict['chunk_number']
     images_directory = ingestion_pipeline_dict['images_directory']
-    page = page_dict['page']
+    chunk = chunk_dict['chunk']
     pdf_document = ingestion_pipeline_dict['pdf_document']
     image_files = []
 
-    for img_index, img in enumerate(page.get_images()):
+    for img_index, img in enumerate(chunk.get_images()):
         xref = img[0]
         base_image = pdf_document.extract_image(xref)
         pix = fitz.Pixmap(pdf_document, xref)
         pix = fitz.Pixmap(fitz.csRGB, pix)                
-        image_filename = os.path.join(images_directory, f'page_{page_number}_image_{img_index+1}.png')
+        image_filename = os.path.join(images_directory, f'chunk_{chunk_number}_image_{img_index+1}.png')
         pix.save(image_filename, 'PNG')
         image_files.append(image_filename)
 
@@ -1067,31 +1332,36 @@ def process_images_with_PDF(ingestion_pipeline_dict, page_dict):
 
 
 
-def execute_multithreaded_funcs(func, ingestion_pipeline_dict, models = gpt4_models, num_threads = 4, args = None):
+def execute_multithreaded_funcs(func, ingestion_pipeline_dict, args = None):
     return_array = []
 
-    # num_pages = ingestion_pipeline_dict['num_pages']
-    num_pages = len(ingestion_pipeline_dict['pages'])
-    rounds = math.ceil(num_pages / num_threads)
-    last_round = num_pages % num_threads
-    pages = ingestion_pipeline_dict['pages']
+    num_threads = ingestion_pipeline_dict['num_threads']
+    # num_chunks = ingestion_pipeline_dict['num_chunks']
+    num_chunks = len(ingestion_pipeline_dict['chunks'])
+    rounds = math.ceil(num_chunks / num_threads)
+    last_round = num_chunks % num_threads
+    chunks = ingestion_pipeline_dict['chunks']
 
-    logc(f"Last Round Remainder: {last_round} pages. Num Pages: {num_pages}. Num Threads: {num_threads}. Rounds: {rounds}.")
-    
+    if (args is not None) and (args.get('vision_models', False)):
+        models = ingestion_pipeline_dict['vision_models']
+    else:
+        models = ingestion_pipeline_dict['models']
+
+    logc(f"Last Round Remainder: {last_round} chunks. Num chunks: {num_chunks}. Num Threads: {num_threads}. Rounds: {rounds}.")
 
     for r in range(rounds):
         list_pipeline_dict = [ingestion_pipeline_dict] * num_threads
-        list_page_dict = pages[r*num_threads:(r+1)*num_threads]
+        list_chunk_dict = chunks[r*num_threads:(r+1)*num_threads]
         list_index = [x for x in range(r*num_threads+1,(r+1)*num_threads+1)]
         list_args = [args] * num_threads
 
         if (last_round > 0) and (r == rounds - 1): # last round
             list_pipeline_dict = list_pipeline_dict[:last_round]
-            list_page_dict = list_page_dict[:last_round]
+            list_chunk_dict = list_chunk_dict[:last_round]
             list_index = list_index[:last_round]
 
-        logc("Processing...", f"Round {r+1} of {rounds} with {len(list_page_dict)} pages and {num_threads} threads.")
-        results = pool.starmap(func,  zip(list_pipeline_dict, list_page_dict, models, list_index, list_args))
+        logc("Processing...", f"Round {r+1} of {rounds} with {len(list_chunk_dict)} chunks and {num_threads} threads.")
+        results = pool.starmap(func,  zip(list_pipeline_dict, list_chunk_dict, models, list_index, list_args))
         for i in results: return_array.extend(i)
 
     return return_array, ingestion_pipeline_dict
@@ -1099,17 +1369,20 @@ def execute_multithreaded_funcs(func, ingestion_pipeline_dict, models = gpt4_mod
     
 
 
-def extract_images(ingestion_pipeline_dict, extract_images_mode = "PDF", models = gpt4_models, num_threads = 4):
+def pdf_extract_images(ingestion_pipeline_dict):
     image_files = []
 
+    extract_images_mode = ingestion_pipeline_dict['extract_images_mode']
+    args = {'vision_models': True}
+
     if extract_images_mode == "GPT":
-        image_files, _ = execute_multithreaded_funcs(process_images_with_GPT4V, ingestion_pipeline_dict, models = models, num_threads = num_threads)
+        image_files, _ = execute_multithreaded_funcs(process_images_with_GPT4V, ingestion_pipeline_dict, args=args)
 
     elif extract_images_mode == "PDF":
-        for page_dict in ingestion_pipeline_dict['pages']:
-            page_image_files = process_images_with_PDF(ingestion_pipeline_dict, page_dict)
-            page_dict['images'] = page_image_files
-            image_files += page_image_files
+        for chunk_dict in ingestion_pipeline_dict['chunks']:
+            chunk_image_files = process_images_with_PDF(ingestion_pipeline_dict, chunk_dict)
+            chunk_dict['images'] = chunk_image_files
+            image_files += chunk_image_files
 
     else:
         raise ValueError(f"Unsupported extract_images_mode: {extract_images_mode}")
@@ -1138,16 +1411,16 @@ If a table is present in the text, a Markdown version of the table might be avai
 
 
 
-def process_text_with_GPT4(ingestion_pipeline_dict, page_dict, model_info = None, index = 0, args = None, verbose = False):
+def process_text_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     
     image_count = 0
-    page_number = page_dict['page_number']
-    text_file = page_dict['text_file']
+    chunk_number = chunk_dict['chunk_number']
+    text_file = chunk_dict['text_file']
     text_directory = ingestion_pipeline_dict['text_directory']
     azure_endpoint =  f"https://{model_info['AZURE_OPENAI_RESOURCE']}.openai.azure.com" 
-    print(f"GPT4 Text - Extraction - Processing text {index} on page {page_number} using {model_info['AZURE_OPENAI_MODEL']} and endpoint {azure_endpoint}")
-    original_text_filename = os.path.join(text_directory, f'page_{page_number}.original.txt')
-    processed_text_filename = os.path.join(text_directory, f'page_{page_number}.processed.txt')
+    print(f"GPT4 Text - Extraction - Processing text {index} on chunk {chunk_number} using {model_info['AZURE_OPENAI_MODEL']} and endpoint {azure_endpoint}")
+    original_text_filename = os.path.join(text_directory, f'chunk_{chunk_number}.original.txt')
+    processed_text_filename = os.path.join(text_directory, f'chunk_{chunk_number}.processed.txt')
 
     try:
         client = AzureOpenAI(
@@ -1167,18 +1440,18 @@ def process_text_with_GPT4(ingestion_pipeline_dict, page_dict, model_info = None
             shutil.copyfile(text_file, original_text_filename)
             write_to_file(response, text_file, 'w')
             write_to_file(response, processed_text_filename)
-            page_dict['original_text'] = original_text_filename
-            page_dict['processed_text'] = processed_text_filename
+            chunk_dict['original_text'] = original_text_filename
+            chunk_dict['processed_text'] = processed_text_filename
 
             # time.sleep(2)
-            print(f"GPT4 Text - Post-Processing: Generating tags for page {page_number} using {model_info['AZURE_OPENAI_RESOURCE']}")
+            print(f"GPT4 Text - Post-Processing: Generating tags for chunk {chunk_number} using {model_info['AZURE_OPENAI_RESOURCE']}")
             optimized_tag_list = generate_tag_list(response, model = model_info['AZURE_OPENAI_MODEL'], client = client)
             write_to_file(optimized_tag_list, replace_extension(text_file, '.tags.txt'))
 
-            print(f"GPT4 Text - Post-Processing: Text processed in page {page_number} using {model_info['AZURE_OPENAI_RESOURCE']}")
+            print(f"GPT4 Text - Post-Processing: Text processed in chunk {chunk_number} using {model_info['AZURE_OPENAI_RESOURCE']}")
 
-        page_dict['original_text'] = original_text_filename
-        page_dict['processed_text'] = processed_text_filename
+        chunk_dict['original_text'] = original_text_filename
+        chunk_dict['processed_text'] = processed_text_filename
         shutil.copyfile(processed_text_filename, text_file)
         return [original_text_filename]
 
@@ -1189,52 +1462,56 @@ def process_text_with_GPT4(ingestion_pipeline_dict, page_dict, model_info = None
 
 
 
-def extract_text(ingestion_pipeline_dict, extract_text_mode = "GPT", models = gpt4_models, num_threads = 4):
+def pdf_extract_text(ingestion_pipeline_dict):
     text_files = []
     original_text_files = []
     text_directory = ingestion_pipeline_dict['text_directory']
 
-    for page_dict in ingestion_pipeline_dict['pages']:
-        #### 4 SAVE PDF PAGES AS TEXT
-        page = page_dict['page']
-        page_number = page_dict['page_number']
-        text = page.get_text()
-        # Define the filename for the current page
+    extract_text_mode = ingestion_pipeline_dict['extract_text_mode']
+    models = ingestion_pipeline_dict['models']
+    num_threads = ingestion_pipeline_dict['num_threads']
 
-        text_filename = os.path.join(text_directory, f"page_{page_number}.txt")
+    for chunk_dict in ingestion_pipeline_dict['chunks']:
+        #### 4 SAVE PDF chunks AS TEXT
+        chunk = chunk_dict['chunk']
+        chunk_number = chunk_dict['chunk_number']
+        text = chunk.get_text()
+        # Define the filename for the current chunk
+
+        text_filename = os.path.join(text_directory, f"chunk_{chunk_number}.txt")
         # Save the text to a file
         with open(text_filename, 'w', encoding='utf-8') as file:
             file.write(text)
         text_files.append(text_filename)
-        page_dict['text_file'] = text_filename
+        chunk_dict['text_file'] = text_filename
 
     if extract_text_mode == "GPT":
-        original_text_files, _ = execute_multithreaded_funcs(process_text_with_GPT4, ingestion_pipeline_dict, models=models, num_threads = num_threads)
+        original_text_files, _ = execute_multithreaded_funcs(process_text_with_GPT4, ingestion_pipeline_dict)
 
     ingestion_pipeline_dict['text_files'] = text_files
     ingestion_pipeline_dict['original_text_files'] = original_text_files
 
-    for page in ingestion_pipeline_dict['pages']:
-        text = read_asset_file(page['text_file'])[0]
+    for chunk in ingestion_pipeline_dict['chunks']:
+        text = read_asset_file(chunk['text_file'])[0]
         write_to_file(text + '\n\n', ingestion_pipeline_dict['full_text_file'], mode='a')
 
     return ingestion_pipeline_dict
 
 
 
-def extract_table(ingestion_pipeline_dict, page_dict, model_info = None, index = 0, args = None, verbose = False):
+def extract_table_from_image(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     #### 2 DETECT AND SAVE TABLES
     table_number = 0
-    page_number = page_dict['page_number']
-    image_path = page_dict['page_image_path']
+    chunk_number = chunk_dict['chunk_number']
+    image_path = chunk_dict['chunk_image_path']
     tables_directory = ingestion_pipeline_dict['tables_directory']
-    table_filename = os.path.join(tables_directory, f"page_{page_number}_table_{table_number}.png")
+    table_filename = os.path.join(tables_directory, f"chunk_{chunk_number}_table_{table_number}.png")
     detected_filename = replace_extension(table_filename, '.detected.txt')
 
     if not os.path.exists(detected_filename):
         try:
             count, description, _ = get_asset_explanation_gpt4v(image_path, None, gpt4v_prompt = detect_num_of_tables_prompt, with_context=False, extension='dont_save', model_info=model_info)
-            print(f"Table Detection {count} in page {page_number}")
+            print(f"Table Detection {count} in chunk {chunk_number}")
             table_count = int(count)
             status = f"OK - Detected {table_count} tables."
             write_to_file(count, detected_filename, 'w')
@@ -1244,27 +1521,28 @@ def extract_table(ingestion_pipeline_dict, page_dict, model_info = None, index =
             status = f"Error Detecting number of tables. Exception: {e}"
             table_count = 0
 
-        print(f"{bc.OKBLUE}Table Detection Status on page {page_number}: {bc.OKGREEN}{status}{bc.ENDC}")
+        print(f"{bc.OKBLUE}Table Detection Status on chunk {chunk_number}: {bc.OKGREEN}{status}{bc.ENDC}")
 
     else:
         try:
             table_count = int(read_asset_file(detected_filename)[0])
         except:
             table_count = 0 
-            print(f"Error reading table count from file: {detected_filename}")
-        
+            print(f"Error reading table count from file: {detected_filename}")  
 
     if table_count > 0:
         shutil.copyfile(image_path, table_filename)
-        print(f"Saved table {table_number} on page {page_number} to '{table_filename}'")
-        page_dict['tables'] = [table_filename]
+        print(f"Saved table {table_number} on chunk {chunk_number} to '{table_filename}'")
+        chunk_dict['tables'] = [table_filename]
         return [table_filename]
     return []
 
 
 
-def extract_tables(ingestion_pipeline_dict, models = gpt4_models, num_threads = 4):
-    tables, _ = execute_multithreaded_funcs(extract_table, ingestion_pipeline_dict, models=models, num_threads = num_threads)
+def extract_tables_from_images(ingestion_pipeline_dict):
+    args = {'vision_models': True}
+
+    tables, _ = execute_multithreaded_funcs(extract_table_from_image, ingestion_pipeline_dict, args=args)
     ingestion_pipeline_dict['tables'] = tables
     return ingestion_pipeline_dict
 
@@ -1272,18 +1550,19 @@ def extract_tables(ingestion_pipeline_dict, models = gpt4_models, num_threads = 
 
 
 
-def post_process_images(ingestion_pipeline_dict, models = gpt4_models, num_threads = 4, extract_text_from_images=True):
+def post_process_images(ingestion_pipeline_dict):
 
-    args = {'extract_text_from_images':extract_text_from_images}
+    extract_text_from_images = ingestion_pipeline_dict['extract_text_from_images']
+    args = {'extract_text_from_images':extract_text_from_images, 'vision_models': True}
 
     ingestion_pipeline_dict_ret = copy.deepcopy(ingestion_pipeline_dict)
-    ingestion_pipeline_dict_ret['pages'] = [rd for rd in ingestion_pipeline_dict_ret['pages'] if len(rd['images']) > 0]
+    ingestion_pipeline_dict_ret['chunks'] = [rd for rd in ingestion_pipeline_dict_ret['chunks'] if len(rd['images']) > 0]
 
-    image_proc_files, ingestion_pipeline_dict_ret = execute_multithreaded_funcs(post_process_page_images, ingestion_pipeline_dict_ret, models=models, num_threads = num_threads, args=args)
+    image_proc_files, ingestion_pipeline_dict_ret = execute_multithreaded_funcs(post_process_chunk_images, ingestion_pipeline_dict_ret, args=args)
 
-    for rd in ingestion_pipeline_dict_ret['pages']:
-        for r in ingestion_pipeline_dict['pages']:
-            if rd['page_number'] == r['page_number']:
+    for rd in ingestion_pipeline_dict_ret['chunks']:
+        for r in ingestion_pipeline_dict['chunks']:
+            if rd['chunk_number'] == r['chunk_number']:
                 r = copy.deepcopy(rd)
     
     ingestion_pipeline_dict['image_proc_files'] = image_proc_files
@@ -1306,7 +1585,7 @@ extract_text_from_images_prompt = """
 10. In addition to all of the above, you **MUST** extract the entirety of the text present in the image verbatim, and include it under the text block delimited by '```EXTRACTED TEXT' and '```' in the generated output. You **MUST** extract the **FULL** text from the image verbatim word-for-word.
 """
 
-def post_process_page_images(ingestion_pipeline_dict, page_dict, model_info = None, index = 0, args = None, verbose = False):
+def post_process_chunk_images(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     
     if args is not None:
         extract_text_from_images = args.get('extract_text_from_images', True)
@@ -1314,13 +1593,13 @@ def post_process_page_images(ingestion_pipeline_dict, page_dict, model_info = No
         extract_text_from_images = True
 
     image_count = 0
-    page_number = page_dict['page_number']
-    image_path = page_dict['page_image_path']
-    page_text_file = page_dict['text_file']
+    chunk_number = chunk_dict['chunk_number']
+    image_path = chunk_dict['chunk_image_path']
+    chunk_text_file = chunk_dict['text_file']
     master_text_file = ingestion_pipeline_dict['full_text_file']
     images_directory = ingestion_pipeline_dict['images_directory']
-    pdf_path = ingestion_pipeline_dict['pdf_path']
-    print(f"Post-Processing image {index} on page {page_number} using model {model_info['AZURE_OPENAI_RESOURCE']}")
+    document_path = ingestion_pipeline_dict['document_path']
+    print(f"Post-Processing image {index} on chunk {chunk_number} using model {model_info['AZURE_OPENAI_RESOURCE']}")
     image_filename = None
     image_py_files = []
     image_codeblock_files = []
@@ -1339,12 +1618,14 @@ def post_process_page_images(ingestion_pipeline_dict, page_dict, model_info = No
     else:
         image_description_prompt_modified = image_description_prompt
 
-    print(f"Page Dict Images: {page_dict['images']}")
+    print(f"Chunk Dict Images: {chunk_dict['images']}")
 
-    for image in page_dict['images']:
+    with_context = chunk_dict.get('post_process_image_with_context', False)
+
+    for image in chunk_dict['images']:
         
         if not os.path.exists(replace_extension(image, '.tags.txt')):
-            text, text_filename, _ = get_asset_explanation_gpt4v(image, pdf_path, gpt4v_prompt = image_description_prompt_modified, with_context=True,  extension='.txt', model_info=model_info)
+            text, text_filename, _ = get_asset_explanation_gpt4v(image, document_path, gpt4v_prompt = image_description_prompt_modified, with_context=with_context,  extension='.txt', model_info=model_info)
 
             mrkdwn = extract_markdown(text)
             if mrkdwn != "":
@@ -1383,7 +1664,7 @@ def post_process_page_images(ingestion_pipeline_dict, page_dict, model_info = No
 
             image_text_files.append(text_filename)
 
-            # write_to_file(f'\n\n\n#### START OF DESCRIPTION OF IMAGE {index}\n' + remove_code(text) + '\n#### END OF DESCRIPTION OF IMAGE\n\n', page_text_file, mode='a')
+            # write_to_file(f'\n\n\n#### START OF DESCRIPTION OF IMAGE {index}\n' + remove_code(text) + '\n#### END OF DESCRIPTION OF IMAGE\n\n', chunk_text_file, mode='a')
             write_to_file(remove_code(text), text_filename, 'w')
             write_to_file(f'\n\n\n#### START OF DESCRIPTION OF IMAGE {index}\n' + remove_code(text) + '\n#### END OF DESCRIPTION OF IMAGE\n\n', master_text_file, mode='a')
             # write_to_file(remove_code(text) + '\n\n', master_text_file, mode='a')
@@ -1407,12 +1688,12 @@ def post_process_page_images(ingestion_pipeline_dict, page_dict, model_info = No
 
 
 
-    print(f"Post-Processing: Image processed in page {page_number} using {model_info['AZURE_OPENAI_RESOURCE']}")
-    page_dict['image_py'] = image_py_files
-    page_dict['image_codeblock'] = image_codeblock_files
-    page_dict['image_mm'] = image_mm_files
-    page_dict['image_text'] = image_text_files
-    page_dict['image_markdown'] = image_markdown
+    print(f"Post-Processing: Image processed in chunk {chunk_number} using {model_info['AZURE_OPENAI_RESOURCE']}")
+    chunk_dict['image_py'] = image_py_files
+    chunk_dict['image_codeblock'] = image_codeblock_files
+    chunk_dict['image_mm'] = image_mm_files
+    chunk_dict['image_text'] = image_text_files
+    chunk_dict['image_markdown'] = image_markdown
 
 
     return [{'image_py':image_py_files, 'image_codeblock':image_codeblock_files, 'image_mm':image_mm_files, 'image_text':image_text_files, 'image_markdown':image_markdown}]
@@ -1421,22 +1702,24 @@ def post_process_page_images(ingestion_pipeline_dict, page_dict, model_info = No
 
 
 
-def post_process_tables(ingestion_pipeline_dict, models = gpt4_models, num_threads = 4):
+def post_process_tables(ingestion_pipeline_dict):
     ingestion_pipeline_dict_ret = copy.deepcopy(ingestion_pipeline_dict)
-    # logc("\n\nAssets - Before Deletion", ingestion_pipeline_dict_ret['pages'])
-    ingestion_pipeline_dict_ret['pages'] = [rd for rd in ingestion_pipeline_dict_ret['pages'] if len(rd['tables']) > 0]
-    # logc("\n\nAssets - After Deletion", ingestion_pipeline_dict_ret['pages'])
+    # logc("\n\nAssets - Before Deletion", ingestion_pipeline_dict_ret['chunks'])
+    ingestion_pipeline_dict_ret['chunks'] = [rd for rd in ingestion_pipeline_dict_ret['chunks'] if len(rd['tables']) > 0]
+    # logc("\n\nAssets - After Deletion", ingestion_pipeline_dict_ret['chunks'])
 
-    table_proc_files, ingestion_pipeline_dict_ret = execute_multithreaded_funcs(post_process_page_table, ingestion_pipeline_dict_ret, models=models, num_threads = num_threads)
+    args = {'vision_models': True}
 
-    # logc("\n\nRet Assets - After Processing", ingestion_pipeline_dict_ret['pages'])
+    table_proc_files, ingestion_pipeline_dict_ret = execute_multithreaded_funcs(post_process_chunk_table, ingestion_pipeline_dict_ret, args=args)
 
-    for rd in ingestion_pipeline_dict_ret['pages']:
-        for r in ingestion_pipeline_dict['pages']:
-            if rd['page_number'] == r['page_number']:
+    # logc("\n\nRet Assets - After Processing", ingestion_pipeline_dict_ret['chunks'])
+
+    for rd in ingestion_pipeline_dict_ret['chunks']:
+        for r in ingestion_pipeline_dict['chunks']:
+            if rd['chunk_number'] == r['chunk_number']:
                 r = copy.deepcopy(rd)
 
-    # logc("\n\nFull Assets - After Processing", ingestion_pipeline_dict['pages'])                
+    # logc("\n\nFull Assets - After Processing", ingestion_pipeline_dict['chunks'])                
 
     for table_dict in table_proc_files:
         for f in table_dict['table_py']:
@@ -1450,16 +1733,16 @@ def post_process_tables(ingestion_pipeline_dict, models = gpt4_models, num_threa
     return ingestion_pipeline_dict
 
 
-def post_process_page_table(ingestion_pipeline_dict, page_dict, model_info = None, index = 0, args = None, verbose = False):
-    page_number = page_dict['page_number']
-    image_path = page_dict['page_image_path']
-    page_text_file = page_dict['text_file']
+def post_process_chunk_table(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
+    chunk_number = chunk_dict['chunk_number']
+    image_path = chunk_dict['chunk_image_path']
+    chunk_text_file = chunk_dict['text_file']
     master_text_file = ingestion_pipeline_dict['full_text_file']
     tables_directory = ingestion_pipeline_dict['tables_directory']
-    pdf_path = ingestion_pipeline_dict['pdf_path']
+    document_path = ingestion_pipeline_dict['document_path']
 
 
-    print(f"Post-Processing table {index} on page {page_number}")
+    print(f"Post-Processing table {index} on chunk {chunk_number}")
     table_text_files = []
     table_code_text_filenames = []
     table_code_py_filenames = []
@@ -1471,13 +1754,13 @@ def post_process_page_table(ingestion_pipeline_dict, page_dict, model_info = Non
         api_version= AZURE_OPENAI_API_VERSION,
     )
 
-    for table in page_dict['tables']:
+    for table in chunk_dict['tables']:
         if not os.path.exists(replace_extension(table, '.tags.txt')):
-            text, text_filename, _ = get_asset_explanation_gpt4v(table, pdf_path, gpt4v_prompt = image_description_prompt, with_context=True,  extension='.txt', model_info=model_info)
+            text, text_filename, _ = get_asset_explanation_gpt4v(table, document_path, gpt4v_prompt = image_description_prompt, with_context=True,  extension='.txt', model_info=model_info)
 
             markdown = extract_markdown(text)
             if markdown == "":
-                markdown, markdown_filename, _ = get_asset_explanation_gpt4v(table, pdf_path, gpt4v_prompt = table_markdown_description_prompt, with_context=True, extension='.md', model_info=model_info)
+                markdown, markdown_filename, _ = get_asset_explanation_gpt4v(table, document_path, gpt4v_prompt = table_markdown_description_prompt, with_context=True, extension='.md', model_info=model_info)
             else: 
                 markdown_filename = text_filename.replace('.txt', '.md')
                 write_to_file(markdown, markdown_filename, 'w')
@@ -1497,22 +1780,22 @@ def post_process_page_table(ingestion_pipeline_dict, page_dict, model_info = Non
 
             else:
                 while (not code_execution_success):
-                    code, code_text_filename, code_filename = get_asset_explanation_gpt4v(table, pdf_path, gpt4v_prompt = table_code_description_prompt, prompt_extension=prompt_extension, with_context=True, extension='.codeblock', temperature=temperature, model_info=model_info)
+                    code, code_text_filename, code_filename = get_asset_explanation_gpt4v(table, document_path, gpt4v_prompt = table_code_description_prompt, prompt_extension=prompt_extension, with_context=True, extension='.codeblock', temperature=temperature, model_info=model_info)
                     code_execution_success, exception, output = execute_python_code_block(code_filename)
                     if code_execution_success: 
-                        description = f"Python Code executed successfully for table {index} on page {page_number}\n\nOutput:\n{output}\n"
+                        description = f"Python Code executed successfully for table {index} on chunk {chunk_number}\n\nOutput:\n{output}\n"
                         logc(f"Table Post-Processing Success", description)
                         with open(code_filename + '.execution_ok.txt', 'w', encoding='utf-8') as file:
                             file.write(description)
                         break
 
                     prompt_extension = "\nThe previous code generation failed with the following error:\n\n" + str(exception) + "\n\nPlease fix the error and try again.\n\n"
-                    description = f"Extracted Code for table {index} on page {page_number} could not be executed properly.\n\nCode: {code}\n\nError: {exception}\n\n"
+                    description = f"Extracted Code for table {index} on chunk {chunk_number} could not be executed properly.\n\nCode: {code}\n\nError: {exception}\n\n"
                     logc(f"Table Post-Processing Error. Retry {retries+1}/5", description)
                     temperature += 0.1
                     retries += 1
                     if retries > 4: 
-                        description = f"Extracted Code for table {index} on page {page_number} could not be executed properly.\n\nCode: {code}\n\nError: {exception}\n\n"
+                        description = f"Extracted Code for table {index} on chunk {chunk_number} could not be executed properly.\n\nCode: {code}\n\nError: {exception}\n\n"
                         with open(code_filename + '.execution_errorlog.txt', 'w', encoding='utf-8') as file:
                             file.write(description)
                         break
@@ -1524,7 +1807,7 @@ def post_process_page_table(ingestion_pipeline_dict, page_dict, model_info = Non
             table_code_py_filenames.append(code_filename)
             table_markdown_filenames.append(markdown_filename)
 
-            # write_to_file(f'\n\n\n#### START OF DESCRIPTION OF TABLE {index}\n' + remove_code(text) + '\n#### END OF DESCRIPTION OF TABLE \n\n', page_text_file, mode='a')
+            # write_to_file(f'\n\n\n#### START OF DESCRIPTION OF TABLE {index}\n' + remove_code(text) + '\n#### END OF DESCRIPTION OF TABLE \n\n', chunk_text_file, mode='a')
             write_to_file(f'\n\n\n#### START OF DESCRIPTION OF TABLE {index}\n' + remove_code(text) + '\n#### END OF DESCRIPTION OF TABLE \n\n', master_text_file, mode='a')
             # write_to_file(remove_code(text) + '\n\n', master_text_file, mode='a')
 
@@ -1546,14 +1829,15 @@ def post_process_page_table(ingestion_pipeline_dict, page_dict, model_info = Non
 
 
 
-    logc(f"Post-Processing: Table processed in page {page_number} using {model_info['AZURE_OPENAI_RESOURCE']}")
-    page_dict['table_py'] = table_code_py_filenames
-    page_dict['table_codeblock'] = table_code_text_filenames
-    page_dict['table_text_files'] = table_text_files
-    page_dict['table_markdown'] = table_markdown_filenames
+    logc(f"Post-Processing: Table processed in chunk {chunk_number} using {model_info['AZURE_OPENAI_RESOURCE']}")
+    chunk_dict['table_py'] = table_code_py_filenames
+    chunk_dict['table_codeblock'] = table_code_text_filenames
+    chunk_dict['table_text_files'] = table_text_files
+    chunk_dict['table_markdown'] = table_markdown_filenames
 
 
     return [{'table_py':table_code_py_filenames, 'table_codeblock':table_code_text_filenames, 'table_text':table_text_files, 'table_markdown':table_markdown_filenames}]
+
 
 
 
@@ -1579,6 +1863,7 @@ def get_ingested_document_text_files(directory, excluded_endings = ['.original.t
                     table_text_files.append(file)
 
     return text_files, image_text_files, table_text_files
+
 
 
 def get_ingested_document_jpg_images(directory):
@@ -1610,170 +1895,9 @@ def get_ingested_document_png_table_images(directory):
 
 
 
-def process_pdf(ingestion_pipeline_dict, password = None, extract_text_mode = "GPT", extract_images_mode = "GPT", extract_text_from_images = True, models = gpt4_models, vision_models=gpt4_models, num_threads=4, processing_stages=None, verbose=False):
-    # print(ingestion_pipeline_dict)
-    pdf_file_path = ingestion_pipeline_dict['pdf_path']
-
-    # Open the PDF file
-    pdf_document = fitz.open(pdf_file_path)
-    full_basename = os.path.basename(pdf_file_path)
-
-    # Execute file operations based on the file extension
-    base_name = os.path.splitext(os.path.basename(pdf_file_path))[0].strip()
-    try:
-        extension = os.path.splitext(os.path.basename(pdf_file_path))[1].strip()
-    except:
-        extension = ''
 
 
-    if password is not None: 
-        r = pdf_document.authenticate(password)
-        if r == 0: raise ValueError("Password is incorrect.")
-        filename = pdf_file_path+'.decrypted.pdf'
-        pdf_document.save(filename)
-        logc(f"Ingestion Stage of {full_basename}- Info", f"Opened the file with the password. Status: {r}", verbose=verbose)
-
-
-    # Directory to save text, high-resolution page images, and images
-    pages_as_images_directory = os.path.join(os.path.dirname(pdf_file_path), 'page_images')
-    images_directory = os.path.join(os.path.dirname(pdf_file_path), 'images')
-    text_directory = os.path.join(os.path.dirname(pdf_file_path), 'text')
-    tables_directory = os.path.join(os.path.dirname(pdf_file_path), 'tables')
-
-    # Create the directory if it doesn't exist
-    os.makedirs(pages_as_images_directory, exist_ok=True)
-    os.makedirs(images_directory, exist_ok=True)
-    os.makedirs(text_directory, exist_ok=True)
-    os.makedirs(tables_directory, exist_ok=True)
-
-    ingestion_pipeline_dict['pages_as_images_directory'] = pages_as_images_directory
-    ingestion_pipeline_dict['images_directory'] = images_directory
-    ingestion_pipeline_dict['text_directory'] = text_directory
-    ingestion_pipeline_dict['tables_directory'] = tables_directory
-
-
-    # List to store the paths of the high-resolution saved images
-    high_res_page_images = []
-    text_files = []
-    image_files = []
-    table_images = []
-    img_num = 0
-
-    logc(f"Ingestion Stage of {full_basename} - Info", f"PDF File with num pages -> {len(pdf_document)}", verbose=verbose)
-
-    ingestion_pipeline_dict['num_pages'] = len(pdf_document)
-    ingestion_pipeline_dict['pdf_file_path'] = pdf_file_path
-    ingestion_pipeline_dict['pdf_document'] = pdf_document
-    
-    ingestion_pipeline_dict['pages'] = [{
-        'page':page, 
-        'page_number':index+1, 
-        'full_page_text':'',
-        'images': [],
-        'tables': [],
-        'image_py': [],
-        'image_codeblock': [],
-        'image_markdown': [],
-        'image_mm': [],
-        'image_text': [],
-        'table_text': [],
-        'table_py': [],
-        'table_codeblock': [],
-        'table_markdown': [],        
-    } for index, page in enumerate(pdf_document)]
-
-    doc_proc_directory = ingestion_pipeline_dict['document_processing_directory'] 
-
-    
-    if processing_stages is None:
-        processing_stages = ['extract_high_res_page_images', 'extract_text', 'harvest_code', 'extract_images', 'post_process_images', 'extract_tables', 'post_process_tables']
-    else: 
-        text_files, image_text_files, table_text_files = get_ingested_document_text_files(ingestion_pipeline_dict['document_processing_directory'])
-        ingestion_pipeline_dict['text_files'] = text_files
-        ingestion_pipeline_dict['image_text_files'] = image_text_files
-        ingestion_pipeline_dict['table_text_files'] = table_text_files
-
-        image_files = get_ingested_document_jpg_images(ingestion_pipeline_dict['document_processing_directory'])
-        table_files = get_ingested_document_png_table_images(ingestion_pipeline_dict['document_processing_directory'])
-
-        for page_dict in ingestion_pipeline_dict['pages']:
-            page_number = page_dict['page_number']
-            if 'extract_text' not in processing_stages: page_dict['text_file'] = [f for f in text_files if f.endswith(f'page_{page_number}.txt')][0]
-            if 'extract_images' not in processing_stages: page_dict['images'] = [f for f in image_files if (os.path.basename(f).startswith(f'page_{page_number}_image_')) and (os.path.basename(f).endswith('.jpg'))]
-            if 'extract_tables' not in processing_stages: page_dict['tables'] = [f for f in table_files if (os.path.basename(f).startswith(f'page_{page_number}_table_')) and (os.path.basename(f).endswith('.png'))]
-
-
-    logc(f"Ingestion Stage 1/7 of {full_basename}", f"Extracting High-Resolution PNG Images from PDF with {len(pdf_document)} pages", verbose=verbose)
-    if 'extract_high_res_page_images' in processing_stages:
-        ingestion_pipeline_dict = extract_high_res_page_images(ingestion_pipeline_dict)
-
-    logc(f"Ingestion Stage 2/7 of {full_basename}", f"Extracting Text with Extract Mode {extract_text_mode}", verbose=verbose)
-    if 'extract_text' in processing_stages:
-        ingestion_pipeline_dict = extract_text(ingestion_pipeline_dict, extract_text_mode = extract_text_mode, models=models, num_threads = num_threads)
-    
-    logc(f"Ingestion Stage 3/7 of {full_basename}", f"Harvesting Code from Text from PDF with {len(pdf_document)} pages", verbose=verbose)
-    if 'harvest_code' in processing_stages:
-        ingestion_pipeline_dict = harvest_code(ingestion_pipeline_dict, models = gpt4_models, num_threads = num_threads)
-    
-    logc(f"Ingestion Stage 4/7 of {full_basename}", f"Detecting and Extracting Images from PDF with {len(pdf_document)} pages", verbose=verbose)
-    if 'extract_images' in processing_stages:
-        ingestion_pipeline_dict = extract_images(ingestion_pipeline_dict, extract_images_mode=extract_images_mode, models=vision_models, num_threads = num_threads)
-
-    # pdf_document page
-    del ingestion_pipeline_dict['pdf_document']
-    for p in ingestion_pipeline_dict['pages']: del p['page']
-
-    logc(f"Ingestion Stage 5/7 of {full_basename}", f"Post-Processing extracted Images from PDF with {len(pdf_document)} pages", verbose=verbose)
-    if 'post_process_images' in processing_stages:
-        ingestion_pipeline_dict = post_process_images(ingestion_pipeline_dict, models = gpt4_models, num_threads = num_threads, extract_text_from_images=extract_text_from_images)
-
-    logc(f"Ingestion Stage 6/7 of {full_basename}", f"Detecting and Extracting Tables from PDF with {len(pdf_document)} pages", verbose=verbose)
-    if 'extract_tables' in processing_stages:
-        ingestion_pipeline_dict = extract_tables(ingestion_pipeline_dict, models=vision_models, num_threads = num_threads)
-
-    logc(f"Ingestion Stage 7/7 of {full_basename}", f"Post-Processing extracted Tables from PDF with {len(pdf_document)} pages", verbose=verbose)
-    if 'post_process_tables' in processing_stages:
-        ingestion_pipeline_dict = post_process_tables(ingestion_pipeline_dict, models = gpt4_models, num_threads = num_threads)
-
-    # Close the PDF document
-    pdf_document.close()
-
-    vec_entries = len(ingestion_pipeline_dict['text_files'] + ingestion_pipeline_dict['image_text_files'] + ingestion_pipeline_dict['table_text_files'])
-
-    pkl_path = os.path.join(doc_proc_directory, f'{base_name}.pkl')
-
-    if os.path.exists(pkl_path):
-        ext = f".{get_current_time()}.pkl"
-        shutil.copyfile(pkl_path, pkl_path + ext)
-
-    save_to_pickle(ingestion_pipeline_dict, pkl_path)
-
-
-    logc(f"Ingestion Stage of {base_name} Complete", f"{get_current_time()}: Ingestion of document {base_name} resulted in {vec_entries} entries in the Vector Store", verbose=verbose)
-    return ingestion_pipeline_dict
-
-
-
-
-
-def ingest_docs_directory(directory, ingestion_directory=None, index_name='mm_doc_analysis', password=None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models=gpt4_models, vision_models=gpt4_models, num_threads=7, delete_existing_output_dir=False, processing_stages = None, verbose=False):
-    assets = []
-
-    # Walk through the directory
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            # Check if the file is a PDF
-            if file.lower().endswith('.pdf'):
-                logc(f"Ingesting Document: {file}", f"Ingesting Document: {file}", verbose=verbose)
-                # Construct the full file path
-                file_path = os.path.join(root, file)
-                # Call ingest_doc on the file
-                assets.append(ingest_doc(file_path, ingestion_directory, index_name, password, extract_text_mode, extract_images_mode, extract_text_from_images, models, vision_models, num_threads, delete_existing_output_dir, processing_stages, verbose))
-
-    return assets 
-
-
-def ingest_doc(doc_path, ingestion_directory = None, index_name = 'mm_doc_analysis', password = None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models = gpt4_models, vision_models = gpt4_models, num_threads=7, delete_existing_output_dir = False, processing_stages=None, verbose = False):
+def create_ingestion_pipeline_dict(doc_path, ingestion_directory = None, index_name = 'mm_doc_analysis', delete_existing_output_dir = False, password = None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models = gpt4_models, vision_models = gpt4_models, num_threads=7): #, processing_plan=None):
 
     if ingestion_directory is None:
         ingestion_directory = os.path.join(ROOT_PATH_INGESTION, index_name)
@@ -1799,7 +1923,7 @@ def ingest_doc(doc_path, ingestion_directory = None, index_name = 'mm_doc_analys
     # Create the directories if it doesn't exist
     doc_proc_directory = os.path.join(ingestion_directory, base_name+extension).replace(" ", "_")
 
-    if delete_existing_output_dir and (processing_stages is None): 
+    if delete_existing_output_dir: # and (processing_plan is None): 
         shutil.rmtree(doc_proc_directory, ignore_errors=True)
 
     os.makedirs(doc_proc_directory, exist_ok=True)
@@ -1811,54 +1935,52 @@ def ingest_doc(doc_path, ingestion_directory = None, index_name = 'mm_doc_analys
     print("Basename: ", base_name)
     print("Extension: ", extension)
 
-    if extension == '.docx':
-        pdf_path = save_docx_as_pdf(doc_path, doc_proc_directory)
-    elif extension == '.pptx':
-        pdf_path = save_pptx_as_pdf(doc_path, doc_proc_directory)
-    elif extension == '.pdf':
-        pdf_path = os.path.join(doc_proc_directory, base_name + '.pdf').replace(" ", "_")
-        shutil.copyfile(doc_path, pdf_path)
-    else:
-        raise ValueError('Unsupported file extension: {}'.format(extension))
+    # if extension == '.docx':
+    #     document_path = save_docx_as_pdf(doc_path, doc_proc_directory)
+    # elif extension == '.pptx':
+    #     document_path = save_pptx_as_pdf(doc_path, doc_proc_directory)
+    # elif extension == '.pdf':
+    #     document_path = os.path.join(doc_proc_directory, base_name + '.pdf').replace(" ", "_")
+    #     shutil.copyfile(doc_path, document_path)
+    # else:
+    #     raise ValueError('Unsupported file extension: {}'.format(extension))
 
-    print("PDF Path: ", pdf_path)
+    document_path = os.path.join(doc_proc_directory, os.path.basename(doc_path)).replace(" ", "_")
+    shutil.copyfile(doc_path, document_path)
+
+    print("PDF Path: ", document_path)
     master_py_filename = os.path.join(doc_proc_directory, base_name + '.py')
     full_text_filename = os.path.join(doc_proc_directory, base_name + '.txt')
 
     master_py_filename = master_py_filename.replace(' ', '_')
     full_text_filename = full_text_filename.replace(' ', '_')
 
-    # pdf_document_id = str(uuid.uuid4())
+    # document_id = str(uuid.uuid4())
     unique_identifier = f"{index_name}_{os.path.basename(doc_path)}"
-    pdf_document_id = generate_uuid_from_string(unique_identifier)
+    document_id = generate_uuid_from_string(unique_identifier)
 
-    # Use GPT4V to explain image assets
-    text_py_files = []
-    text_code_text_files = []
-    text_markdown_files = []
-    image_text_files = []
-    image_py_files = []
-    image_codeblock_files = []
-    image_mm_files = []
-    table_text_files = []
-    table_code_text_filenames = []
-    table_code_py_filenames = []
-    table_markdown_filenames = []
+     # Directory to save text, high-resolution chunk images, and images
+    chunks_as_images_directory = os.path.join(os.path.dirname(document_path), 'chunk_images')
+    images_directory = os.path.join(os.path.dirname(document_path), 'images')
+    text_directory = os.path.join(os.path.dirname(document_path), 'text')
+    tables_directory = os.path.join(os.path.dirname(document_path), 'tables')
+
+    # Create the directory if it doesn't exist
+    os.makedirs(chunks_as_images_directory, exist_ok=True)
+    os.makedirs(images_directory, exist_ok=True)
+    os.makedirs(text_directory, exist_ok=True)
+    os.makedirs(tables_directory, exist_ok=True)
 
 
     ingestion_pipeline_dict = {
-        'pdf_document_id': pdf_document_id,
-        # 'high_res_page_images': high_res_page_images,
-        # 'text_files': text_files,
-        # 'image_files': image_files,
-        # 'table_files': table_files,
+        'document_id': document_id,
         'original_document_path': doc_path,
         'original_document_filename': os.path.basename(doc_path),
         'original_document_extension': extension,
         'index_name': index_name,
         'document_processing_directory': doc_proc_directory,
         'document_ingestion_directory': ingestion_directory,
-        'pdf_path': pdf_path,
+        'document_path': document_path,
         'master_py_file': master_py_filename,
         'full_text_file': full_text_filename,
         'text_files': [],
@@ -1867,32 +1989,196 @@ def ingest_doc(doc_path, ingestion_directory = None, index_name = 'mm_doc_analys
         'py_files': [],
         'codeblock_files': [],
         'markdown_files': [],
-        'mermaid_files': []
+        'mermaid_files': [],
+        "basename": base_name,
+        "password": password,
+        'extract_text_mode': extract_text_mode,
+        'extract_images_mode': extract_images_mode,
+        'extract_text_from_images': extract_text_from_images,
+        'models': models,
+        'vision_models': vision_models,
+        'num_threads': num_threads,
+        'chunks_as_images_directory': chunks_as_images_directory,
+        'images_directory': images_directory,
+        'text_directory': text_directory,
+        'tables_directory': tables_directory,
     }
 
+    return ingestion_pipeline_dict
 
-    # Process the PDF file - pdf_path is the path to the PDF file
-    ingestion_pipeline_dict = process_pdf(ingestion_pipeline_dict, password, extract_text_mode=extract_text_mode, extract_images_mode=extract_images_mode, extract_text_from_images=extract_text_from_images, models=models, vision_models=vision_models, num_threads = num_threads, processing_stages=processing_stages, verbose=verbose)
+
+def delete_pdf_chunks(ingestion_pipeline_dict):
+    # pdf_document chunk
+    del ingestion_pipeline_dict['pdf_document']
+    for p in ingestion_pipeline_dict['chunks']: del p['chunk']
+    return ingestion_pipeline_dict
+
+
+
+def process_pdf(ingestion_pipeline_dict, password = None, extract_text_mode = "GPT", extract_images_mode = "GPT", extract_text_from_images = True, models = gpt4_models, vision_models=gpt4_models, num_threads=4, processing_plan=None, verbose=False):
+    # print(ingestion_pipeline_dict)
+    document_file_path = ingestion_pipeline_dict['document_path']
+
+    # Open the PDF file
+    pdf_document = fitz.open(document_file_path)
+    full_basename = os.path.basename(document_file_path)
+
+    # Execute file operations based on the file extension
+    base_name = os.path.splitext(os.path.basename(document_file_path))[0].strip()
+    try:
+        extension = os.path.splitext(os.path.basename(document_file_path))[1].strip()
+    except:
+        extension = ''
+
+
+    if password is not None: 
+        r = pdf_document.authenticate(password)
+        if r == 0: raise ValueError("Password is incorrect.")
+        filename = document_file_path+'.decrypted.pdf'
+        pdf_document.save(filename)
+        logc(f"Ingestion Stage of {full_basename}- Info", f"Opened the file with the password. Status: {r}", verbose=verbose)
+
+
+    logc(f"Ingestion Stage of {full_basename} - Info", f"PDF File with num chunks -> {len(pdf_document)}", verbose=verbose)
+
+    ingestion_pipeline_dict['num_chunks'] = len(pdf_document)
+    ingestion_pipeline_dict['document_file_path'] = document_file_path
+    ingestion_pipeline_dict['pdf_document'] = pdf_document
+    
+    ingestion_pipeline_dict['chunks'] = [{
+        'chunk':chunk, 
+        'chunk_number':index+1, 
+        'full_chunk_text':'',
+        'images': [],
+        'tables': [],
+        'image_py': [],
+        'image_codeblock': [],
+        'image_markdown': [],
+        'image_mm': [],
+        'image_text': [],
+        'table_text': [],
+        'table_py': [],
+        'table_codeblock': [],
+        'table_markdown': [],        
+    } for index, chunk in enumerate(pdf_document)]
+
+    doc_proc_directory = ingestion_pipeline_dict['document_processing_directory'] 
+
+    
+    if processing_plan is None:
+        processing_plan = ['pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'harvest_code', 'pdf_extract_images', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
+    else: 
+        text_files, image_text_files, table_text_files = get_ingested_document_text_files(ingestion_pipeline_dict['document_processing_directory'])
+        ingestion_pipeline_dict['text_files'] = text_files
+        ingestion_pipeline_dict['image_text_files'] = image_text_files
+        ingestion_pipeline_dict['table_text_files'] = table_text_files
+
+        image_files = get_ingested_document_jpg_images(ingestion_pipeline_dict['document_processing_directory'])
+        table_files = get_ingested_document_png_table_images(ingestion_pipeline_dict['document_processing_directory'])
+
+        for chunk_dict in ingestion_pipeline_dict['chunks']:
+            chunk_number = chunk_dict['chunk_number']
+            if 'pdf_extract_text' not in processing_plan: chunk_dict['text_file'] = [f for f in text_files if f.endswith(f'chunk_{chunk_number}.txt')][0]
+            if 'pdf_extract_images' not in processing_plan: chunk_dict['images'] = [f for f in image_files if (os.path.basename(f).startswith(f'chunk_{chunk_number}_image_')) and (os.path.basename(f).endswith('.jpg'))]
+            if 'extract_tables_from_images' not in processing_plan: chunk_dict['tables'] = [f for f in table_files if (os.path.basename(f).startswith(f'chunk_{chunk_number}_table_')) and (os.path.basename(f).endswith('.png'))]
+
+
+    logc(f"Ingestion Stage 1/7 of {full_basename}", f"Extracting High-Resolution PNG Images from PDF with {len(pdf_document)} chunks", verbose=verbose)
+    if 'pdf_extract_high_res_chunk_images' in processing_plan:
+        ingestion_pipeline_dict = pdf_extract_high_res_chunk_images(ingestion_pipeline_dict)
+
+    logc(f"Ingestion Stage 2/7 of {full_basename}", f"Extracting Text with Extract Mode {extract_text_mode}", verbose=verbose)
+    if 'pdf_extract_text' in processing_plan:
+        ingestion_pipeline_dict = extract_text(ingestion_pipeline_dict)
+    
+    logc(f"Ingestion Stage 3/7 of {full_basename}", f"Harvesting Code from Text from PDF with {len(pdf_document)} chunks", verbose=verbose)
+    if 'harvest_code' in processing_plan:
+        ingestion_pipeline_dict = harvest_code(ingestion_pipeline_dict)
+    
+    logc(f"Ingestion Stage 4/7 of {full_basename}", f"Detecting and Extracting Images from PDF with {len(pdf_document)} chunks", verbose=verbose)
+    if 'pdf_extract_images' in processing_plan:
+        ingestion_pipeline_dict = extract_images(ingestion_pipeline_dict)
+
+    ingestion_pipeline_dict = delete_pdf_chunks(ingestion_pipeline_dict)
+
+    logc(f"Ingestion Stage 5/7 of {full_basename}", f"Post-Processing extracted Images from PDF with {len(pdf_document)} chunks", verbose=verbose)
+    if 'post_process_images' in processing_plan:
+        ingestion_pipeline_dict = post_process_images(ingestion_pipeline_dict)
+
+    logc(f"Ingestion Stage 6/7 of {full_basename}", f"Detecting and Extracting Tables from PDF with {len(pdf_document)} chunks", verbose=verbose)
+    if 'extract_tables_from_images' in processing_plan:
+        ingestion_pipeline_dict = extract_tables(ingestion_pipeline_dict)
+
+    logc(f"Ingestion Stage 7/7 of {full_basename}", f"Post-Processing extracted Tables from PDF with {len(pdf_document)} chunks", verbose=verbose)
+    if 'post_process_tables' in processing_plan:
+        ingestion_pipeline_dict = post_process_tables(ingestion_pipeline_dict)
+
+    # Close the PDF document
+    pdf_document.close()
+
+    vec_entries = len(ingestion_pipeline_dict['text_files'] + ingestion_pipeline_dict['image_text_files'] + ingestion_pipeline_dict['table_text_files'])
+
+    pkl_path = os.path.join(doc_proc_directory, f'{base_name}.pkl')
+
+    if os.path.exists(pkl_path):
+        ext = f".{get_current_time()}.pkl"
+        shutil.copyfile(pkl_path, pkl_path + ext)
+
+    save_to_pickle(ingestion_pipeline_dict, pkl_path)
+
+
+    logc(f"Ingestion Stage of {base_name} Complete", f"{get_current_time()}: Ingestion of document {base_name} resulted in {vec_entries} entries in the Vector Store", verbose=verbose)
+    return ingestion_pipeline_dict
+
+
+
+
+
+def ingest_docs_directory(directory, ingestion_directory=None, index_name='mm_doc_analysis', password=None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models=gpt4_models, vision_models=gpt4_models, num_threads=7, delete_existing_output_dir=False, processing_plan = None, verbose=False):
+    assets = []
+
+    # Walk through the directory
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            # Check if the file is a PDF
+            if file.lower().endswith('.pdf'):
+                logc(f"Ingesting Document: {file}", f"Ingesting Document: {file}", verbose=verbose)
+                # Construct the full file path
+                file_path = os.path.join(root, file)
+                # Call ingest_doc on the file
+                assets.append(ingest_doc(file_path, ingestion_directory, index_name, password, extract_text_mode, extract_images_mode, extract_text_from_images, models, vision_models, num_threads, delete_existing_output_dir, processing_plan, verbose))
+
+    return assets 
+
+
+def ingest_doc(doc_path, ingestion_directory = None, index_name = 'mm_doc_analysis', password = None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models = gpt4_models, vision_models = gpt4_models, num_threads=7, delete_existing_output_dir = False, processing_plan=None, verbose = False):
+
+    ingestion_pipeline_dict = create_ingestion_pipeline_dict(doc_path, ingestion_directory, index_name, delete_existing_output_dir)
+
+    base_name = ingestion_pipeline_dict['basename']
+
+    # Process the PDF file - document_path is the path to the PDF file
+    ingestion_pipeline_dict = process_pdf(ingestion_pipeline_dict, password, extract_text_mode=extract_text_mode, extract_images_mode=extract_images_mode, extract_text_from_images=extract_text_from_images, models=models, vision_models=vision_models, num_threads = num_threads, processing_plan=processing_plan, verbose=verbose)
     # save_to_pickle(ingestion_pipeline_dict, os.path.join(doc_proc_directory, 'ingestion_pipeline_dict.temp.pickle'))
 
     logc(f"Ingestion of {base_name} Complete", f"Ingestion of document {base_name} resulted in {len(ingestion_pipeline_dict['text_files'] + ingestion_pipeline_dict['image_text_files'] + ingestion_pipeline_dict['table_text_files'])} entries in the Vector Store", verbose=verbose)
 
-    ingestion_pipeline_dict['index_ids'] = commit_assets_to_vector_index(ingestion_pipeline_dict, ingestion_directory, index_name, vector_type = "AISearch")
+    ingestion_pipeline_dict['index_ids'], ingestion_pipeline_dict['vecstore_metadatas'] = commit_assets_to_vector_index(ingestion_pipeline_dict, ingestion_directory, index_name, vector_type = "AISearch")
 
     return ingestion_pipeline_dict
 
 
 
 
-def extract_page_number(filename, verbose = False):
-    match = re.search(r"page_(\d+)", filename)
+def extract_chunk_number(filename, verbose = False):
+    match = re.search(r"chunk_(\d+)", filename)
     if match:
-        page_number = match.group(1)
-        if verbose: logc(f"Extracted page number: {page_number}")
+        chunk_number = match.group(1)
+        if verbose: logc(f"Extracted chunk number: {chunk_number}")
     else:
-        page_number = 'unknown'
+        chunk_number = 'unknown'
 
-    return page_number
+    return chunk_number
 
 
 
@@ -1927,38 +2213,38 @@ detect_num_of_tables_prompt = """
 You are an assistant working on a document processing task that involves detecting and counting the number of data tables in am image file using a vision model. Given an image, your task is determine the number of data tables present. 
 
 Output:
-Return a single integer representing the number of data tables detected in the page. Do **NOT** generate any other text or explanation, just the number of tables. We are **NOT** looking for the word 'table' in the text, we are looking for the number of data tables in the image.
+Return a single integer representing the number of data tables detected in the chunk. Do **NOT** generate any other text or explanation, just the number of tables. We are **NOT** looking for the word 'table' in the text, we are looking for the number of data tables in the image.
 
 """
 
 detect_num_of_diagrams_prompt = """
-You are an assistant working on a document processing task that involves detecting and counting the number of visual assets in a document page using a vision model. Given a screenshot of a documenat page, your task is determine the number of visual assets present. Please ignore any standard non-visual assets such as text, headers, footers, page numbers, tables, etc.
+You are an assistant working on a document processing task that involves detecting and counting the number of visual assets in a document chunk using a vision model. Given a screenshot of a documenat chunk, your task is determine the number of visual assets present. Please ignore any standard non-visual assets such as text, headers, footers, chunk numbers, tables, etc.
 
 What is meant by visual assets: infographics, maps, flowcharts, timelines, tables, illustrations, icons, heatmaps, scatter plots, pie charts, bar graphs, line graphs, histograms, Venn diagrams, organizational charts, mind maps, Gantt charts, tree diagrams, pictograms, schematics, blueprints, 3D models, storyboards, wireframes, dashboards, comic strips, story maps, process diagrams, network diagrams, bubble charts, area charts, radar charts, waterfall charts, funnel charts, sunburst charts, sankey diagrams, choropleth maps, isometric drawings, exploded views, photomontages, collages, mood boards, concept maps, fishbone diagrams, decision trees, Pareto charts, control charts, spider charts, images, diagrams, logos, charts or graphs.
 
 Output:
-Return a single integer representing the number of visual assets detected in the page. Do **NOT** generate any other text or explanation, just the count of . 
+Return a single integer representing the number of visual assets detected in the chunk. Do **NOT** generate any other text or explanation, just the count of . 
 
 """
 
 
 image_description_prompt = """
-Please describe the attached image in full details, with a description of each object in the image. If the attached is a screenshot of a document page with multiple images in it, then you **MUST* repeat the below steps per image. 
+Please describe the attached image in full details, with a description of each object in the image. If the attached is a screenshot of a document chunk with multiple images in it, then you **MUST* repeat the below steps per image. 
 Try to answer the following questions:
 
     1. What information does this image convey? 
-    2. Given the below text context (Previous Page, Current Page, Next Page), how does this image add to the information?
+    2. Given the below text context (Previous Chunk, Current Chunk, Next Chunk), how does this image add to the information?
     3. If this image is a natural image (people, scenery, city landscape, offices, etc..), describe all the objects in that image, and describe the background and setting of the image. 
     4. If this image is an organization chart, a flowchart, a process chart, or any chart that conveys relationships and progress in timeline or execution, please generate the text description of this chart as accurately as possible, as well as generate the Mermaid code to capture the full information in the chart. As an accurate and faithful assistant, you **MUST** be able to capture all the information in the chart. When generating Mermaid code, do not generate paranthesis in the node names inside the code, because it might throw an error. 
     5. If this image is an image of a numerical chart, like a line chart or a bar chart or a pie chart, generate a Markdown table that accurately represents the quantities being displayed. Describe in text the axes labels, the trend lines, the exact amounts, and so on and so forth. Be very descriptive when it comes to the numerical quantities: e.g. "the sales in May 2022 was $4.2 million", or "the market share of the X product is 22%", etc.. If this is a line chart, make sure that the values in the chart are aligned with the labels on the axes (X and Y are correct vs axes). You **MUST** output a Markdown representation of the data in a Markdown codeblock delimited by '```markdown' and '```'. The numbers **must absolutely** be accurate. Also you **MUST** output the Python code that enables the creation of the Pandas Dataframe of the data in the chart, but do not compute the data. After extracing the data, double check your results to make sure that the Markdown table and Python code are accurate and representative of the data in the image. In the generated code, give the dataframe a unique code variable name, like df_{purpose of the table}_{random number of 6 digits}. For example, if the table is about seasonal sales in 2023, then the dataframe name could be df_seasonal_sales_in_2023_3927364. This is to make sure that the dataframe name is unique and does not conflict with other dataframes in the code.
     6. For all other cases, describe what's in the image as elaborately and as detailed as possible. 
     7. If the image is that of a table, try to describe the table in full details, with a description of each column and row in the table. For each column, describe the header name, the data type and the purpose of the data and the column. If the table is a numerical table, try to describe the purpose and the trends of the different columns and rows in that table. In addition to that, output the table in Markdown format to be able to represent it in text. If the table is not clearly labeled, give the table a unique Title, based on the context supplied and the purpose of the table. If there are more than one table in the image, then describe each table separately. Please output the Markdown in a Markdown codeblock delimited by '```markdown' and '```'.
     8. Try to guess the purpose of why the authors have included this image in the document.
-    9. If the attached is a screenshot of a document page with multiple images in it, then you **MUST* repeat the above steps per image and generate it all in the same output. 
+    9. If the attached is a screenshot of a document chunk with multiple images in it, then you **MUST* repeat the above steps per image and generate it all in the same output. 
     10. If any point in the above is not applicable, you do **NOT** have to say "Not applicable" or "Not applicable as this is not ...", you can just skip that point. No need for needless text or explanations to be generated.
-    11. **IMPORTANT**: If the image is a screenshot of a document page with multiple images in it, then you **MUST* repeat the above steps per image and generate it all in the same output.
+    11. **IMPORTANT**: If the image is a screenshot of a document chunk with multiple images in it, then you **MUST* repeat the above steps per image and generate it all in the same output.
 
-As previously highlighted and stressed already, if the attached is a screenshot of a document page with multiple images in it, then you **MUST* repeat the above steps per image and generate it all in the same output.
+As previously highlighted and stressed already, if the attached is a screenshot of a document chunk with multiple images in it, then you **MUST* repeat the above steps per image and generate it all in the same output.
 
 """
 
@@ -2021,22 +2307,22 @@ context_extension = """
 
 **Context**:
 
-Previous Document Page:
-## START OF PAGE
-{previous_page}
-## END OF PAGE
+Previous Document Chunk:
+## START OF Chunk
+{previous_chunk}
+## END OF Chunk
 
 
-Current Document Page:
-## START OF PAGE
-{current_page}
-## END OF PAGE
+Current Document Chunk:
+## START OF Chunk
+{current_chunk}
+## END OF Chunk
 
 
-Next Document Page:
-## START OF PAGE
-{next_page}
-## END OF PAGE
+Next Document Chunk:
+## START OF Chunk
+{next_chunk}
+## END OF Chunk
 
 
 """
@@ -2157,16 +2443,16 @@ def call_gpt4v(imgs, gpt4v_prompt = "describe the attached image", prompt_extens
 
 
 
-def create_metadata(asset_file, file_id, pdf_path, pdf_document_id, asset_type="text", image_file = "", python_block = "", python_code = "", markdown = "", mermaid_code = "", tags = ""):
+def create_metadata(asset_file, file_id, document_path, document_id, asset_type="text", image_file = "", python_block = "", python_code = "", markdown = "", mermaid_code = "", tags = ""):
     metadata = {
         "asset_path": asset_file, 
-        "pdf_path": pdf_path, 
-        "filename": os.path.basename(pdf_path),
+        "document_path": document_path, 
+        "filename": os.path.basename(document_path),
         "image_file": image_file,
         "asset_filename": asset_file,
-        "page_number": extract_page_number(asset_file),
+        "chunk_number": extract_chunk_number(asset_file),
         "type": asset_type,
-        "document_id": pdf_document_id,
+        "document_id": document_id,
         "python_block" : python_block,
         "python_code" : python_code,
         "markdown": markdown,
@@ -2215,7 +2501,7 @@ def generate_tag_list(text, model = AZURE_OPENAI_MODEL, client = oai_client):
         return text
 
 
-def add_asset_to_vec_store(assets, index, asset_file, pdf_path, pdf_document_id, vector_type = "AISearch"):
+def add_asset_to_vec_store(assets, index, asset_file, document_path, document_id, vector_type = "AISearch"):
 
     text = ""
     python_code = ""
@@ -2230,7 +2516,7 @@ def add_asset_to_vec_store(assets, index, asset_file, pdf_path, pdf_document_id,
 
 
     # asset_file = os.path.abspath(asset_file)
-    # pdf_path = os.path.abspath(pdf_path)
+    # document_path = os.path.abspath(document_path)
 
     if "image" in asset_file:
         asset_type = "image"
@@ -2268,23 +2554,23 @@ def add_asset_to_vec_store(assets, index, asset_file, pdf_path, pdf_document_id,
     unique_identifier = f"{index_name}_{original_document_filename}_{os.path.basename(asset_file)}"
     file_id = generate_uuid_from_string(unique_identifier)
 
-    metadata = create_metadata(asset_file, file_id, pdf_path, pdf_document_id, asset_type=asset_type, image_file = image_file, python_block = python_block, python_code = python_code, markdown = markdown, mermaid_code=mermaid_code, tags=tags)
+    metadata = create_metadata(asset_file, file_id, document_path, document_id, asset_type=asset_type, image_file = image_file, python_block = python_block, python_code = python_code, markdown = markdown, mermaid_code=mermaid_code, tags=tags)
     print(f"\n{bc.OKBLUE}Metadata:\n{bc.OKGREEN}{json.dumps(metadata, indent=4)}\n{bc.ENDC}")
     
 
     if asset_type == "text":
-        page_number = extract_page_number(asset_file)
-        text_for_embeddings = get_processed_context_pages(asset_file, text, int(page_number))
+        chunk_number = extract_chunk_number(asset_file)
+        text_for_embeddings = get_processed_context_chunks(asset_file, text, int(chunk_number))
     else: 
-        page_number = extract_page_number(asset_file)
-        text_for_embeddings = get_processed_context_page(doc_proc_directory, text, int(page_number))
+        chunk_number = extract_chunk_number(asset_file)
+        text_for_embeddings = get_processed_context_chunk(doc_proc_directory, text, int(chunk_number))
 
     if vector_type == "AISearch":
         metadata['text'] = text
         metadata['vector'] = get_embeddings(text_for_embeddings)
         index.upload_documents([metadata])
 
-    return file_id
+    return file_id, metadata
 
 
 
@@ -2294,9 +2580,9 @@ def commit_assets_to_vector_index(assets, ingestion_directory, index_name = 'mm_
     text_files = assets['text_files']
     image_text_files = assets['image_text_files']
     table_text_files = assets['table_text_files']
-    pdf_path = assets['pdf_path']
-    # pdf_path = assets['original_document_path']
-    pdf_document_id = assets['pdf_document_id']
+    document_path = assets['document_path']
+    # document_path = assets['original_document_path']
+    document_id = assets['document_id']
     logc("Assets: ", assets, verbose=True)
 
 
@@ -2306,71 +2592,76 @@ def commit_assets_to_vector_index(assets, ingestion_directory, index_name = 'mm_
             print(f"No index {index_name} detected, creating one ... ")
             index.create_index()
 
-
     index_ids = []
+    metadatas = []
     for asset_file in text_files + image_text_files + table_text_files:
-        asset_file_id = add_asset_to_vec_store(assets, index, asset_file, pdf_path, pdf_document_id, vector_type=vector_type)
+        asset_file_id, metadata = add_asset_to_vec_store(assets, index, asset_file, document_path, document_id, vector_type=vector_type)
         print("Asset File ID: ", asset_file_id)
         index_ids.append(asset_file_id)
+        metadatas.append(metadata)
 
-    return index_ids
+    return index_ids, metadatas
 
 
 
-def get_processed_context_pages(asset_file, text, page_number):
+def get_processed_context_chunks(asset_file, text, chunk_number):
     
     dir_name = os.path.dirname(asset_file)
 
     try:
-        previous_page_text = read_asset_file(os.path.join(dir_name, f"page_{page_number-1}.processed.txt"))[0]
+        previous_chunk_text = read_asset_file(os.path.join(dir_name, f"chunk_{chunk_number-1}.processed.txt"))[0]
     except:
-        previous_page_text = ""
+        previous_chunk_text = ""
 
     try:
-        next_page_text = read_asset_file(os.path.join(dir_name, f"page_{page_number+1}.processed.txt"))[0]
+        next_chunk_text = read_asset_file(os.path.join(dir_name, f"chunk_{chunk_number+1}.processed.txt"))[0]
     except:
-        next_page_text = ""
+        next_chunk_text = ""
 
-    return previous_page_text + "\n\n" + text + "\n\n" + next_page_text
+    return previous_chunk_text + "\n\n" + text + "\n\n" + next_chunk_text
 
 
-def get_processed_context_page(doc_proc_directory, text, page_number):
+def get_processed_context_chunk(doc_proc_directory, text, chunk_number):
     
-    path = os.path.join(doc_proc_directory, f"text/page_{page_number}.processed.txt")
+    path = os.path.join(doc_proc_directory, f"text/chunk_{chunk_number}.processed.txt")
     try:
-        current_page_text = read_asset_file(path)[0]
+        current_chunk_text = read_asset_file(path)[0]
     except:
-        current_page_text = ""
+        current_chunk_text = ""
 
-    return text + "\n\n" + current_page_text
+    return text + "\n\n" + current_chunk_text
 
 
 
     
 
-def get_context_pages(pdf_path, page_number):
-    pdf_document = fitz.open(pdf_path)
+def get_context_chunks(document_path, chunk_number):
     try:
-        if page_number-2 >= 0:
-            previous_page = pdf_document[page_number-2].get_text()
-        else:
-            previous_page = 0
-    except:
-        previous_page = ""
+        pdf_document = fitz.open(document_path)
+        try:
+            if chunk_number-2 >= 0:
+                previous_chunk = pdf_document[chunk_number-2].get_text()
+            else:
+                previous_chunk = 0
+        except:
+            previous_chunk = ""
 
-    try:
-        current_page = pdf_document[page_number-1].get_text()
-    except:
-        current_page = ""
-    
-    try:
-        next_page = pdf_document[page_number].get_text()
-    except:
-        next_page = ""
+        try:
+            current_chunk = pdf_document[chunk_number-1].get_text()
+        except:
+            current_chunk = ""
+        
+        try:
+            next_chunk = pdf_document[chunk_number].get_text()
+        except:
+            next_chunk = ""
 
-    pdf_document.close()
+        pdf_document.close()
 
-    return previous_page, current_page, next_page
+        return previous_chunk, current_chunk, next_chunk
+    except:
+        return "No chunk retrieved.", "No chunk retrieved.", "No chunk retrieved."
+
 
 
 def replace_extension(asset_path, new_extension):
@@ -2381,16 +2672,16 @@ def replace_extension(asset_path, new_extension):
 
 
 
-def get_asset_explanation_gpt4v(asset_file, pdf_path, gpt4v_prompt = image_description_prompt, prompt_extension = "", with_context = False, extension = None, temperature = 0.2, model_info=None):
+def get_asset_explanation_gpt4v(asset_file, document_path, gpt4v_prompt = image_description_prompt, prompt_extension = "", with_context = False, extension = None, temperature = 0.2, model_info=None):
 
     code_filename = ''
     text_filename = ''
     prompt_ext = ''
 
     if with_context:
-        page_number = extract_page_number(asset_file)
-        previous_page, current_page, next_page = get_context_pages(pdf_path, int(page_number))
-        prompt_ext = prompt_extension + context_extension.format(previous_page = previous_page, current_page = current_page, next_page = next_page)
+        chunk_number = extract_chunk_number(asset_file)
+        previous_chunk, current_chunk, next_chunk = get_context_chunks(document_path, int(chunk_number))
+        prompt_ext = prompt_extension + context_extension.format(previous_chunk = previous_chunk, current_chunk = current_chunk, next_chunk = next_chunk)
     
     try:
         text, description = call_gpt4v(asset_file, gpt4v_prompt = gpt4v_prompt, prompt_extension = prompt_ext, temperature = temperature, model_info=model_info)
@@ -2504,14 +2795,14 @@ Here is the Chain of Thought and the step-by-step that you should follow:
     5. If you want to generate RegEx expressions, make sure that the RegEx expression is valid. Do **NOT** generate something like this: str.replace('[extbackslash	extdollar,]', '', regex=True), which is obviously invalid, since the $ sign is spelled as 'extdollar', and the '\\' is spelled as 'extbackslash'.
     6. If you have trouble accessing the previously defined variables or the dataframes for any reasons, then use the Python Codeblocks delimited by '## START OF CODEBLOCK' and '## END OF CODEBLOCK' to extract the information you need, and then generate the needed Python code.
     7. Generate the answer to the query. You **MUST** clarify AND print to the output **ALL** calculation steps leading up to the final answer.
-    8. You **MUST** detail how you came up with the answer. Please provide a complete description of the calculation steps taken to get to the answer. Please reference the PDF Document and the page number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', page 34".
+    8. You **MUST** detail how you came up with the answer. Please provide a complete description of the calculation steps taken to get to the answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34".
     9. If the answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
     10. **VERY IMPORTANT**: do **NOT** attempt to create a list of variables or dataframes directly. Instead, you should access the data from the variables and dataframes that were defined in the Python file that was run.
     
 
 Question: {query}
 
-In your final answer, be elaborate in your response. Describe your logic and the calculation steps to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. Describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. Please reference the PDF Document and the page number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', page 34". After generating the final response, and if the final answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
+In your final answer, be elaborate in your response. Describe your logic and the calculation steps to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. Describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34". After generating the final response, and if the final answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
 
 """
 
@@ -2541,7 +2832,7 @@ Here is the Chain of Thought and the step-by-step that you should follow:
     4. Use the Codeblocks delimited by '## START OF CODEBLOCK' and '## END OF CODEBLOCK' to identify and print to the output the relevant dataframes names, and print to the output all their columns. Also print all the variable assignment statements. Include the dataframes assignment statements in the output. Limit this list to the relevant dataframes **ONLY**. Generate the Python code that will do this step and execute it.
     5. If you have trouble accessing the previously defined variables or the dataframes for any reasons, then use the Python Codeblocks delimited by '## START OF CODEBLOCK' and '## END OF CODEBLOCK' to extract the information you need, and then generate the needed Python code.
     6. Generate the answer to the query. You **MUST** clarify AND print to the output **ALL** calculation steps leading up to the final answer.
-    7. You **MUST** detail how you came up with the answer. Please provide a complete description of the calculation steps taken to get to the answer. Please reference the PDF Document and the page number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', page 34".
+    7. You **MUST** detail how you came up with the answer. Please provide a complete description of the calculation steps taken to get to the answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34".
     8. Generate in **FULL** the answer with all explanations and calculations steps associated with it, and share it with the user in text.
     9. If the answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
     10. **VERY IMPORTANT**: do **NOT** attempt to create a list of variables or dataframes directly. Instead, you should access the data from the variables and dataframes that were defined in the Python file that was run.
@@ -2549,7 +2840,7 @@ Here is the Chain of Thought and the step-by-step that you should follow:
 
 Question: {query}
 
-In your final answer, be elaborate in your response. Describe your logic and the calculation steps to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. Describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. Please reference the PDF Document and the page number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', page 34". After generating the final response, and if the final answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
+In your final answer, be elaborate in your response. Describe your logic and the calculation steps to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. Describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34". After generating the final response, and if the final answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
 
 """
 
@@ -2586,8 +2877,8 @@ table_info = """
 
 ## START OF CODEBLOCK 
 Py Filename: {filename}
-PDF Filename: {pdf_filename}
-PDF Page: {page_number}
+Document Filename: {proc_filename}
+Chunk Number: {chunk_number}
 
 Code Block - Contents of the above Py file:
 {codeblock}
@@ -2661,8 +2952,8 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
     added = []
 
     # codeblocks = [table_info.format(filename = os.path.abspath(replace_extension(asset, ".py")), 
-    #                                 pdf_filename=assets['filenames'][index], 
-    #                                 page_number = extract_page_number(assets['asset_filenames'][index]),
+    #                                 proc_filename=assets['filenames'][index], 
+    #                                 chunk_number = extract_chunk_number(assets['asset_filenames'][index]),
     #                                 codeblock=read_asset_file(asset)[0], 
     #                                 markdown = read_asset_file(replace_extension(asset, ".md"))[0]) \
     #                                 for index, asset in enumerate(assets['python_block'])]
@@ -2672,8 +2963,8 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
 
     if include_master_py:
         master_files = []
-        for pdf_path in assets['pdf_paths']: 
-            master_py = os.path.abspath(replace_extension(pdf_path, ".py")).replace(' ', '_')
+        for document_path in assets['document_paths']: 
+            master_py = os.path.abspath(replace_extension(document_path, ".py")).replace(' ', '_')
             if os.path.exists(master_py):
                 master_files.append(master_py)
         master_files = list(set(master_files))
@@ -2694,8 +2985,8 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
         if asset not in added:
             # logc("Assistants API", f"Adding Asset: {asset} to the Prompt ...")
             filename = replace_extension(asset, ".py")
-            pdf_filename = assets['filenames'][index]
-            page_number = extract_page_number(assets['asset_filenames'][index])
+            proc_filename = assets['filenames'][index]
+            chunk_number = extract_chunk_number(assets['asset_filenames'][index])
             codeblock = read_asset_file(asset)[0]
             codeblock = codeblock if codeblock != "" else "No Python Code available."
             markdown = read_asset_file(replace_extension(asset, ".md"))[0]  
@@ -2708,7 +2999,7 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
                 print(f"Limit Reached: {len(codeblocks)} > {chars_limit - len(user_query) - len(run_py_files) - len(py_code) - 3000} | breakdown: {chars_limit} - 3000 - {len(user_query)} - {len(run_py_files)} - {len(py_code)}")
                 break
 
-            codeblocks.append(table_info.format(filename=filename, pdf_filename=pdf_filename, page_number=page_number, codeblock=codeblock, markdown=markdown, mermaid=mermaid))      
+            codeblocks.append(table_info.format(filename=filename, proc_filename=proc_filename, chunk_number=chunk_number, codeblock=codeblock, markdown=markdown, mermaid=mermaid))      
             if index > limit: break  
 
     if verbose: logc("Taskweaver", f"Added Codeblocks\n{added}")
@@ -2757,14 +3048,14 @@ def try_code_interpreter_for_tables_using_python_exec(assets, query, include_mas
     result = False
 
     while (not result):
-        text_codeblocks = [table_info.format(filename = os.path.abspath(replace_extension(asset, ".py")), pdf_filename=assets['filenames'][index], page_number = extract_page_number(assets['asset_filenames'][index]), codeblock=read_asset_file(asset)[0], markdown = read_asset_file(replace_extension(asset, ".txt"))[0]) for index, asset in enumerate(assets['python_block'])]
+        text_codeblocks = [table_info.format(filename = os.path.abspath(replace_extension(asset, ".py")), proc_filename=assets['filenames'][index], chunk_number = extract_chunk_number(assets['asset_filenames'][index]), codeblock=read_asset_file(asset)[0], markdown = read_asset_file(replace_extension(asset, ".txt"))[0]) for index, asset in enumerate(assets['python_block'])]
         
         py_code = [os.path.abspath(asset) for asset in assets['python_code']]
 
         if include_master_py:
             master_files = []
-            for pdf_path in assets['pdf_paths']: 
-                master_py = os.path.abspath(replace_extension(pdf_path, ".py"))
+            for document_path in assets['document_paths']: 
+                master_py = os.path.abspath(replace_extension(document_path, ".py"))
                 if os.path.exists(master_py):
                     master_files.append(master_py)
             master_files = list(set(master_files))
@@ -2913,9 +3204,9 @@ search_context_extension = """
 Search Result:
 ## START OF SEARCH RESULT
 Asset Filename: {filename}
-PDF Filename: {pdf_filename}
-PDF Path: {pdf_path}
-PDF Page: {page_number}
+Document Filename: {proc_filename}
+Document Path: {document_path}
+Chunk Number: {chunk_number}
 Asset Type: {type}
 
 Text:
@@ -2981,7 +3272,7 @@ In case the user question asks a question which requires computation, you can re
 
 
 **Final Answer:**
-Be elaborate in your response. Describe your logic to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. If there any computation steps you took, please relay them to the user, and clarify how you got to the final answer. If applicable, describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. You **MUST** reference the PDF Document(s) and the page number(s) you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', pages 34 and 36". The reference **MUST** contain the page number as well. If an answer is given in the Computation Support section, then give more weight to this section since it was computed by the Code Interpreter, and use the answer provided in the Computation Support section as a solid basis to your final answer. Do **NOT** mention the search result sections labeled "Search Result: ## START OF SEARCH RESULT" and "## END OF SEARCH RESULT." as references in your final answer. If there are some elements in the final answer that can be tabularized such as a timeseries of data, or a dataset, or a sequence of numbers or a matrix of categories, then you **MUST** format these elements as a Markdown table, in addition to all other explanations described above.  
+Be elaborate in your response. Describe your logic to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. If there any computation steps you took, please relay them to the user, and clarify how you got to the final answer. If applicable, describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. You **MUST** reference the PDF Document(s) and the chunk number(s) you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunks 34 and 36". The reference **MUST** contain the chunk number as well. If an answer is given in the Computation Support section, then give more weight to this section since it was computed by the Code Interpreter, and use the answer provided in the Computation Support section as a solid basis to your final answer. Do **NOT** mention the search result sections labeled "Search Result: ## START OF SEARCH RESULT" and "## END OF SEARCH RESULT." as references in your final answer. If there are some elements in the final answer that can be tabularized such as a timeseries of data, or a dataset, or a sequence of numbers or a matrix of categories, then you **MUST** format these elements as a Markdown table, in addition to all other explanations described above.  
 
 **Critiquing the Final Answer**:
 After generating the Final Answer, please try to answer the below questions. These questions are for the Assistant. 
@@ -2992,7 +3283,7 @@ After generating the Final Answer, please try to answer the below questions. The
 
 **JSON Output**:
 
-The JSON dictionary output should include the Final Answer and the References. The references is an array of dictionaries. Each Reference includes in it the path to the asset file, the path to the PDF file, the name of the PDF file, the page number and the type. The JSON dictionary **MUST** be in the following format:
+The JSON dictionary output should include the Final Answer and the References. The references is an array of dictionaries. Each Reference includes in it the path to the asset file, the path to the PDF file, the name of the PDF file, the chunk number and the type. The JSON dictionary **MUST** be in the following format:
 
 {search_json_output}
 
@@ -3009,9 +3300,9 @@ full_search_json_output = """
     "output_excel_file": "If an Excel file for the final answer has been generated and mentioned under the 'Computation Support' section, then include it here, otherwise, output an empty string ''."
     "references": [
         "asset": "full-path reference to the asset which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'Asset Filename'."
-        "pdf_path": "full-path reference to the PDF document which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'PDF Path'.",
-        "pdf_document": "name of the PDF document which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'PDF Filename'.",
-        "page": "page for the 'asset' which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'PDF Page'.",
+        "document_path": "full-path reference to the document which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'PDF Path'.",
+        "original_document": "name of the document which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'PDF Filename'.",
+        "chunk": "chunk for the 'asset' which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'PDF Chunk'.",
         "type": "type of the 'asset' which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'Asset Type'. The type can strictly be on of three values: 'text', 'image', or 'table'"
     ]
 }}
@@ -3226,7 +3517,7 @@ import random
 def call_ai_search(query, index_name, top=7, computation_approach = "Taskweaver", count=False):
 
     index = CogSearchRestAPI(index_name)
-    select_fields = ["asset_id", "asset_path", "pdf_path", "filename", "image_file", "asset_filename", "page_number", "type", "document_id", "python_block", "python_code", "markdown", "mermaid", "text"], 
+    select_fields = ["asset_id", "asset_path", "document_path", "filename", "image_file", "asset_filename", "chunk_number", "type", "document_id", "python_block", "python_code", "markdown", "mermaid", "text"], 
 
     t = float(random.randrange(1000))/1000.0
     time.sleep(t)
@@ -3340,7 +3631,7 @@ def generate_search_assets(all_results, limit = 1000, verbose=False):
     assets['python_code'] = []
     assets['filenames'] = []
     assets['asset_filenames'] = []
-    assets['pdf_paths'] = []
+    assets['document_paths'] = []
     assets['vision_images'] = []
 
     logc("All Results", all_results)
@@ -3356,7 +3647,7 @@ def generate_search_assets(all_results, limit = 1000, verbose=False):
             assets['asset_filenames'].append(metadata['asset_filename'])
             assets['python_block'].append(metadata['python_block'])
             assets['python_code'].append(metadata['python_code'])
-            assets['pdf_paths'].append(metadata['pdf_path'])
+            assets['document_paths'].append(metadata['document_path'])
 
         elif (metadata['type'] == 'image'):
             assets['filenames'].append(metadata['filename'])
@@ -3366,8 +3657,8 @@ def generate_search_assets(all_results, limit = 1000, verbose=False):
             else:
                 assets['python_block'].append(metadata['python_block'])
             assets['python_code'].append(metadata['python_code'])
-            assets['pdf_paths'].append(metadata['pdf_path'])
-            assets['vision_images'].append({'pdf':metadata['pdf_path'], 'img':metadata['image_file']})
+            assets['document_paths'].append(metadata['document_path'])
+            assets['vision_images'].append({'pdf':metadata['document_path'], 'img':metadata['image_file']})
 
 
         elif (metadata['type'] == 'text') and (metadata['python_block'] != ""):
@@ -3375,7 +3666,7 @@ def generate_search_assets(all_results, limit = 1000, verbose=False):
             assets['asset_filenames'].append(metadata['asset_filename'])
             assets['python_block'].append(metadata['python_block'])
             assets['python_code'].append(metadata['python_code'])
-            assets['pdf_paths'].append(metadata['pdf_path'])
+            assets['document_paths'].append(metadata['document_path'])
     
     return assets
 
@@ -3412,13 +3703,13 @@ def search(query, learnings = None, top=7, conversation_history = [], user_id = 
 
         img_counter = 0
         for p in assets['vision_images']:
-            pdf_path = p['pdf']
+            document_path = p['pdf']
             img_path = p['img']
 
             try:
-                interm_vision_support_result, _, _ = get_asset_explanation_gpt4v(img_path, pdf_path, gpt4v_prompt = vision_support_prompt.format(query=query), with_context = True, extension = "dont_save")
+                interm_vision_support_result, _, _ = get_asset_explanation_gpt4v(img_path, document_path, gpt4v_prompt = vision_support_prompt.format(query=query), with_context = True, extension = "dont_save")
 
-                vision_support_result += f"## START OF VISION RESULT\nPDF: {os.path.basename(pdf_path)}\nImage: {os.path.basename(img_path)}\nAnswer from Image:\n{interm_vision_support_result}\n## END OF VISION RESULT\n\n"
+                vision_support_result += f"## START OF VISION RESULT\nPDF: {os.path.basename(document_path)}\nImage: {os.path.basename(img_path)}\nAnswer from Image:\n{interm_vision_support_result}\n## END OF VISION RESULT\n\n"
                 img_counter += 1
             except Exception as e:
                 print(f"Error processing vision support: {e}")
@@ -3456,10 +3747,10 @@ def search(query, learnings = None, top=7, conversation_history = [], user_id = 
 
     context_array = [search_context_extension.format(search_result = clean_up_text(result['text']), 
                                                          filename = os.path.relpath(result['asset_path']),
-                                                         pdf_filename = os.path.basename(result['pdf_path']),
-                                                         pdf_path = os.path.relpath(result['pdf_path']),
+                                                         proc_filename = os.path.basename(result['document_path']),
+                                                         document_path = os.path.relpath(result['document_path']),
                                                          type = result['type'],
-                                                         page_number = result['page_number']) for result in unique_results]
+                                                         chunk_number = result['chunk_number']) for result in unique_results]
 
     context_window = []
     token_window = 0 

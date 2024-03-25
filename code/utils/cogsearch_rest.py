@@ -132,11 +132,11 @@ class CogSearchRestAPI(CogSearchHttpRequest):
             self.fields = [
                     {"name": "asset_id", "type": "Edm.String", "key": True, "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
                     {"name": "asset_path", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
-                    {"name": "pdf_path", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
+                    {"name": "document_path", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
                     {"name": "filename", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
                     {"name": "image_file", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
                     {"name": "asset_filename", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
-                    {"name": "page_number", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
+                    {"name": "chunk_number", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
                     {"name": "type", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
                     {"name": "document_id", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
                     {"name": "python_block", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},

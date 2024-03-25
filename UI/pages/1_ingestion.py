@@ -91,7 +91,7 @@ def check_index_status(index_name):
     if index.get_index() is not None:
         documents = index.get_documents();
         print(f"Number of documents indexed: {len(documents)}")
-        #aggregate the documents by the pdf_path
+        #aggregate the documents by the document_path
         documents.sort(key=lambda x: x['filename'])
         grouped_documents = {k: list(v) for k, v in groupby(documents, key=lambda x: x['filename'])}
         for filename, docs in grouped_documents.items():

@@ -160,7 +160,7 @@ cython_debug/
 #.idea/
 
 .env
-
+test_*.ipynb
 small_coyote/
 TaskWeaver/
 test_project/
@@ -170,3 +170,5 @@ deniz.ipynb
 mm_doc_analysis_aidan/
 .chainlit/
 .files/
+mm_doc*/
+london_brochure/
