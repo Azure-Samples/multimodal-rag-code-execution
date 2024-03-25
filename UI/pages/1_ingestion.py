@@ -156,23 +156,22 @@ if start_ingestion:
     
     if (st.session_state.indexing):
         st.sidebar.warning("Indexing in progress. Please wait for the current process to complete.")
-        st.stop()
-
-    st.session_state.log_entries = []
-    if len(uploaded_files) == 0:
-        st.sidebar.warning("No files uploaded")
     else:
-        st.session_state.indexing = True
-        subprocess.Popen(["python", "../code/utils/ingest_doc.py", 
-                          "--download_directory", download_directory,
-                          "--ingestion_directory", ingestion_directory,
-                          "--text_extraction", text_extraction,
-                          "--image_extraction", image_extraction,
-                          "--text_from_images", str(text_from_images),
-                          "--index_name", index_name,
-                          "--number_threads", str(number_threads),
-                          "--pdf_password", pdf_password,
-                          "--delete_ingestion_folder", str(delete_ingestion_folder)])
+        st.session_state.log_entries = []
+        if len(uploaded_files) == 0:
+            st.sidebar.warning("No files uploaded")
+        else:
+            st.session_state.indexing = True
+            subprocess.Popen(["python", "../code/utils/ingest_doc.py", 
+                            "--download_directory", download_directory,
+                            "--ingestion_directory", ingestion_directory,
+                            "--text_extraction", text_extraction,
+                            "--image_extraction", image_extraction,
+                            "--text_from_images", str(text_from_images),
+                            "--index_name", index_name,
+                            "--number_threads", str(number_threads),
+                            "--pdf_password", pdf_password,
+                            "--delete_ingestion_folder", str(delete_ingestion_folder)])
 
     
 retry = 0
@@ -184,7 +183,6 @@ while st.session_state.indexing:
         if (retry > 5):
             st.sidebar.error("There was an issue with the indexing process, please check the logs")
             st.session_state.indexing = False
-            st.stop()
     else:
         processed_files = 0
         processing_files = 0
