@@ -142,7 +142,9 @@ def check_if_indexing_in_progress():
         document = cosmos.read_document(index_name, index_name)
         if document is not None:
             st.sidebar.warning("Indexing in progress. Please wait for the current process to complete.")
-            st.session_state.indexing = True          
+            st.session_state.indexing = True  
+        else:
+            st.session_state.indexing = False        
        
     except Exception as e:
         logc(f"Error getting log document: {e}")
