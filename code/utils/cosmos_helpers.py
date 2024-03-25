@@ -83,12 +83,12 @@ class SCCosmosClient():
     def create_document(self, item):
         # As your app evolves, let's say your object has a new schema. You can insert SalesOrderV2 objects without any
         # changes to the database tier.
-        self.container.create_item(body=item)
+        return self.container.create_item(body=item)
 
     def upsert_document(self, document, category_id = COSMOS_CATEGORYID):
 
         try:
-            document["categoryId"] = category_id
+            #document["categoryId"] = category_id
             return self.container.upsert_item(document)
         except Exception as e:
             logging.error(f"Upsert Document Exception: {e}")

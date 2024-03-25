@@ -1,5 +1,4 @@
 import argparse
-import logging
 import os
 import sys
 sys.path.append("../code")
@@ -7,9 +6,10 @@ from doc_utils import ingest_doc
 
 #Cosmos will be used to store the indexing process
 import utils.cosmos_helpers as cs
-cosmos = cs.SCCosmosClient(container_name="indexing_logs")
-
 LOG_CONTAINER_NAME = os.getenv("COSMOS_LOG_CONTAINER")
+
+cosmos = cs.SCCosmosClient(container_name=LOG_CONTAINER_NAME)
+
 # Create an argument parser
 parser = argparse.ArgumentParser(description='Ingest documents.')
 
@@ -54,39 +54,45 @@ def create_indexing_logs(index_name):
         "files_uploaded": files_object
     }
     try:
-        cosmos.create_document(progress_object)
+        document = cosmos.create_document(progress_object)
+        print(f"Created document for index {index_name}")
+        return document
     except Exception as e:
-        logging.error(f"Error creating log document: {e}")
+        print(f"Failed to create the document for index {index_name} with Exception {e}")
+        return None
 
-try:
-    indexing_document = create_indexing_logs(index_name)      
-except Exception as e:
-    logging.error(f"Failed to get the document by ID {index_name}")
-    raise e
+indexing_document = create_indexing_logs(index_name)      
+print(f"Indexing document created: {indexing_document}")
+if indexing_document is None:
+    print(f"Failed to create the document for index {index_name}")
+else:
+    for root, dirs, files in os.walk(download_directory):
 
-for root, dirs, files in os.walk(download_directory):
+            for file in files:
+                # Check if the file is a PDF
+                print(f"Processing file {file}")
+                if file.lower().endswith('.pdf'):
+                    try:
+                        file_index = next((index for index, f in enumerate(indexing_document['files_uploaded']) if f['file_name'] == file.lower()), None)
+                        indexing_document['files_uploaded'][file_index]['status'] = 'Ingesting...'
+                        cosmos.upsert_document(indexing_document, category_id=index_name)
+                        file_path = os.path.join(root, file)
+                        # Call ingest_doc on the file
+                        ingest_doc(
+                            file_path, ingestion_directory=ingestion_directory, 
+                            extract_text_mode=text_extraction,
+                            extract_images_mode=image_extraction,
+                            extract_text_from_images=text_from_images,
+                            index_name=index_name,
+                            num_threads=number_threads,
+                            password=pdf_password,
+                            delete_existing_output_dir=delete_ingestion_folder)
+                        indexing_document['files_uploaded'][file_index]['status'] = 'Ingested'
+                        cosmos.upsert_document(indexing_document, category_id=index_name)
+                    except Exception as e:
+                        #delete the indexing_document from Cosmos DB
+                        print(f"Failed to ingest the file {file} with exception: {e}")
+    cosmos.delete_document(index_name, index_name)
 
-        for file in files:
-            # Check if the file is a PDF
-            if file.lower().endswith('.pdf'):
-                try:
-                    indexing_document['files_uploaded'][file.lower()].status = 'Ingesting...'
-                    cosmos.upsert_document(indexing_document, category_name="indexing_logs")
-                    file_path = os.path.join(root, file)
-                    # Call ingest_doc on the file
-                    ingest_doc(
-                        file_path, ingestion_directory=ingestion_directory, 
-                        extract_text_mode=text_extraction,
-                        extract_images_mode=image_extraction,
-                        extract_text_from_images=text_from_images,
-                        index_name=index_name,
-                        num_threads=number_threads,
-                        password=pdf_password,
-                        delete_existing_output_dir=delete_ingestion_folder)
-                    indexing_document['files_uploaded'][file.lower()].status = 'Ingested' 
-                    cosmos.upsert_document(indexing_document, category_name="indexing_logs")
-                except Exception as e:
-                    #delete the indexing_document from Cosmos DB
-                    cosmos.delete_document(index_name, index_name)
 
 
