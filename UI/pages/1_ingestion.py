@@ -77,7 +77,6 @@ os.makedirs(download_directory, exist_ok=True)
 col2.write(f":blue[Download directory:] :green[{download_directory}]")
 col2.write(f":blue[Ingestion directory:] :green[{ingestion_directory}]")
 col2.write(f":blue[Index name:] :green[{index_name}]")
-col2.write(f":blue[Indexing in Progress:] :green[{st.session_state.indexing}]")
 
 for uploaded_file in uploaded_files :
     #Use the file here. For example, you can read it:
@@ -102,7 +101,6 @@ def check_index_status(index_name):
     index = CogSearchRestAPI(index_name)
     if index.get_index() is not None:
         documents = index.get_documents()
-        print(f"Number of documents indexed: {len(documents)}")
         #aggregate the documents by the pdf_path
         documents.sort(key=lambda x: x['filename'])
         grouped_documents = {k: list(v) for k, v in groupby(documents, key=lambda x: x['filename'])}
@@ -114,6 +112,15 @@ def append_log_message(message, text=None):
     # Append new message to the session state list of log entries
     st.session_state.log_entries.append(message)
     # Display all log entries from the session state
+    #store those logs in the cosmos DB index object
+    # try:
+    #     document = cosmos.read_document(index_name,index_name)
+    # except:
+    #     document = None
+    # if document is not None:
+    #     document['log_entries'] = st.session_state.log_entries
+    #     cosmos.upsert_document(document, index_name)
+       
     log_placeholder.markdown('  \n'.join(st.session_state.log_entries))
 
 def update_file_status():
@@ -168,40 +175,44 @@ if start_ingestion:
                           "--delete_ingestion_folder", str(delete_ingestion_folder)])
 
     
-
+retry = 0
 while st.session_state.indexing:
     document = cosmos.read_document(index_name,index_name)
     if (document is None):
-        st.sidebar.error("There was an issue with the indexing process, please check the logs")
-        st.session_state.indexing = False
-        st.stop()
-        
-    processed_files = 0
-    processing_files = 0
-    total_files = 0
-    files = document['files_uploaded']
-    for file in files:
-        total_files += 1
-        if file['status'] == 'Ingested':
-             st.session_state.files_ingested[file['file_name']] = "Ingested"
-             processed_files += 1
-             processing_files += 1
-        elif file['status'] == 'Ingesting...':
-            st.session_state.files_ingested[file['file_name']] = "Ingesting..."
-            processing_files += 1
-        else:
-            st.session_state.files_ingested[file['file_name']] = "Not Ingested"
-    update_file_status()
-    cosmos.upsert_document(document)
-    bar_progress.progress((processing_files)/(total_files+1), text=f"Ingesting {processing_files} / {total_files}")
-
-    if (processed_files == total_files):
-        st.session_state.indexing = False
-        bar_progress.progress(100, text="Ingestion complete")
-        check_index_status(index_name)
-        append_log_message("Ingestion complete.")
+        retry = retry + 1
+        time.sleep(5) # sometimes this process start before the document is commited into Cosmos DB
+        if (retry > 5):
+            st.sidebar.error("There was an issue with the indexing process, please check the logs")
+            st.session_state.indexing = False
+            st.stop()
     else:
-        time.sleep(5)
+        processed_files = 0
+        processing_files = 0
+        total_files = 0
+        files = document['files_uploaded']
+        logs = document['log_entries']
+        for file in files:
+            total_files += 1
+            if file['status'] == 'Ingested':
+                st.session_state.files_ingested[file['file_name']] = "Ingested"
+                processed_files += 1
+                processing_files += 1
+            elif file['status'] == 'Ingesting...':
+                st.session_state.files_ingested[file['file_name']] = "Ingesting..."
+                processing_files += 1
+            else:
+                st.session_state.files_ingested[file['file_name']] = "Not Ingested"
+        update_file_status()
+        log_placeholder.markdown('  \n'.join(logs))
+        bar_progress.progress((processing_files)/(total_files+1), text=f"Ingesting {processing_files} / {total_files}")
+
+        if (processed_files == total_files):
+            st.session_state.indexing = False
+            bar_progress.progress(100, text="Ingestion complete")
+            check_index_status(index_name)
+            append_log_message("Ingestion complete.")
+        else:
+            time.sleep(5)
     
 
 

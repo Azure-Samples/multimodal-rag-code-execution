@@ -3,6 +3,7 @@ import os
 import sys
 sys.path.append("../code")
 from doc_utils import ingest_doc
+import doc_utils
 
 #Cosmos will be used to store the indexing process
 import utils.cosmos_helpers as cs
@@ -38,6 +39,25 @@ number_threads = int(args.number_threads)
 pdf_password = args.pdf_password
 delete_ingestion_folder = bool(args.delete_ingestion_folder)
 
+
+processing_logs = []
+
+def append_log_message(message, text=None):
+    # Append new message to the session state list of log entries
+    processing_logs.append(message)
+    # Display all log entries from the session state
+    #store those logs in the cosmos DB index object
+    try:
+        document = cosmos.read_document(index_name,index_name)
+    except:
+        document = None
+    if document is not None:
+        document['log_entries'] = processing_logs
+        cosmos.upsert_document(document, index_name)
+    
+
+doc_utils.log_ui_func_hook = append_log_message
+
 def create_indexing_logs(index_name):
      
     files_object = []
@@ -51,18 +71,17 @@ def create_indexing_logs(index_name):
     progress_object = {
         "id": index_name, #using the index name as the id
         "indexId": index_name,
-        "files_uploaded": files_object
+        "files_uploaded": files_object,
+        "log_entries": [],
     }
     try:
         document = cosmos.create_document(progress_object)
-        print(f"Created document for index {index_name}")
         return document
     except Exception as e:
         print(f"Failed to create the document for index {index_name} with Exception {e}")
         return None
 
 indexing_document = create_indexing_logs(index_name)      
-print(f"Indexing document created: {indexing_document}")
 if indexing_document is None:
     print(f"Failed to create the document for index {index_name}")
 else:
@@ -70,7 +89,6 @@ else:
 
             for file in files:
                 # Check if the file is a PDF
-                print(f"Processing file {file}")
                 if file.lower().endswith('.pdf'):
                     try:
                         file_index = next((index for index, f in enumerate(indexing_document['files_uploaded']) if f['file_name'] == file.lower()), None)
