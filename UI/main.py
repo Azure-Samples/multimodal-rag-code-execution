@@ -19,6 +19,3 @@ st.markdown("""#### This section of the application is the place to ingest your 
 
 st.markdown("## Prompt Management")
 st.markdown("""#### This section of the application is the place to create and manage the prompts. You can create a new prompt, delete an existing prompt, and generate the content for the prompt.To test the prompts, please select the index name and the prompt category.""")
-
-st.markdown("## Chat")
-st.markdown(""" #### This section of the application is the place to interact with the chatbot. You can select the index name and the code execution type. In addition, you can set the top results and test the chatbot with the selected settings.""")
