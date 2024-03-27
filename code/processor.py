@@ -17,7 +17,7 @@ class Processor():
                 password = None, 
                 models = gpt4_models, 
                 vision_models = gpt4_models, 
-                num_threads=7
+                num_threads=1
             ):
         
         self.valid_processing_stages = ['pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'harvest_code', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
@@ -159,7 +159,7 @@ class Processor():
 
 class PdfProcessor(Processor):
 
-    def __init__(self, doc_path, ingestion_directory=None, index_name='mm_doc_analysis', delete_existing_output_dir=False, password=None, models=gpt4_models, vision_models=gpt4_models, num_threads=7, processing_mode = 'GPT-4-Vision'):
+    def __init__(self, doc_path, ingestion_directory=None, index_name='mm_doc_analysis', delete_existing_output_dir=False, password=None, models=gpt4_models, vision_models=gpt4_models, num_threads=1, processing_mode = 'GPT-4-Vision'):
         
         self.processing_mode = processing_mode
         if self.processing_mode not in ['GPT-4-Vision', 'PyMuPDF', 'document-intelligence']:
@@ -201,7 +201,7 @@ class PdfProcessor(Processor):
 
 class DocxProcessor(Processor):
 
-    def __init__(self, doc_path, ingestion_directory=None, index_name='mm_doc_analysis', delete_existing_output_dir=False, password=None, models=gpt4_models, vision_models=gpt4_models, num_threads=7, processing_mode = 'py-docx'):
+    def __init__(self, doc_path, ingestion_directory=None, index_name='mm_doc_analysis', delete_existing_output_dir=False, password=None, models=gpt4_models, vision_models=gpt4_models, num_threads=1, processing_mode = 'py-docx'):
 
         self.processing_mode = processing_mode
         if self.processing_mode not in ['py-docx', 'document-intelligence']:
@@ -226,6 +226,11 @@ class DocxProcessor(Processor):
             
             
 
-
         
 
+class XlsxProcessor(Processor):
+
+    def develop_processing_plan(self):
+        self.processing_plan = ['extract_xlsx_using_openpyxl', 'create_doc_chunks']
+
+    

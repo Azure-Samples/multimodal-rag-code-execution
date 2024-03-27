@@ -852,6 +852,43 @@ def extract_figure(image_path, polygon, target_filename):
     cropped_image.save(target_filename)  
 
 
+def get_excel_sheet_names(file_path):
+    # Load the Excel file
+    xls = pd.ExcelFile(file_path, engine='openpyxl')
+
+    # Get the list of sheet names
+    sheet_names = xls.sheet_names
+
+    return sheet_names
+
+
+def read_excel_to_dataframes(file_path):
+    xls = pd.ExcelFile(file_path, engine='openpyxl')
+    dfs = {}
+
+    # Read each sheet into a DataFrame
+    for sheet_name in xls.sheet_names:
+        dfs[sheet_name] = pd.read_excel(xls, sheet_name, header=None)
+
+    return dfs
+
+
+def find_certain_files(directory, extension = '.xlsx'):
+    xlsx_files = []
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if file.endswith(".xlsx"):
+                xlsx_files.append(os.path.join(root, file))
+    return xlsx_files
+
+
+def table_df_cleanup_df(df):
+    dfc = copy.deepcopy(df)
+    dfc = dfc.dropna(axis=0, how='all')
+    dfc = dfc.dropna(axis=1, how='all')
+    dfc = dfc.replace(r'\n','   //    ', regex=True) 
+    dfc = dfc.replace(r'\|','   ///    ', regex=True) 
+    return dfc
 
 
 
@@ -1020,8 +1057,139 @@ gpt4_models = [
 ]
 
 
+markdown_extract_header_and_summarize_prompt = """
+You are a Data Engineer resonsible for reforming and preserving the quality of Markdown tables. A table will be passed to you in the form of a Markdown string. You are designed to output JSON. 
 
-def semantic_chunk_text_file(file_path, verbose = False):
+Your task is to extract the column names of the header of the table from the Markdown string in the form of a comma-separated list. If the column names do exist, please return them verbatim word-for-word with no change, except fixing format or alignment issues (extra spaces and new lines can be removed). 
+
+If the table does not have a header, then please check the data rows and generate column names for the header that fit the data types of the columns and the nature of the data. 
+
+**VERY IMPORTANT**: If the table has an unnamed index column, typically the leftmost column, you **MUST** generate a column name for it.
+
+Finally, please generate a brief semantic summary of the table in English. This is not about the technical characteristics of the table. The summary should summarize the business purpose and contents of the table. The summary should be to the point with two or three paragraphs.
+
+The Markdown table: 
+## START OF MARKDOWN TABLE
+{table}
+## END OF MARKDOWN TABLE
+
+JSON OUTPUT:
+You **MUST** generate the below JSON dictionary as your output. 
+
+{{
+    "columns": "list of comma-separated column names. If the table has a header, please return the column names as they are. If the table does not have a header, then generate column names that fit the data types and nature of the data. Do **NOT** forget any unnamed index columns.",
+    "columns_inferred": "true/false. Set to true in the case the table does not have a header, and you generated column names based on the data rows.",
+    "total_number_of_columns": "total number of columns in the table",
+    "summary_of_the_table": "a brief semantic summary of the table in English. This is not about the technical characteristics of the table. The summary should summarize the business purpose and contents of the table. The summary should be concise and to the point, one or two short paragraphs."
+}}
+
+"""
+
+
+
+def chunk_markdown_table_with_overlap(md_table, cols = None, n_tokens = 512, overlap = 128):
+
+    mds = md_table.split('\n')
+
+    if cols is not None:
+        header = '|   ' + '   |   '.join(cols) + '   |\n'
+    else:
+        header = mds[0] + '\n'
+
+    chunks = []
+    chunk = header
+
+    for i, r in enumerate(mds[1:]):
+        chunk += r + '\n'
+
+        ## Check if the chunk is over n_tokens
+        if get_token_count(chunk) > n_tokens:
+            ## Add Overlap
+            try:
+                for j, ovr in enumerate(mds[i + 2:]):
+                    chunk += ovr + '\n'
+                    if get_token_count(chunk) > n_tokens + overlap:
+                        break
+            except Exception as e:
+                print(e)
+            
+            chunks.append(chunk)        
+
+            # print(f"Chunk {len(chunks)}: {get_token_count(chunk)}")
+            chunk = header  + mds[1] + '\n'
+
+    return chunks, header
+
+
+
+def chunk_markdown_table(md_table, model_info, n_tokens = 512, overlap = 128):
+    prompt = markdown_extract_header_and_summarize_prompt.format(table=md_table.split('\n')[:100])
+    output = ask_LLM_with_JSON(prompt, model_info = model_info)
+    outd = json.loads(output)
+    cols = outd['columns'].split(',')
+    summary = outd['summary_of_the_table']
+
+    chunks, header = chunk_markdown_table_with_overlap(md_table, cols, n_tokens = n_tokens, overlap = overlap)
+    print("Chunks:", len(chunks))
+
+    return chunks, header, summary
+
+
+def chunk_df_as_markdown_table(df, model_info, n_tokens = 512, overlap = 128):
+    df_clean = table_df_cleanup_df(df)
+    md_table = df_clean.to_markdown()
+    chunks, header, summary = chunk_markdown_table(md_table, model_info, n_tokens = n_tokens, overlap = overlap)
+    return chunks, header, summary
+
+
+
+def write_df_to_files(df, tables_folder, table_count):
+    table_path_md = os.path.join(tables_folder, f'chunk_{table_count}_table_0.md')
+    table_path = os.path.join(tables_folder, f'chunk_{table_count}_table_0.txt')
+    table_path_py = os.path.join(tables_folder, f'chunk_{table_count}_table_0.py')
+    write_to_file(df.to_markdown(), table_path_md, 'w')
+    write_to_file(df.to_markdown(), table_path, 'w')
+    py_script = f"df_{generate_uuid_from_string(str(df.to_dict())).replace('-', '_')} = pd.DataFrame.from_dict({df.to_dict()})"
+    write_to_file(py_script, table_path_py, 'w')
+
+    return table_path, table_path_md, table_path_py
+
+
+
+def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
+    doc_path = ingestion_pipeline_dict['document_path'] 
+    images_folder = ingestion_pipeline_dict['images_directory'] 
+    tables_folder = ingestion_pipeline_dict['tables_directory']
+
+
+    tables = []
+    tables_dfs = []
+    tables_md = []
+
+    table_count = 0
+    
+    dataframes = read_excel_to_dataframes(doc_path)
+
+    for sheet_name, df in dataframes.items():
+        # chunks, header, summary = chunk_df_as_markdown_table(df, model_info, n_tokens = n_tokens, overlap = overlap)
+        df_clean = table_df_cleanup_df(df)
+        table_path, table_path_md, table_path_py = write_df_to_files(df_clean, tables_folder, table_count)
+        tables_dfs.append(table_path_py)
+        tables_md.append(table_path_md)
+        tables.append(table_path)
+        table_count += 1
+
+    ingestion_pipeline_dict['tables_py'] = tables_dfs
+    ingestion_pipeline_dict['tables_md'] = tables_md
+    ingestion_pipeline_dict['table_files'] = tables
+
+    return ingestion_pipeline_dict
+
+
+
+
+
+def semantic_chunk_text_file(file_path, buffer_size=1, breakpoint_percentile_threshold=95, verbose = False):
 
     embed_model = AzureOpenAIEmbedding(
         model=AZURE_OPENAI_EMBEDDING_MODEL,
@@ -1032,7 +1200,7 @@ def semantic_chunk_text_file(file_path, verbose = False):
     )
 
     documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
-    splitter = SemanticSplitterNodeParser(buffer_size=1, breakpoint_percentile_threshold=95, embed_model=embed_model)
+    splitter = SemanticSplitterNodeParser(buffer_size=buffer_size, breakpoint_percentile_threshold=breakpoint_percentile_threshold, embed_model=embed_model)
     nodes = splitter.get_nodes_from_documents(documents)
 
     if verbose: logc(f"Semantic Chunking Step", f"Number of nodes: {len(nodes)} from file {file_path}")
@@ -1054,11 +1222,19 @@ def create_doc_chunks(ingestion_pipeline_dict):
     tables_md = ingestion_pipeline_dict['tables_md'] 
     tables = ingestion_pipeline_dict['table_files'] 
 
+    model_info = ingestion_pipeline_dict['models'][0]
+    n_tokens = ingestion_pipeline_dict['mk_table_chunk_size']
+    overlap = ingestion_pipeline_dict['mk_table_chunk_overlap']
+
     text_files = []
     image_text_files = []
     table_text_files = []
 
-    text_chunks = semantic_chunk_text_file(ingestion_pipeline_dict['full_text_file'])
+    try:
+        text_chunks = semantic_chunk_text_file(ingestion_pipeline_dict['full_text_file'])
+    except:
+        text_chunks = []
+        logc("Warning", f"Could not perform Semantic Chunking of file {ingestion_pipeline_dict['full_text_file']}")
 
     chunk_index = 0
 
@@ -1088,31 +1264,73 @@ def create_doc_chunks(ingestion_pipeline_dict):
 
 
     for index, tc in enumerate(tables):
-        text_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.txt")
         md_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.md")
         py_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.py")
+        table_text_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.txt")
 
-        table_text_files.append(text_filename)
+        md_table = read_asset_file(md_filename)[0]
+        table_text = read_asset_file(table_text_filename)[0]
 
-        chunks.append({
-            'chunk_number':chunk_index+1, 
-            'text_file': text_filename,
-            'full_chunk_text':'',
-            'images': [],
-            'tables': [],
-            'image_py': [],
-            'image_codeblock': [],
-            'image_markdown': [],
-            'image_mm': [],
-            'image_text': [],
-            'table_text': [text_filename],
-            'table_py': [py_filename],
-            'table_codeblock': [],
-            'table_markdown': [md_filename],    
-            'type': 'table'    
-        })
+        if get_token_count(md_table) > 2 * n_tokens:
+            ## First Backup the original table
+            md_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.md.backup")
+            table_text_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.txt.backup")
+            write_to_file(md_table, md_filename, 'w')
+            write_to_file(table_text, table_text_filename, 'w')
+            
+            ## Table too big needs to be broken into chunks
+            md_chunks, header, summary = chunk_markdown_table(md_table, model_info, n_tokens = n_tokens, overlap = overlap)
 
-        chunk_index += 1
+            for md_index, md_chunk in enumerate(md_chunks):
+                md_filename = os.path.join(tables_directory, f"chunk_{index}_table_{md_index}.md")
+                table_text_filename = os.path.join(tables_directory, f"chunk_{index}_table_{md_index}.txt")
+                table_text_files.append(table_text_filename)
+
+                text_contents = f"Table Summary:\n{summary}\n\nTable:\n{md_chunk}"
+                write_to_file(md_chunk, md_filename, 'w')
+                write_to_file(text_contents, table_text_filename, 'w')
+
+                chunks.append({
+                    'chunk_number':chunk_index+1, 
+                    'text_file': table_text_filename,
+                    'full_chunk_text':'',
+                    'images': [],
+                    'tables': [],
+                    'image_py': [],
+                    'image_codeblock': [],
+                    'image_markdown': [],
+                    'image_mm': [],
+                    'image_text': [],
+                    'table_text': [table_text_filename],
+                    'table_py': [py_filename],
+                    'table_codeblock': [],
+                    'table_markdown': [md_filename],    
+                    'type': 'table'    
+                })
+
+                chunk_index += 1
+        else:        
+            table_text_files.append(table_text_filename)
+
+            chunks.append({
+                'chunk_number':chunk_index+1, 
+                'text_file': table_text_filename,
+                'full_chunk_text':'',
+                'images': [],
+                'tables': [],
+                'image_py': [],
+                'image_codeblock': [],
+                'image_markdown': [],
+                'image_mm': [],
+                'image_text': [],
+                'table_text': [table_text_filename],
+                'table_py': [py_filename],
+                'table_codeblock': [],
+                'table_markdown': [md_filename],    
+                'type': 'table'    
+            })
+
+            chunk_index += 1
 
 
     for index, tc in enumerate(images):   
@@ -1226,8 +1444,25 @@ def extract_doc_using_doc_int(ingestion_pipeline_dict):
 
 
 
+
+
 def extract_docx_using_py_docx(ingestion_pipeline_dict):
-    
+    """
+    This function modifies the 'ingestion_pipeline_dict' dictionary in the following ways:
+
+    Reads from 'ingestion_pipeline_dict':
+    - 'document_path': The path to the .docx document to be processed.
+    - 'images_directory': The directory path where extracted images will be stored.
+    - 'tables_directory': The directory path where extracted tables will be stored as Markdown, plain text, and Python files.
+
+    Writes to 'ingestion_pipeline_dict':
+    - 'full_text': A concatenated string of all the text extracted from the document.
+    - 'full_text_file': The path to a file where the full concatenated text is saved. (Note: The actual file path is not provided in the input dictionary but is assumed to be dynamically determined within the function.)
+    - 'tables_py': A list of file paths to the generated Python scripts that recreate the tables using pandas.
+    - 'tables_md': A list of file paths to the Markdown files containing the tables.
+    - 'image_files': A list of file paths to the extracted images.
+    - 'table_files': A list of file paths to the plain text files containing the tables.
+    """
     doc_path = ingestion_pipeline_dict['document_path'] 
     images_folder = ingestion_pipeline_dict['images_directory'] 
     tables_folder = ingestion_pipeline_dict['tables_directory']
@@ -1256,13 +1491,7 @@ def extract_docx_using_py_docx(ingestion_pipeline_dict):
         for row in table.rows[1:]:  # Skip header row
             data.append([cell.text for cell in row.cells])
         df = pd.DataFrame(data, columns=headers)
-        table_path_md = os.path.join(tables_folder, f'chunk_{table_count}_table_0.md')
-        table_path = os.path.join(tables_folder, f'chunk_{table_count}_table_0.txt')
-        table_path_py = os.path.join(tables_folder, f'chunk_{table_count}_table_0.py')
-        write_to_file(df.to_markdown(), table_path_md, 'w')
-        write_to_file(df.to_markdown(), table_path, 'w')
-        py_script = f"df_{generate_uuid_from_string(str(df.to_dict())).replace('-', '_')} = pd.DataFrame.from_dict({df.to_dict()})"
-        write_to_file(py_script, table_path_py, 'w')
+        table_path, table_path_md, table_path_py = write_df_to_files(df, tables_folder, table_count)
         tables_dfs.append(table_path_py)
         tables_md.append(table_path_md)
         tables.append(table_path)
@@ -2148,6 +2377,10 @@ def create_ingestion_pipeline_dict(doc_path, ingestion_directory = None, index_n
         'document_path': document_path,
         'master_py_file': master_py_filename,
         'full_text_file': full_text_filename,
+        'image_files': [],
+        'tables_py': [],
+        'tables_md': [],
+        'table_files': [],
         'text_files': [],
         'image_text_files': [],
         'table_text_files': [],
@@ -2168,6 +2401,8 @@ def create_ingestion_pipeline_dict(doc_path, ingestion_directory = None, index_n
         'images_directory': images_directory,
         'text_directory': text_directory,
         'tables_directory': tables_directory,
+        'mk_table_chunk_size': 512,
+        'mk_table_chunk_overlap': 128,
     }
 
     return ingestion_pipeline_dict
