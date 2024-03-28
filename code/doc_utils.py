@@ -2490,7 +2490,7 @@ def process_pdf(ingestion_pipeline_dict, password = None, extract_text_mode = "G
 
     logc(f"Ingestion Stage 2/7 of {full_basename}", f"Extracting Text with Extract Mode {extract_text_mode}", verbose=verbose)
     if 'pdf_extract_text' in processing_plan:
-        ingestion_pipeline_dict = extract_text(ingestion_pipeline_dict)
+        ingestion_pipeline_dict = pdf_extract_text(ingestion_pipeline_dict)
     
     logc(f"Ingestion Stage 3/7 of {full_basename}", f"Harvesting Code from Text from PDF with {len(pdf_document)} chunks", verbose=verbose)
     if 'harvest_code' in processing_plan:
@@ -2498,7 +2498,7 @@ def process_pdf(ingestion_pipeline_dict, password = None, extract_text_mode = "G
     
     logc(f"Ingestion Stage 4/7 of {full_basename}", f"Detecting and Extracting Images from PDF with {len(pdf_document)} chunks", verbose=verbose)
     if 'pdf_extract_images' in processing_plan:
-        ingestion_pipeline_dict = extract_images(ingestion_pipeline_dict)
+        ingestion_pipeline_dict = pdf_extract_images(ingestion_pipeline_dict)
 
     ingestion_pipeline_dict = delete_pdf_chunks(ingestion_pipeline_dict)
 
@@ -2508,7 +2508,7 @@ def process_pdf(ingestion_pipeline_dict, password = None, extract_text_mode = "G
 
     logc(f"Ingestion Stage 6/7 of {full_basename}", f"Detecting and Extracting Tables from PDF with {len(pdf_document)} chunks", verbose=verbose)
     if 'extract_tables_from_images' in processing_plan:
-        ingestion_pipeline_dict = extract_tables(ingestion_pipeline_dict)
+        ingestion_pipeline_dict = extract_tables_from_images(ingestion_pipeline_dict)
 
     logc(f"Ingestion Stage 7/7 of {full_basename}", f"Post-Processing extracted Tables from PDF with {len(pdf_document)} chunks", verbose=verbose)
     if 'post_process_tables' in processing_plan:
