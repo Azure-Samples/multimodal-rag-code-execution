@@ -297,7 +297,7 @@ else
     fi
 fi
 
-DEPLOY_INFRA="true" #this is used later in the script, this value now has no effect, it will be reasigned later in the script
+# DEPLOY_INFRA="true" #this is used later in the script, this value now has no effect, it will be reasigned later in the script
 az config set defaults.group=$RESOURCE_GROUP_NAME
 if [[ "$DEPLOY_INFRA" == "true" ]]; then
     echo -e "${YELLOW}Infrastucture will be deployed now...${RESET}"
