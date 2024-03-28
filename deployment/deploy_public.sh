@@ -777,6 +777,8 @@ COSMOS_URI="https://$COSMOS_DB_NAME.documents.azure.com:443/"
 COSMOS_KEY==$(az cosmosdb keys list --name $COSMOS_DB_NAME --resource-group $RG_WEBAPP_NAME --query primaryMasterKey --output tsv)
 COSMOS_CONTAINER_NAME="prompts"
 COSMOS_CATEGORYID="prompts"
+COSMOS_LOG_CONTAINER= "logs"
+ 
 
 #SCM_BASIC_AUTHENTICATION_ENABLED
 read -r -d '' app_settings << EOM
@@ -787,6 +789,7 @@ read -r -d '' app_settings << EOM
     "COSMOS_DB_NAME": "$COSMOS_DB_NAME",
     "COSMOS_CONTAINER_NAME": "$COSMOS_CONTAINER_NAME",
     "COSMOS_CATEGORYID": "$COSMOS_CATEGORYID",    
+    "COSMOS_LOG_CONTAINER": "$COSMOS_LOG_CONTAINER",    
     "ROOT_PATH_INGESTION": "$ROOT_PATH_INGESTION",
     "PROMPTS_PATH": "$PROMPTS_PATH",
     "HOST": "0.0.0.0",
