@@ -1,0 +1,39 @@
+# Use a specific version of the python image for predictable builds
+FROM python:3.10.13-slim-bookworm
+
+# Create a non-root user 'appuser' and set the home directory
+RUN adduser --disabled-password --gecos '' --home /home/appuser appuser
+
+# Set the working directory in the container to the home directory of the new user
+WORKDIR /home/appuser
+
+# Install necessary system dependencies
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get -y upgrade && \
+    apt-get install -y -qq --no-install-recommends \
+    python3-tk tk-dev && \
+    apt-get autoremove -y && apt-get purge -y --auto-remove && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* 
+
+# Copy the application code and requirements file into the container
+# Ensure files are owned by the non-root user for better security
+COPY --chown=appuser:appuser . ./app
+
+# Change to the app directory to install Python dependencies and run the app
+WORKDIR /home/appuser/app
+
+# Adjust PATH to ensure local binaries are usable by both root and appuser
+ENV PATH="/home/appuser/.local/bin:$PATH"
+
+# Switch to the non-root user before installing dependencies
+USER appuser
+
+# Install Python dependencies from requirements.txt as appuser
+# This ensures packages are installed in /home/appuser/.local/bin
+RUN pip install --user -r requirements.txt
+
+# Expose the port the app runs on
+EXPOSE 8065
+
+# Run the application with Streamlit
+CMD ["streamlit", "run", "UI/main.py", "--server.port", "8065", "--server.enableXsrfProtection", "false"]
