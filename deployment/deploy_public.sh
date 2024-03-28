@@ -571,9 +571,9 @@ fi
 DOCKER_CUSTOM_IMAGE_NAME_UI="$ACR_NAME.azurecr.io/research-copilot:latest"
 DOCKER_CUSTOM_IMAGE_NAME_MAIN="$ACR_NAME.azurecr.io/research-copilot-main:latest"
 
-DOCKERFILE_PATH_UI="docker/Dockerfile_chainlit_app"
-# DOCKERFILE_PATH_UI_MAIN="docker/Dockerfile_streamlit_app"
-DOCKERFILE_PATH_UI_MAIN="docker/Dockerfile"
+DOCKERFILE_PATH_UI="docker/dockerfile_chainlit_app"
+DOCKERFILE_PATH_UI_MAIN="docker/dockerfile_streamlit_app"
+
 
 DOCKER_REGISTRY_URL="https://$ACR_NAME.azurecr.io"
 DOCKER_REGISTRY_NAME="$ACR_NAME.azurecr.io"
