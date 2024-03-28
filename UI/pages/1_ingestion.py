@@ -8,11 +8,6 @@ load_dotenv()
 sys.path.append("../code")
 from utils.cogsearch_rest import *
 from itertools import groupby
-
-
-import doc_utils
-from doc_utils import ingest_doc, log_ui_func_hook, logc
-import os
 import subprocess
 import time
 
@@ -21,6 +16,7 @@ import utils.cosmos_helpers as cs
 
 ROOT_PATH_INGESTION = os.getenv("ROOT_PATH_INGESTION")
 LOG_CONTAINER_NAME = os.getenv("COSMOS_LOG_CONTAINER")
+DOCX_OPTIONS = os.getenv("DOCX_OPTIONS")
 cosmos = cs.SCCosmosClient(container_name=LOG_CONTAINER_NAME)
 
 if "log_entries" not in st.session_state:
@@ -44,11 +40,10 @@ if "page_config" not in st.session_state:
 #Main UI
 st.title("Document(s) ingestion")
 col1, col2 = st.columns(2)
-text_extraction = col1.selectbox("Text extraction:", ["GPT", "PDF"] )
+pdf_extraction = col1.selectbox("PDF extraction:", ["GPT 4 Vision", "Doc Intelligence"] )
 
-image_extraction = col1.selectbox("Image extraction:", ["GPT", "PDF"] )
-
-text_from_images = col1.toggle("Extract text from images")
+if (DOCX_OPTIONS == "True"):
+    docx_extraction = col1.selectbox("Docx extraction:", ["pyDoc", "Doc Intelligence"] )
 
 index_name = col2.text_input("Index name:", st.session_state.get('index_name', 'rag-data'))
 
@@ -111,16 +106,6 @@ def check_index_status(index_name):
 def append_log_message(message, text=None):
     # Append new message to the session state list of log entries
     st.session_state.log_entries.append(message)
-    # Display all log entries from the session state
-    #store those logs in the cosmos DB index object
-    # try:
-    #     document = cosmos.read_document(index_name,index_name)
-    # except:
-    #     document = None
-    # if document is not None:
-    #     document['log_entries'] = st.session_state.log_entries
-    #     cosmos.upsert_document(document, index_name)
-       
     log_placeholder.markdown('  \n'.join(st.session_state.log_entries))
 
 def update_file_status():
@@ -134,8 +119,6 @@ def update_file_status():
             files_status_messages.append(f":blue[File:] {file} :red[{status}] ")
     files_status.markdown('  \n'.join(files_status_messages))
 
-doc_utils.log_ui_func_hook = append_log_message
-
 def check_if_indexing_in_progress():
     try:
         #f there is a document with that name, means indexing is still happening
@@ -147,7 +130,7 @@ def check_if_indexing_in_progress():
             st.session_state.indexing = False        
        
     except Exception as e:
-        logc(f"Error getting log document: {e}")
+        st.sidebar.warning(f"Error getting log document: {e}")
 
 
      
@@ -164,12 +147,23 @@ if start_ingestion:
             st.sidebar.warning("No files uploaded")
         else:
             st.session_state.indexing = True
+            if pdf_extraction == "GPT 4 Vision":
+                pdf_extraction_option = "gpt4_vision"
+            else:
+                pdf_extraction_option = "doc_intelligence"
+
+            if docx_extraction is None:
+                docx_extraction_option = "doc_intelligence"
+            elif docx_extraction == "pyDoc":
+                docx_extraction_option = "pydoc"
+            else:
+                docx_extraction_option = "doc_intelligence"
             subprocess.Popen(["python", "../code/utils/ingest_doc.py", 
                             "--download_directory", download_directory,
                             "--ingestion_directory", ingestion_directory,
-                            "--text_extraction", text_extraction,
-                            "--image_extraction", image_extraction,
-                            "--text_from_images", str(text_from_images),
+                            "--pdf_extraction", pdf_extraction_option,
+                            "--docx_extraction", docx_extraction_option,
+                            "--text_from_images", str(True),
                             "--index_name", index_name,
                             "--number_threads", str(number_threads),
                             "--pdf_password", pdf_password,
