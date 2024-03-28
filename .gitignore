@@ -172,6 +172,7 @@ mm_doc_analysis_aidan/
 .files/
 mm_doc*/
 london_brochure/
+test*.ipynb
 test.md
 .env.1
 .env.2
