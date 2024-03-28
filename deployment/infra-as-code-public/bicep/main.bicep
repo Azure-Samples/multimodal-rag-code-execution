@@ -1,0 +1,106 @@
+var DeployThis = true //just used for development reasons locally here so that I can test individual modules without deploying everything
+// we get the current pincilal id so that we can assign the keyvault administrator role to the current user
+
+@description('The region for the Azure AI Search service')
+param aiSearchRegion string ='eastus'
+
+@description('The location in which all resources should be deployed.')
+param location string = resourceGroup().location
+
+@description('A prefix that will be prepended to resource names')
+param namePrefix string = 'dev'
+
+@description('The address prefix for the Application Gateway subnet')
+
+var uniqueid = uniqueString(resourceGroup().id)
+
+var logWorkspaceName = 'log-${uniqueid}'
+
+
+// ---- Log Analytics workspace ----
+resource logWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = if (DeployThis) {
+  name: logWorkspaceName
+  location: location  
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+  }
+}
+
+// Deploy vnet with subnets and NSGs
+// Deploy storage account with private endpoint and private DNS zone
+module storageModule 'storage.bicep' = if (DeployThis) {
+  name: 'storageDeploy'
+  params: {
+    location: location
+    uniqueid: uniqueid        
+  }
+}
+
+// Deploy a web app
+module webappModule 'webapp.bicep' = if (DeployThis) {
+  name: 'webappDeploy'
+  params: {
+    location: location
+    uniqueid: uniqueid            
+    storageName: storageModule.outputs.storageName            
+    logWorkspaceName: logWorkspace.name
+    containerRegistry: registry.outputs.containerRegistryName
+    storageAccount:storageModule.outputs.storageName  
+    namePrefix:namePrefix
+   }
+}
+
+
+module registry 'registry.bicep' = if (DeployThis) {
+  name: 'containerRegistryModule'
+  params: {
+    namePrefix:namePrefix
+    containerRegistry: 'acr'
+    uniqueid:  uniqueid
+    location: location
+  }
+}
+
+
+module accountsVisionResTstName 'vision.bicep' =  {
+  name: 'accountsVisionResTstName'
+  params: {
+    uniqueid: uniqueid
+    location: location       
+    namePrefix:namePrefix         
+  }
+}
+
+module cosmosDbModule 'cosmosdb.bicep' = if (DeployThis) {
+  name: 'cosmosdbDeploy'
+  params: {
+    location: location
+    uniqueid: uniqueid
+    namePrefix:namePrefix
+  }
+}
+
+module ai_search 'ai_search.bicep' = {
+  name: 'ai_search'
+  params: {
+    uniqueid: uniqueid
+    aiSearchRegion: aiSearchRegion
+    // location: location
+    namePrefix:namePrefix                
+  }
+}
+
+
+output webAppNameMain string = webappModule.outputs.appName2
+output webAppName string = webappModule.outputs.appName
+output appServiceName string = webappModule.outputs.appServicePlanName
+output containerRegistry string = registry.outputs.containerRegistryName
+output uniqueId string = uniqueid
+output storageAccount string = storageModule.outputs.storageName
+output aiSearch string =  ai_search.outputs.aiSearchName 
+output accountsVisionResTstName string = accountsVisionResTstName.outputs.accountsVisionResTstName
+output cosmosDbName string = cosmosDbModule.outputs.cosmosdbName
+
