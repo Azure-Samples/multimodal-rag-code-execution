@@ -11,7 +11,6 @@ from itertools import groupby
 import subprocess
 import time
 
-#Cosmos will be used to store the indexing process
 import utils.cosmos_helpers as cs
 
 ROOT_PATH_INGESTION = os.getenv("ROOT_PATH_INGESTION")
