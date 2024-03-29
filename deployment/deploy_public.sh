@@ -2,8 +2,6 @@
 #!/bin/bash
 #gh auth login
 # chmod +x deploy.sh
-
-
 export MSYS_NO_PATHCONV=1
 # export BUILD_DOCKER_LOCALLY="false"
 # ANSI escape code to set the text color 
@@ -51,11 +49,9 @@ _______   ____    ______  ____  _____  _______   ____  |  |__        ____   ____
 
 ${RESET}"
 
-
-# set it to false if you do not want the deployment to get confirmations and it will run without asking for confirmation
 #script pre-requisistes: 
 
-# Check if Chocolatey is installed
+
 # Check if Chocolatey is installed
 echo "Checking script pre-requisites..."
 echo "**********************************"
@@ -63,7 +59,7 @@ echo "**********************************"
 echo "Checking if Chocolatey is installed..."
 if ! command -v choco &> /dev/null
 then
-    echo "Chocolatey is not installed. might not be required if this is azure cloud shell."
+    echo "Chocolatey is not installed. might not be required if this is azure cloud shell or if you have jq alraedy installed."
     
 else
     echo "Chocolatey is installed."
@@ -203,8 +199,7 @@ confirm() {
     message=$1
     color=${2:-$GREEN}
 
-    while true; do
-        # echo "*********confirmation value: $CONFIRMATION"	
+    while true; do        
         echo -e "${color}You are about to ${message}${RESET}"        
         if [[ "$CONFIRMATION" == "true" ]]; then
             read -r -p "Are you sure? [y/N] " response
@@ -224,9 +219,6 @@ confirm() {
         fi
     done
 }
-
-#infrastucture as code section:
-
 
 az provider register --namespace Microsoft.Search #making sure that the search service is registered
 
@@ -300,7 +292,6 @@ else
     fi
 fi
 
-# DEPLOY_INFRA="true" #this is used later in the script, this value now has no effect, it will be reasigned later in the script
 az config set defaults.group=$RESOURCE_GROUP_NAME
 if [[ "$DEPLOY_INFRA" == "true" ]]; then
     echo -e "${YELLOW}Infrastucture will be deployed now...${RESET}"
@@ -519,7 +510,6 @@ if [[ "$DEPLOY_INFRA" == "true" ]]; then
 fi
 parse_output_variables
 
-
 echo -e "${YELLOW} Enable Azure trusted services in the acr${RESET}"    
 az acr update --name $ACR_NAME --allow-trusted-services true
 
@@ -664,9 +654,6 @@ else
     # docker login $DOCKER_REGISTRY_NAME --username "00000000-0000-0000-0000-000000000000" --password-stdin <<< $TOKEN
     docker login $DOCKER_REGISTRY_NAME --username "00000000-0000-0000-0000-000000000000" --password $TOKEN
 fi
-#read -p "Press enter to continue..." -r
-#building and pushing the UI
-# build the UI
 
 if confirm "build the docker?"; then
     if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
@@ -705,6 +692,7 @@ else
 fi
 
 if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
+    #the cloud shell pushes the images to the acr, so in case of using local docker, we need to push the images to the acr
     if confirm "push to acr?"; then    
         echo -e "${GREEN}Pushing the chainlit app docker to Azure Container Registry...${RESET}"
         docker push $DOCKER_CUSTOM_IMAGE_NAME_UI
@@ -723,7 +711,7 @@ if [ "$IMAGES_PUSHED" = "true" ]; then
     fi
 fi
 
-echo -e "${YELLOW}****The next steps will deploy to the selected subscription ${RESET}"
+echo -e "${YELLOW}****The next steps will deploy the changesthe webapps to the selected subscription ${RESET}"
 
 if [[ "$CONFIRMATION" == "true" ]]; then
     read -p -r "Press enter to continue..."
@@ -871,19 +859,20 @@ fi
 
 
 if [ "$WEBAPP_UPDATED" = "true" ]; then
-    echo -e "${RED}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
-    echo -e "${RED}!!!!!!!!IMPORTANT:                  THIS is the image build id:$BUILD_ID .${RESET}"       
-    echo -e "${RED}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
-    echo -e "${RED}!!!!!!!!IMPORTANT: Make sure you change the web apps to point to this new build:$BUILD_ID .${RESET}"       
-    echo -e "${RED}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
-    echo -e "${RED}!!!!!!!!IMPORTANT: THE IMAGE(s) are LARGE, IT TAKES AROUND 5-7 MINUTES TO LOAD IN THE WEB APP.${RESET}"       
-    echo -e "${RED}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
-    echo -e "${RED}!!!!!!!!IMPORTANT: ONCE YOU CHANGE THE DEPLOYMENT TO THE NEW BUILD ID, JUST BROWSE THE WEB APP TO FORCE THE IMAGE UPDATE IN THE WEB APP.${RESET}"       
-    echo -e "${RED}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
+    echo -e "${YELLOW}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
+    echo -e "${YELLOW}!!!!!!!!IMPORTANT:                  THIS is the image build id:$BUILD_ID .${RESET}"       
+    echo -e "${YELLOW}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
+    echo -e "${YELLOW}!!!!!!!!IMPORTANT:          Make sure  web apps are pointing to this new build:$BUILD_ID      .${RESET}"       
+    echo -e "${YELLOW}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
+    echo -e "${YELLOW}!!!!!!!!IMPORTANT: THE IMAGE(s) are LARGE, IT TAKES AROUND 5-7 MINUTES TO LOAD IN THE WEB APP.${RESET}"       
+    echo -e "${YELLOW}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"           
+    
 fi
 
 echo -e "${GREEN}Process Finished! happy testing!.${RESET}"
 
 # Print the URL as a clickable link
 echo -e "${BLUE}Web app URL: http://$webapp_url${RESET}"
+echo -e "${YELLOW}Browsing the app to make sure the latest container gets loaded into the web app.${RESET}"
+curl "http://$webapp_url"
 
