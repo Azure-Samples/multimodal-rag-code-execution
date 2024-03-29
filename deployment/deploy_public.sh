@@ -2,8 +2,7 @@
 #!/bin/bash
 #gh auth login
 # chmod +x deploy.sh
-# source ./install_dependencies.sh
-# install_dependencies
+
 
 export MSYS_NO_PATHCONV=1
 # export BUILD_DOCKER_LOCALLY="false"
