@@ -24,6 +24,7 @@ WORKDIR /home/appuser/app
 
 # Adjust PATH to ensure local binaries are usable by both root and appuser
 ENV PATH="/home/appuser/.local/bin:$PATH"
+ENV PYTHONPATH="${PYTHONPATH}:/home/appuser/app/code:/home/appuser/app/code/utils"
 
 # Switch to the non-root user before installing dependencies
 USER appuser

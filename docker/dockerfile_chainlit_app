@@ -1,5 +1,5 @@
 # Use a specific version of the python image for more predictable builds
-FROM python:3.10.4-slim-buster
+FROM python:3.10.13-slim-bookworm
 
 # Create a non-root user 'appuser' and set the home directory
 RUN adduser --disabled-password --gecos '' --home /home/appuser appuser
@@ -9,8 +9,8 @@ RUN adduser --disabled-password --gecos '' --home /home/appuser appuser
 RUN apt-get update && apt-get install -y \
     graphviz \
     libgraphviz-dev \
-    python-tk \
-    python3-tk \
+    # python-tk \
+    # python3-tk \
     tk-dev \
     libffi-dev \
     git \
@@ -19,11 +19,23 @@ RUN apt-get update && apt-get install -y \
 # Set the working directory
 WORKDIR /home/appuser/app/
 
+# Set the PYTHONPATH environment variable to include the /home/appuser/app/code directory
+ENV PATH="/home/appuser/.local/bin:$PATH"
+ENV PYTHONPATH="${PYTHONPATH}:/home/appuser/app/code:/home/appuser/app/code/utils"
+
+
+
+# Create a Python virtual environment
+RUN python -m venv venv
+
+# Upgrade pip in the virtual environment to the latest version
+RUN . venv/bin/activate && pip install --upgrade pip
+
 # Copy just the requirements.txt first to leverage Docker cache
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --requirement requirements.txt \
+# Install Python dependencies within the virtual environment
+RUN . venv/bin/activate && pip install --requirement requirements.txt \
     && rm -rf /root/.cache/pip  # Clean up pip cache to reduce image size
 
 # Pre-create directories that the application will need at runtime, ensuring correct ownership
@@ -41,12 +53,8 @@ USER appuser
 
 # Expose the application port
 EXPOSE 8000
-
-# Health check to improve the resilience of your application
-# Replace "executable" with a command to check the health of your application
-# For a web app, this could be a curl command to its health endpoint
-# HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-# CMD [ "curl", "-f", "http://localhost:8000/health" ]
-
-# Run the application
-CMD ["chainlit", "run", "./UI/chain-chat.py"]
+# Set the working directory just in case again
+WORKDIR /home/appuser/app/
+# Use sh -c to ensure the virtual environment is activated before running the application
+# CMD ["sh", "-c", ". venv/bin/activate && chainlit run ./UI/test-app.py"]
+CMD ["venv/bin/chainlit", "run", "./UI/test-app.py"]
