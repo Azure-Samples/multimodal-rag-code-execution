@@ -15,11 +15,15 @@ RESET='\033[0m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 
-SUBSCRIPTION=""
-RG_WEBAPP_NAME=""
+SUBSCRIPTION="<add your subscription>"
+RG_WEBAPP_NAME="<add your new resource group>"
 
 while [[ -z "$SUBSCRIPTION" ]] || ! az account list --query "[].id" -o tsv | grep -q "$SUBSCRIPTION"; do
     read -p "Subscription $SUBSCRIPTION is empty or not valid in this context. Please enter a valid subscription ID: " SUBSCRIPTION
+done
+
+while [[ -z "$RG_WEBAPP_NAME" ]] ; do
+    read -p "Resource group $RG_WEBAPP_NAME cannot be empty. Please enter a valid resource group name: " RG_WEBAPP_NAME
 done
 
 $ az login --tenant 16b3c013-d300-468d-ac64-7eda0820b6d3
