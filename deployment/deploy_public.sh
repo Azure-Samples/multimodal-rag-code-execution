@@ -777,12 +777,14 @@ COSMOS_URI="https://$COSMOS_DB_NAME.documents.azure.com:443/"
 COSMOS_KEY==$(az cosmosdb keys list --name $COSMOS_DB_NAME --resource-group $RG_WEBAPP_NAME --query primaryMasterKey --output tsv)
 COSMOS_CONTAINER_NAME="prompts"
 COSMOS_CATEGORYID="prompts"
-COSMOS_LOG_CONTAINER= "logs"
- 
+COSMOS_LOG_CONTAINER="logs"
+PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils"
+
 
 #SCM_BASIC_AUTHENTICATION_ENABLED
 read -r -d '' app_settings << EOM
 {    
+    "PYTHONPATH": "$PYTHONPATH",
     "CHAINLIT_APP": "$webapp_url",
     "COSMOS_URI": "$COSMOS_URI",
     "COSMOS_KEY": "$COSMOS_KEY",
