@@ -468,16 +468,8 @@ if [[ "$DEPLOY_INFRA" == "true" ]]; then
             # Check the exit status of the deployment        
             output_variables=$(MSYS_NO_PATHCONV=1 az deployment group show --resource-group $RG_WEBAPP_NAME --name $bicepDeploymentName --query properties.outputs)
 
-            aoaiResourceId=$(echo $output_variables | jq -r '.aoaiResourceId.value')
-            # az cognitiveservices account network-rule add \
-            #     --resource-group $RG_WEBAPP_NAME \
-            #     --name $aoai_resource_name \
-            #     --ip-address subnet
-            
-            echo -e "${GREEN}OpenAI resource $aoai_resource_name created successfully.${RESET}"               
-            #we take the resource id of the accoutn to use it later to create the private endpoint, and more
-            # echo -e "${YELLOW} getting the resource id for the openAI resource $aoai_resource_name... ${RESET}"
-            # resourceId=$(MSYS_NO_PATHCONV=1 az cognitiveservices account show --resource-group "$RG_WEBAPP_NAME" --name $aoai_resource_name --query id --output tsv)
+            aoaiResourceId=$(echo $output_variables | jq -r '.aoaiResourceId.value')                        
+            echo -e "${GREEN}OpenAI resource $aoai_resource_name created successfully.${RESET}"                           
             echo -e "${YELLOW} The opean ai resource id is: $aoaiResourceId ${RESET}"
 
             aoai_temp_key=$(az cognitiveservices account keys list --name $aoai_resource_name --resource-group $RG_WEBAPP_NAME --query key1 --output tsv)        
@@ -519,11 +511,8 @@ if [[ "$DEPLOY_INFRA" == "true" ]]; then
                         AZURE_OPENAI_RESOURCE_4=$aoai_resource_name
                         AZURE_OPENAI_KEY_4=$aoai_temp_key                
                         ;;            
-                esac                
-                #assign the first location to the evnironment variables of the web app        
-            fi                 
-            #we disable public access for the open ai resources accounts and leave only the private endpoint connection enabled. 
-            #MSYS_NO_PATHCONV=1 az resource update --ids $aoaiResourceId --set properties.networkAcls="{'defaultAction':'Deny'}"  properties.publicNetworkAccess="Disabled"               
+                esac                                
+            fi                             
             #we increament the location so that we get the next location in the next iteration         
             location_counter=$((location_counter+1))
         done
@@ -570,9 +559,12 @@ else
 fi
 
 
-#we make sure that the main ingestion folders exist in the file share:
-DOCKER_CUSTOM_IMAGE_NAME_UI="$ACR_NAME.azurecr.io/research-copilot:latest"
-DOCKER_CUSTOM_IMAGE_NAME_MAIN="$ACR_NAME.azurecr.io/research-copilot-main:latest"
+# Generate a unique build ID based on the current date and time
+BUILD_ID=$(date +%Y%m%d%H%M%S)
+
+# Use the build ID to tag your Docker images
+DOCKER_CUSTOM_IMAGE_NAME_UI="$ACR_NAME.azurecr.io/research-copilot:$BUILD_ID"
+DOCKER_CUSTOM_IMAGE_NAME_MAIN="$ACR_NAME.azurecr.io/research-copilot-main:$BUILD_ID"
 
 DOCKERFILE_PATH_UI="docker/dockerfile_chainlit_app"
 DOCKERFILE_PATH_UI_MAIN="docker/dockerfile_streamlit_app"
@@ -596,24 +588,22 @@ echo "Docker User Password: $DOCKER_USER_PASSWORD"
 
 
 echo "Script Execution Flow:"
-echo "--------------------------"
-echo "| 1. Docker Login        |"
-echo "|          |             |"
-echo "|          V             |"
-echo "| 2. Build the UI        |"
-echo "|          |             |"
-echo "|          V             |"
-echo "| 3. Push UI             |"
-echo "|          |             |"
-echo "|          V             |"
-echo "| 4. Update Web App UI   |"
-echo "|          |             |"
-echo "|          V             |"
-echo "| 5. Update API settings |"
-echo "|          |             |"
-echo "|          V             |"
-echo "| 6. Create file share   |"
-echo "--------------------------"
+echo "------------------------------"
+echo "|     1. Docker Login        |"
+echo "|              |             |"
+echo "|              V             |"
+echo "| 2. Build the chainlit app  |"
+echo "|              |             |"
+echo "|              V             |"
+echo "| 3. Build the streamlit app |"
+echo "|              |             |"
+echo "|              V             |"
+echo "| 4. Update chainlit app     |"
+echo "|              |             |"
+echo "|              V             |"
+echo "| 5. Update streamlit apps   |"
+echo "|                            |"
+echo "-----------------------------"
 echo -e "${YELLOW}****Make sure you have the docker started...otherwise docker build will fail! ${RESET}"
 
 if [[ "$CONFIRMATION" == "true" ]]; then
@@ -734,20 +724,16 @@ if [ "$IMAGES_PUSHED" = "true" ]; then
 fi
 
 echo -e "${YELLOW}****The next steps will deploy to the selected subscription ${RESET}"
-#echo -e "${YELLOW}****You will need to request  JIT access in order to perform changes in their Azure enironment${RESET}"
-#echo -e "${YELLOW}****Please, log in to the Customer's Azure tenant ${RESET}"
 
 if [[ "$CONFIRMATION" == "true" ]]; then
     read -p -r "Press enter to continue..."
 fi
-#az login
 
 # Update the UI
 WEBAPP_UPDATED="False"
 if confirm "update the UI on $WEBAPP_NAME_UI and with the new Image?" "$RED"; then
     # Load the settings from the JSON file
     
-    #output=$(az webapp config container set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_UI --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)
     output=$(az webapp config container set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_UI --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
     echo -e "${GREEN}****Container updated into the web app. Give it some time to load it!${RESET}"	    
     WEBAPP_UPDATED="true"
@@ -759,9 +745,7 @@ fi
 
 WEBAPP_UPDATED="False"
 if confirm "update the UI on $WEBAPP_NAME_UI_MAIN and with the new Image?" "$RED"; then
-    # Load the settings from the JSON file
-    
-    #output=$(az webapp config container set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_UI --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)
+    # Load the settings from the JSON file    
     output=$(az webapp config container set --name $WEBAPP_NAME_UI_MAIN --resource-group $RG_WEBAPP_NAME_MAIN --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_MAIN --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
     echo -e "${GREEN}****Container updated into the web app. Give it some time to load it!${RESET}"	    
     WEBAPP_UPDATED="true"
@@ -839,9 +823,7 @@ read -r -d '' app_settings << EOM
 }
 EOM
 
-if confirm "update the web app settings in $WEBAPP_NAME_UI? (y/n)" "$RED"; then
-    # settings=$(jq -r 'map("\(.name)=\(.value)") | join(" ")' $app_settings)
-    #settings=$(echo -e "$app_settings" | jq -r 'to_entries|map("\(.key)=\(.value)")[]')
+if confirm "update the web app settings in $WEBAPP_NAME_UI? (y/n)" "$RED"; then    
     settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
     MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --settings $settings
     if [ $? -ne 0 ]; then
@@ -849,9 +831,7 @@ if confirm "update the web app settings in $WEBAPP_NAME_UI? (y/n)" "$RED"; then
     fi
 fi
 
-if confirm "update the web app settings in $WEB_APP_NAME_MAIN? (y/n)" "$RED"; then
-    # settings=$(jq -r 'map("\(.name)=\(.value)") | join(" ")' $app_settings)
-    #settings=$(echo -e "$app_settings" | jq -r 'to_entries|map("\(.key)=\(.value)")[]')
+if confirm "update the web app settings in $WEB_APP_NAME_MAIN? (y/n)" "$RED"; then    
     settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
     MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings $settings
     if [ $? -ne 0 ]; then
@@ -863,7 +843,6 @@ fi
 ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
 SHARE_NAME=$STORAGE_ACCOUNT_NAME
 STORAGE_ACCESS_KEY= $(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
-#STORAGE_ACCESS_KEY='XHx8VlKJqEvnZUlT9lnVWmJ66voMmy0jvqA5/1paUASBbKooQUWowtdznpRWOHHzs4NF59o4fR14+AStLpUyEA=='
 CUSTOM_ID='fileshare'
 # Get the current path mappings
 path_mappings=$(az webapp config storage-account list --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query "[?name=='$CUSTOM_ID']")
@@ -872,8 +851,7 @@ path_mappings=$(az webapp config storage-account list --name $WEBAPP_NAME_UI --r
 if [[ $path_mappings == "[]" ]]; then
     echo -e "${YELLOW}The fileshare path mapping does not exist in the web app $WEBAPP_NAME_UI.${RESET}"
     # If it doesn't exist, create it
-    if confirm "Create the fileshare  $SHARE_NAME in $WEBAPP_NAME_UI? (y/n)" "$RED"; then
-        # az webapp config storage-account add --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --custom-id fileshare --storage-type AzureFiles --share-name $SHARE_NAME --account-name $ACCOUNT_NAME --mount-path /data --access-key $STORAGE_ACCESS_KEY
+    if confirm "Create the fileshare  $SHARE_NAME in $WEBAPP_NAME_UI? (y/n)" "$RED"; then        
         MSYS_NO_PATHCONV=1 az webapp config storage-account add -g $RG_WEBAPP_NAME \
         -n $WEBAPP_NAME_UI \
         --custom-id $CUSTOM_ID \
@@ -881,8 +859,7 @@ if [[ $path_mappings == "[]" ]]; then
         --account-name $ACCOUNT_NAME \
         --share-name $SHARE_NAME \
         --access-key $STORAGE_ACCESS_KEY \
-        --mount-path /data                
-        # az webapp config storage-account add --resource-group MyResourceGroup --name MyUniqueApp --custom-id CustomId --storage-type AzureFiles --account-name MyStorageAccount --share-name MyShare --access-key MyAccessKey --mount-path /path/to/mount
+        --mount-path /data                        
         if [ $? -ne 0 ]; then
             echo "Error creating the path mapping" >&2
             # exit 1
@@ -894,40 +871,19 @@ fi
 
 
 if [ "$WEBAPP_UPDATED" = "true" ]; then
+    echo -e "${RED}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
+    echo -e "${RED}!!!!!!!!IMPORTANT:                  THIS is the image build id:$BUILD_ID .${RESET}"       
+    echo -e "${RED}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
+    echo -e "${RED}!!!!!!!!IMPORTANT: Make sure you change the web apps to point to this new build:$BUILD_ID .${RESET}"       
+    echo -e "${RED}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
     echo -e "${RED}!!!!!!!!IMPORTANT: THE IMAGE(s) are LARGE, IT TAKES AROUND 5-7 MINUTES TO LOAD IN THE WEB APP.${RESET}"       
-    echo -e "${RED}!in the Deployment Center log (or Log stream) you should see info like below.${RESET}"
-    echo -e "${YELLOW}2024-03-08T08:01:10.567Z INFO - b3f695e2d3d6 Extracting 1060MB / 3111MB${RESET}"
-    echo -e "${YELLOW}2024-03-08T08:01:10.678Z INFO - b3f695e2d3d6 Extracting 1065MB / 3111MB${RESET}"
-    echo -e "${YELLOW}2024-03-08T08:01:10.800Z INFO - b3f695e2d3d6 Extracting 1069MB / 3111MB${RESET}"
-    echo -e "${YELLOW}2024-03-08T08:01:10.909Z INFO - b3f695e2d3d6 Extracting 1073MB / 3111MB${RESET}"
-    echo -e "${YELLOW}2024-03-08T08:01:11.015Z INFO - b3f695e2d3d6 Extracting 1077MB / 3111MB${RESET}"
-    echo -e "${YELLOW}2024-03-08T08:01:11.115Z INFO - b3f695e2d3d6 Extracting 1082MB / 3111MB${RESET}"
-    echo -e "${YELLOW}2024-03-08T07:30:55.946811934Z Current Path:  /home/appuser/app/code${RESET}"
-    echo -e "${YELLOW}2024-03-08T07:30:55.946823935Z Execution Path:${RESET}"
-    echo -e "${YELLOW}2024-03-08T07:30:55.946828235Z Test Project Path:${RESET}"
-    echo -e "${YELLOW}2024-03-08T07:30:55.946831835Z Default Vector Directory:  ../doc_ingestion_cases/${RESET}"
-    echo -e "${YELLOW}2024-03-08T07:30:55.946835935Z Taskweaver Path:  ../TaskWeaver/${RESET}"
+    echo -e "${RED}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
+    echo -e "${RED}!!!!!!!!IMPORTANT: ONCE YOU CHANGE THE DEPLOYMENT TO THE NEW BUILD ID, JUST BROWSE THE WEB APP TO FORCE THE IMAGE UPDATE IN THE WEB APP.${RESET}"       
+    echo -e "${RED}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
 fi
-
-
-echo -e "${YELLOW}****Restarting the webup, just in case!${YELLOW}"    
-#az webapp restart --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME 
-
-# Initialize webapp_status with a non-"Running" value
-webapp_status="restart_pending"
-
-# Keep checking the status of the web app until it's "Running"
-while [ "$webapp_status" != "Running" ]; do
-    # Check the status of the web app
-    webapp_status=$(az webapp show --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query state -o tsv)
-    echo -e "${YELLOW}****Checking the status of the web app ...${YELLOW}"
-    # Wait for a bit before checking again
-    sleep 5
-done
-
-echo -e "${GREEN}Web app restarted successfully.${RESET}"
 
 echo -e "${GREEN}Process Finished! happy testing!.${RESET}"
 
 # Print the URL as a clickable link
 echo -e "${BLUE}Web app URL: http://$webapp_url${RESET}"
+
