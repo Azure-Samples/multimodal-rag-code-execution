@@ -23,14 +23,17 @@ import fitz  # PyMuPDF
 import shutil
 import sys
 sys.path.append("../code")
-sys.path.append("C:\\Users\\selhousseini\\Documents\\GitHub\\mm-doc-analysis-rag-ce\\code\\")
+
+
+import utils.cosmos_helpers as cs
+
 
 import doc_utils
-
 from env_vars import *
-import doc_utils
+
 from doc_utils import *
-from bcolors import bcolors as bc  
+from processor import *
+from utils.bcolors import bcolors as bc  
 
 def log_message(message, level):
     if level == 'debug':
@@ -86,37 +89,40 @@ def change_to_container_path(path, root_path):
 
 # test: # change_to_container_path('/openai_faq', ROOT_PATH_INGESTION)
 
-
+available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
+logc("available_models", available_models)
 
 init_code_interpreter = "NoComputationTextOnly"
 init_code_interpreter = "Taskweaver"
 init_code_interpreter = "AssistantsAPI"
 
 init_password = ''
-init_extract_text_mode = 'GPT'
-init_extract_images_mode = 'PDF'
-init_extract_text_from_images = True
-init_number_of_threads = 4
+init_approx_tag_limit = '15'
+init_pdf_extraction_mode = 'gpt-4-vision'
+init_docx_extraction_modes = 'document-intelligence'
+init_number_of_threads = available_models
 init_delete_existing_output_directory = False
+init_top_n = 3
 
 
-init_index_name = 'blackrock_index_v1'
+init_index_name = 'blk_v3'
 init_ingestion_directory = init_index_name
-init_extract_images_mode = 'GPT'
 
+cosmos = cs.SCCosmosClient()
 
 
 user_sessions = {}
 # ingestion_directories = {}
 index_names = {}
 passwords = {}
-extract_text_modes = {}
-extract_images_modes = {}
-extract_text_from_images = {}
+approx_tag_limits = {}
+pdf_extraction_modes = {}
+docx_extraction_modes = {}
 number_of_threads = {}
 delete_existing_output_directory = {}
 code_interpreters = {}
 conversations = {}
+top_ns = {}
 
 
 
@@ -131,17 +137,36 @@ def post_message_sync(label, message):
 doc_utils.log_ui_func_hook = post_message_sync
 
 
+def get_prompts_from_cosmos():
+    prompts = {}
+    prompts_json = cosmos.get_all_documents()
+
+    for prompt in prompts_json:
+        section_contents = ''
+        if 'Sections' in prompt: section_contents = [c for c in prompt['Sections'] if isinstance(c, str)]
+        prompts[prompt['Category']] = prompt['Content'] + "\n\n" + "\n\n".join(section_contents)
+
+    return prompts
+
+try:
+    prompts = get_prompts_from_cosmos()
+except Exception as e:
+    logc(f"Error getting prompts from Cosmos: {e}")
+    prompts = []
+
+
 
 async def update_task_list():
     # ingestion_directory = ingestion_directories[cl.user_session.get("id")]
     index_name = index_names[cl.user_session.get("id")]
     password = passwords[cl.user_session.get("id")]
-    extract_text_mode = extract_text_modes[cl.user_session.get("id")]
-    extract_images_mode = extract_images_modes[cl.user_session.get("id")]
-    extract_text_from_image = extract_text_from_images[cl.user_session.get("id")]
+    approx_tag_limit = approx_tag_limits[cl.user_session.get("id")]
+    pdf_extraction_mode = pdf_extraction_modes[cl.user_session.get("id")]
+    docx_extraction_mode = docx_extraction_modes[cl.user_session.get("id")]
     number_of_thread = number_of_threads[cl.user_session.get("id")]
     delete_existing_output_directories = delete_existing_output_directory[cl.user_session.get("id")]
     code_interpreter = code_interpreters[cl.user_session.get("id")]
+    top_n = top_ns[cl.user_session.get("id")]
 
     # Create the TaskList
     task_list = cl.TaskList()
@@ -151,23 +176,26 @@ async def update_task_list():
     # task_ingestion_directory = cl.Task(title=f"Ingestion Directory: {ingestion_directory}", status=cl.TaskStatus.DONE)
     task_index_name = cl.Task(title=f"Index Name: {index_name}", status=cl.TaskStatus.DONE)
     task_password = cl.Task(title=f"PDF Password: {password}", status=cl.TaskStatus.DONE)
-    task_extract_text_mode = cl.Task(title=f"Extract Text Mode: {extract_text_mode}", status=cl.TaskStatus.DONE)
-    task_extract_images_mode = cl.Task(title=f"Extract Images Mode: {extract_images_mode}", status=cl.TaskStatus.DONE)
-    task_extract_text_from_image = cl.Task(title=f"Extract Text from Images: {extract_text_from_image}", status=cl.TaskStatus.DONE)
+    task_approx_tag_limit = cl.Task(title=f"Search Tags Limit: {approx_tag_limit}", status=cl.TaskStatus.DONE)
+    task_pdf_extraction_mode = cl.Task(title=f"PDF Extraction Mode: {pdf_extraction_mode}", status=cl.TaskStatus.DONE)
+    task_docx_extraction_mode = cl.Task(title=f"Docx Extractoin Mode: {docx_extraction_mode}", status=cl.TaskStatus.DONE)
     task_number_of_thread = cl.Task(title=f"Number of Threads: {number_of_thread}", status=cl.TaskStatus.DONE)
     task_delete_existing_output_directories = cl.Task(title=f"Delete Existing Ingestion Directory: {delete_existing_output_directories}", status=cl.TaskStatus.DONE)
     task_code_interpreter = cl.Task(title=f"Code Interpreter: {code_interpreter}", status=cl.TaskStatus.DONE)
+    task_top_n = cl.Task(title=f"Top N Search Results: {top_n}", status=cl.TaskStatus.DONE)
+
 
     # Add tasks to the task list
     # await task_list.add_task(task_ingestion_directory)
     await task_list.add_task(task_index_name)
     await task_list.add_task(task_password)
-    await task_list.add_task(task_extract_text_mode)
-    await task_list.add_task(task_extract_images_mode)
-    await task_list.add_task(task_extract_text_from_image)
+    await task_list.add_task(task_pdf_extraction_mode)
+    await task_list.add_task(task_docx_extraction_mode)
     await task_list.add_task(task_number_of_thread)
     await task_list.add_task(task_delete_existing_output_directories)
     await task_list.add_task(task_code_interpreter)
+    await task_list.add_task(task_approx_tag_limit)
+    await task_list.add_task(task_top_n)
 
     # Update the task list in the interface
     await task_list.send()
@@ -180,13 +208,13 @@ async def start():
     # ingestion_directories[cl.user_session.get("id")] = init_ingestion_directory
     index_names[cl.user_session.get("id")] = init_index_name
     passwords[cl.user_session.get("id")] = init_password
-    extract_text_modes[cl.user_session.get("id")] = init_extract_text_mode
-    extract_images_modes[cl.user_session.get("id")] = init_extract_images_mode
-    extract_text_from_images[cl.user_session.get("id")] = init_extract_text_from_images
+    approx_tag_limits[cl.user_session.get("id")] = init_approx_tag_limit
+    pdf_extraction_modes[cl.user_session.get("id")] = init_pdf_extraction_mode
+    docx_extraction_modes[cl.user_session.get("id")] = init_docx_extraction_modes
     number_of_threads[cl.user_session.get("id")] = init_number_of_threads
     delete_existing_output_directory[cl.user_session.get("id")] = init_delete_existing_output_directory
     code_interpreters[cl.user_session.get("id")] = init_code_interpreter
-    
+    top_ns[cl.user_session.get("id")] = init_top_n
     await update_task_list()
 
 
@@ -208,43 +236,46 @@ def get_latest_file_version(directory, file_pattern):
     return os.path.join(directory, latest_file) if latest_file else None
 
 
-async def generate_prompt(prompt_name):
-    prompts_path = os.environ.get("PROMPTS_PATH")
-    if not prompts_path:
-        #if it is empty it means the user does not have the environment variable set, 
-        #so we assume its a local developer and will not populate paths from file share
-        prompts_path = "../code/prompts"
+async def generate_prompt(p):
+    try:
+        prompts_path = os.environ.get("PROMPTS_PATH")
+        if not prompts_path:
+            #if it is empty it means the user does not have the environment variable set, 
+            #so we assume its a local developer and will not populate paths from file share
+            prompts_path = "../code/prompts"
 
-    prompt_dir = os.path.join(prompts_path, prompt_name)
-    prompt_file = get_latest_file_version(prompt_dir, file_pattern)
-    prompt = read_asset_file(prompt_file)[0]
-    logc(f"Generating the contents for the prompt: {prompt}")
-    await app_search(prompt)
+        prompt_dir = os.path.join(prompts_path, p)
+        prompt_file = get_latest_file_version(prompt_dir, file_pattern)
+        prompt = read_asset_file(prompt_file)[0]
+        logc(f"Generating the contents for the prompt: {prompt}")
+        await app_search(prompt)
+    except:
+        await app_search(p)
 
 
-@cl.action_callback('Business Overview')
-async def on_action(action):
-    await generate_prompt(action.value)
+# @cl.action_callback('Business Overview')
+# async def on_action(action):
+#     await generate_prompt(action.value)
 
-@cl.action_callback('Executive Summary')
-async def on_executive_summary(action):
-    await generate_prompt(action.value)
+# @cl.action_callback('Executive Summary')
+# async def on_executive_summary(action):
+#     await generate_prompt(action.value)
 
-@cl.action_callback('Historical Financials')
-async def on_historical_financials(action):
-    await generate_prompt(action.value)
+# @cl.action_callback('Historical Financials')
+# async def on_historical_financials(action):
+#     await generate_prompt(action.value)
 
-@cl.action_callback('Industry Overview')
-async def on_industry_overview(action):
-    await generate_prompt(action.value)
+# @cl.action_callback('Industry Overview')
+# async def on_industry_overview(action):
+#     await generate_prompt(action.value)
 
-@cl.action_callback('Preliminary Return Analysis')
-async def on_preliminary_return_analysis(action):
-    await generate_prompt(action.value)
+# @cl.action_callback('Preliminary Return Analysis')
+# async def on_preliminary_return_analysis(action):
+#     await generate_prompt(action.value)
 
-@cl.action_callback('Products Overview')
-async def on_products_overview(action):
-    await generate_prompt(action.value)
+# @cl.action_callback('Products Overview')
+# async def on_products_overview(action):
+#     await generate_prompt(action.value)
 
     
 @cl.on_message
@@ -279,39 +310,43 @@ async def main(message: cl.Message):
                 passwords[cl.user_session.get("id")] = password
                 await update_task_list()
 
-        elif cmd == 'text_processing':
-            res = await cl.AskUserMessage(content="What is the text post-processing mode?", timeout=1000).send()
+        elif cmd == 'tag_limit':
+            res = await cl.AskUserMessage(content="What is tag limit for Search?", timeout=1000).send()
             if res:
-                extract_text_mode = res['output'].strip().upper()
-                if extract_text_mode in ['GPT', 'PDF']:
-                    extract_text_modes[cl.user_session.get("id")] = extract_text_mode
+                approx_tag_limit = res['output'].strip().upper()
+                try:
+                    approx_tag_limit = int(approx_tag_limit)
+                    if approx_tag_limit < 1: approx_tag_limit = 1
+                    approx_tag_limits[cl.user_session.get("id")] = approx_tag_limit
                     await update_task_list()
-                else:
-                    await cl.Message(content="Invalid text post-processing mode. Please choose from 'GPT' or 'PDF'.").send()
+                except:
+                    approx_tag_limits[cl.user_session.get("id")] = 15
+                    await update_task_list()
+                    await cl.Message(content="Invalid tags limit. Please choose a valid integer value.").send()
 
 
-        elif cmd == 'image_detection':
-            res = await cl.AskUserMessage(content="What is the images detection and extraction mode?", timeout=1000).send()
+        elif cmd == 'pdf_mode':
+            res = await cl.AskUserMessage(content="What is the PDF extraction mode?", timeout=1000).send()
             if res:
-                extract_images_mode = res['output'].strip().upper()
-                if extract_images_mode in ['GPT', 'PDF']:
-                    extract_images_modes[cl.user_session.get("id")] = extract_images_mode
+                pdf_extraction_mode = res['output'].strip().upper()
+                if pdf_extraction_mode in ['gpt-4-vision', 'document-intelligence']:
+                    pdf_extraction_modes[cl.user_session.get("id")] = pdf_extraction_mode
                     await update_task_list()
                 else:
                     await cl.Message(content="Invalid images detection and extraction mode. Please choose from 'GPT' or 'PDF'.").send()
 
-        elif cmd == 'OCR':
-            res = await cl.AskUserMessage(content="Extract text from images?", timeout=1000).send()
+        elif cmd == 'docx_mode':
+            res = await cl.AskUserMessage(content="What is the Docx extraction mode?", timeout=1000).send()
             if res:
-                extract_text_from_image = res['output'].strip().lower()
-                if extract_text_from_image in ['yes', 'true']: 
-                    extract_text_from_image = True
+                docx_extraction_mode = res['output'].strip().lower()
+                if docx_extraction_mode in ['document-intelligence', 'py-docx']: 
+                    docx_extraction_mode = True
                 else: 
-                    extract_text_from_image = False
-                extract_text_from_images[cl.user_session.get("id")] = extract_text_from_image
+                    docx_extraction_mode = False
+                docx_extraction_modes[cl.user_session.get("id")] = docx_extraction_mode
                 await update_task_list()
         
-        elif cmd == 'threads':
+        elif cmd == 'threads': 
             res = await cl.AskUserMessage(content="Number of threads?", timeout=1000).send()
             if res:
                 print(res)
@@ -324,6 +359,19 @@ async def main(message: cl.Message):
                 except:
                     pass
 
+        elif cmd == 'topN': 
+            res = await cl.AskUserMessage(content="What is the Top N for the Search Results?", timeout=1000).send()
+            if res:
+                print(res)
+                new_topn = res['output'].strip()
+                try:
+                    new_topn = int(new_topn)
+                    if new_topn < 1: new_topn = 3
+                    top_ns[cl.user_session.get("id")] = new_topn
+                    await update_task_list()
+                except:
+                    pass
+                
         elif cmd == 'code_interpreter':
             res = await cl.AskUserMessage(content="What is the code interpreter?", timeout=1000).send()
             if res:
@@ -350,7 +398,12 @@ async def main(message: cl.Message):
 
             # while files == None:
             files = await cl.AskFileMessage(content="Please upload the file.", 
-                                            accept=["application/pdf"], 
+                                            accept=["text/csv",
+                                                    "application/pdf", 
+                                                    "application/msword",
+                                                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                                    "application/vnd.ms-excel",
+                                                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], 
                                             max_size_mb = 100,
                                             max_files = 100,
                                             timeout=1000).send()
@@ -364,7 +417,7 @@ async def main(message: cl.Message):
                     os.makedirs(ingestion_directory, exist_ok=True)
                     download_directory = os.path.join(ingestion_directory, 'downloads')
                     os.makedirs(download_directory, exist_ok=True)
-                    shutil.copy(file.path, os.path.join(download_directory, file.name))
+                    shutil.copy(file.path, os.path.join(download_directory, file.name.replace(" ", "_")))
                 
                 fns = ', '.join(filenames)
                 await cl.Message(content=f"File(s) '{fns}' have been uploaded to '{download_directory}'.").send()
@@ -384,45 +437,60 @@ async def main(message: cl.Message):
             print("download_directory:", download_directory, type(download_directory))
             print("index_name:", index_names[cl.user_session.get("id")], type(index_names[cl.user_session.get("id")]))
             print("password:", passwords[cl.user_session.get("id")], type(passwords[cl.user_session.get("id")]))
-            print("extract_text_mode:", extract_text_modes[cl.user_session.get("id")], type(extract_text_modes[cl.user_session.get("id")]))
-            print("extract_images_mode:", extract_images_modes[cl.user_session.get("id")], type(extract_images_modes[cl.user_session.get("id")]))
-            print("extract_text_from_image:", extract_text_from_images[cl.user_session.get("id")], type(extract_text_from_images[cl.user_session.get("id")]))
+            print("approx_tag_limit:", approx_tag_limits[cl.user_session.get("id")], type(approx_tag_limits[cl.user_session.get("id")]))
+            print("pdf_extraction_mode:", pdf_extraction_modes[cl.user_session.get("id")], type(pdf_extraction_modes[cl.user_session.get("id")]))
+            print("docx_extraction_mode:", docx_extraction_modes[cl.user_session.get("id")], type(docx_extraction_modes[cl.user_session.get("id")]))
             print("number_of_threads:", number_of_threads[cl.user_session.get("id")], type(number_of_threads[cl.user_session.get("id")]))
             print("delete_existing_output_directory:", delete_existing_output_directory[cl.user_session.get("id")], type(delete_existing_output_directory[cl.user_session.get("id")]))
 
-            await cl.make_async(ingest_docs_directory)(
-                directory=download_directory, 
-                ingestion_directory=ingestion_directory, 
-                index_name=index_names[cl.user_session.get("id")], 
-                password=passwords[cl.user_session.get("id")], 
-                extract_text_mode=extract_text_modes[cl.user_session.get("id")], 
-                extract_images_mode=extract_images_modes[cl.user_session.get("id")], 
-                extract_text_from_images=extract_text_from_images[cl.user_session.get("id")], 
-                num_threads=number_of_threads[cl.user_session.get("id")], 
-                delete_existing_output_dir=delete_existing_output_directory[cl.user_session.get("id")], 
-                processing_stages=None, 
-                verbose=False
-            )
+            ingestion_params_dict = {
+                "download_directory" : download_directory,
+                "ingestion_directory" : ingestion_directory,
+                "index_name" : index_name,
+                'num_threads' : available_models,
+                "password" : passwords[cl.user_session.get("id")],
+                "delete_existing_output_dir" : delete_existing_output_directory[cl.user_session.get("id")],
+                "processing_mode_pdf" : pdf_extraction_modes[cl.user_session.get("id")],
+                "processing_mode_docx" : docx_extraction_modes[cl.user_session.get("id")],
+                'models': gpt4_models,
+                'vision_models': gpt4_models,
+                'verbose': True
+            }
+
+            # await cl.make_async(ingest_docs_directory)(
+            #     directory=download_directory, 
+            #     ingestion_directory=ingestion_directory, 
+            #     index_name=index_names[cl.user_session.get("id")], 
+            #     password=passwords[cl.user_session.get("id")], 
+            #     approx_tag_limit=approx_tag_limits[cl.user_session.get("id")], 
+            #     pdf_extraction_mode=pdf_extraction_modes[cl.user_session.get("id")], 
+            #     docx_extraction_modes=docx_extraction_modes[cl.user_session.get("id")], 
+            #     num_threads=number_of_threads[cl.user_session.get("id")], 
+            #     delete_existing_output_dir=delete_existing_output_directory[cl.user_session.get("id")], 
+            #     processing_stages=None, 
+            #     verbose=False
+            # )
+
+            await cl.make_async(ingest_docs_directory_using_processors)(ingestion_params_dict)
+
 
             await cl.Message(content=f"Ingestion of '{ingestion_directory}' into '{index_name}' complete.").send()
 
 
         elif cmd == "gen":
+            try:
+                prompts = get_prompts_from_cosmos()
+            except Exception as e:
+                logc(f"Error getting prompts from Cosmos: {e}")
+                prompts = []
 
-            dirs = ['business_overview', 'executive_summary', 'historical_financials', 'Industry_overview', 'preliminary_return_analysis', 'Products_overview']
-            descs = [
-                'Description of the business and its operations',
-                'Summary of key points and highlights',
-                'Financial information from previous years',
-                'Overview of the industry and market',
-                'Analysis of potential returns on investment',
-                'Overview of the company\'s products'
-            ]
-
-            button_names = ['Business Overview', 'Executive Summary', 'Historical Financials', 'Industry Overview', 'Preliminary Return Analysis', 'Products Overview']
+            for title, prompt in prompts.items():            
+                @cl.action_callback(title)
+                async def on_action(action):
+                    await generate_prompt(action.value)
 
             actions = [
-                cl.Action(name=button_names[index], value=d, description=descs[index]) for index, d in enumerate(dirs)
+                cl.Action(name=k, value=v, description=v) for k, v in prompts.items()
             ]
 
             await cl.Message(content="Please choose which prompt to generate:", actions=actions).send()
@@ -443,7 +511,8 @@ async def main(message: cl.Message):
 async def app_search(query: str):        
     final_answer, references, output_excel, search_results, files = await cl.make_async(search)(
         query, 
-        top=5, 
+        top=top_ns[cl.user_session.get("id")], 
+        approx_tag_limit = approx_tag_limits[cl.user_session.get("id")],
         conversation_history = conversations[cl.user_session.get("id")],
         user_id = cl.user_session.get("id"),
         computation_approach = code_interpreters[cl.user_session.get("id")], 
@@ -471,7 +540,7 @@ async def app_search(query: str):
         
     id_m = await cl.Message(content=final_answer, elements = final_elements).send()
 
-    pdfs = [p['pdf_path'] for p in references]
+    pdfs = [p['document_path'] for p in references]
     pdfs = list(set(pdfs))
 
     if (output_excel != "")  and (output_excel is not None):
@@ -491,8 +560,12 @@ async def app_search(query: str):
                 e = [cl.Image(name=os.path.basename(r['asset']), path=replace_extension(r['asset'], '.jpg'), size='large', display="inline"),
                         cl.Text(name=f"Text below:", content=read_asset_file(r['asset'])[0], display="inline")]
             elif r['type'] == 'table':
-                e = [cl.Image(name=os.path.basename(r['asset']), path=replace_extension(r['asset'], '.png'), size='large', display="inline"),
-                        cl.Text(name=f"Text below:", content=read_asset_file(r['asset'])[0], display="inline")]
+                e = []
+                if os.path.exists(replace_extension(r['asset'], '.png')):
+                    e.append(cl.Image(name=os.path.basename(r['asset']), path=replace_extension(r['asset'], '.png'), size='large', display="inline"),
+                        cl.Text(name=f"Text below:", content=read_asset_file(r['asset'])[0], display="inline"))
+                if os.path.exists(r['asset']):
+                    e.append(cl.Text(name=f"Text below:", content=read_asset_file(r['asset'])[0], display="inline"))
             elif r['type'] == 'file':
                 e = [cl.File(name="Results File", path=r['asset'], display="inline")]
             elif r['type'] == 'assistant_image':
@@ -512,8 +585,8 @@ async def app_search(query: str):
         try:
             pdf=change_to_container_path(pdf, ROOT_PATH_INGESTION)
             print("Current Dir", os.getcwd())
-            async with cl.Step(name=f"Search PDF References",  elements = [cl.Pdf(name="PDF", path=pdf, display="inline")]) as step:
-                step.output = f"PDF Document '{os.path.basename(pdf)}'\nThe below has been taken from **{os.path.basename(pdf)}**."
+            async with cl.Step(name=f"Search References",  elements = [cl.Pdf(name="PDF", path=pdf, display="inline")]) as step:
+                step.output = f"Document '{os.path.basename(pdf)}'\nThe below has been taken from **{os.path.basename(pdf)}**."
         except Exception as e:
             print("Error in pdf message", pdf, "\n", e)
             
