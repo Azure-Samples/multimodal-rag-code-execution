@@ -8,35 +8,68 @@ from doc_utils import *
 
 class Processor():
 
-    def __init__(   
-                self, 
-                doc_path, 
-                ingestion_directory = None, 
-                index_name = 'mm_doc_analysis', 
-                delete_existing_output_dir = False,
-                password = None, 
-                models = gpt4_models, 
-                vision_models = gpt4_models, 
-                num_threads=1
-            ):
-        
+    def __init__(self, ingestion_params_dict):
+
+        delete_existing_output_dir = ingestion_params_dict.get('delete_existing_output_dir', False)
+        processing_mode_pdf = ingestion_params_dict.get('processing_mode_pdf', 'gpt-4-vision')
+        processing_mode_docx = ingestion_params_dict.get('processing_mode_docx', 'document-intelligence')
+        processing_mode_xlsx = ingestion_params_dict.get('processing_mode_xlsx', 'openpyxl')
+
+        doc_path = ingestion_params_dict['doc_path'] 
+        os.rename(doc_path, doc_path.replace(" ", "_"))
+        ingestion_params_dict['doc_path'] = doc_path
+
+        self.doc_path = ingestion_params_dict['doc_path'] 
+        self.ingestion_directory = ingestion_params_dict['ingestion_directory']
+        self.download_directory = ingestion_params_dict.get('download_directory', os.path.join(self.ingestion_directory, 'downloads'))
+        os.makedirs(self.download_directory, exist_ok=True)
+        self.index_name = ingestion_params_dict['index_name']
+        self.num_threads = ingestion_params_dict.get('num_threads', len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None]))
+        self.password = ingestion_params_dict.get('password', None)
+        self.models = ingestion_params_dict.get('models', gpt4_models)
+        self.vision_models = ingestion_params_dict.get('models', gpt4_models)
+
+
         self.valid_processing_stages = ['pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'harvest_code', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
 
-        self.base_name = os.path.splitext(os.path.basename(doc_path))[0].strip()
-        self.extension = os.path.splitext(os.path.basename(doc_path))[1].strip()
+        self.base_name = os.path.splitext(os.path.basename(self.doc_path))[0].strip().replace(" ", "_")
+        self.extension = os.path.splitext(os.path.basename(self.doc_path))[1].strip()
 
-        self.doc_path = doc_path
-        self.ingestion_directory = ingestion_directory
-        self.index_name = index_name
-        self.models = models
-        self.vision_models = vision_models
-        self.num_threads = num_threads
-        self.password = password
+        if self.extension == '.pdf':
+            self.processing_mode = processing_mode_pdf
+            if self.processing_mode not in ['gpt-4-vision', 'PyMuPDF', 'document-intelligence']:
+                logc(f"Processing Mode Not Supported {self.processing_mode}. Defaulting to 'gpt-4-vision'")
+                self.processing_mode = 'gpt-4-vision'
+        elif self.extension == '.docx':
+            self.processing_mode = processing_mode_docx
+            if self.processing_mode not in ['py-docx', 'document-intelligence']:
+                logc(f"Processing Mode Not Supported {self.processing_mode}. Defaulting to 'document-intelligence'")
+                self.processing_mode = 'document-intelligence'
+        elif self.extension == '.xlsx':
+            self.processing_mode = processing_mode_xlsx
+            if self.processing_mode not in ['openpyxl']:
+                logc(f"Processing Mode Not Supported {self.processing_mode}. Defaulting to 'openpyxl'")
+                self.processing_mode = 'openpyxl'                
+        else:
+            if self.processing_mode not in ['py-docx', 'document-intelligence']:
+                logc(f"INFO: Processing Mode Not Supported for this file type.")
 
-        self.ingestion_pipeline_dict = create_ingestion_pipeline_dict(doc_path, ingestion_directory = ingestion_directory, index_name = 
-        index_name, delete_existing_output_dir = delete_existing_output_dir, password = password, models = models, vision_models = vision_models, num_threads=num_threads)
+        ingestion_params_dict['processing_mode'] = self.processing_mode
+
+        logc("### INGESTING A NEW DOCUMENT")
+        logc("doc_path:", self.doc_path)
+        logc("ingestion_directory:", self.ingestion_directory)
+        logc("index_name:", self.index_name)
+        logc("delete_existing_output_dir:", delete_existing_output_dir)
+        logc("num_threads:", self.num_threads)
+        logc("processing mode", self.processing_mode)
+        logc("---")
+        logc("<br><br>")
+
+        self.ingestion_pipeline_dict = create_ingestion_pipeline_dict(ingestion_params_dict)
 
         doc_proc_directory = self.ingestion_pipeline_dict['document_processing_directory'] 
+        self.doc_proc_directory = self.ingestion_pipeline_dict['document_processing_directory'] 
 
         dict_path = os.path.join(doc_proc_directory, f'{self.base_name}.dict.txt')
 
@@ -147,10 +180,24 @@ class Processor():
         doc_proc_directory = self.ingestion_pipeline_dict['document_processing_directory'] 
         vecstore_items_path = os.path.join(doc_proc_directory, f'{self.base_name}.vecstore.txt')
         write_to_file(json.dumps(metadatas, indent=4), vecstore_items_path, mode='w')
+        
+        doc_filename = self.ingestion_pipeline_dict['original_document_filename']
+        completed = os.path.join(doc_proc_directory, f'{doc_filename}.ingested')
+        completed_downloads = os.path.join(self.download_directory, f'{doc_filename}.ingested')
+
+        write_to_file('1', completed, mode='w')
+        write_to_file('1', completed_downloads, mode='w')
 
 
 
     def ingest_document(self, verbose=False):
+        doc_filename = self.ingestion_pipeline_dict['original_document_filename']
+        completed_downloads = os.path.join(self.download_directory, f'{doc_filename}.ingested')
+
+        if os.path.exists(completed_downloads):
+            logc(f"Document Already Ingested: {doc_filename}")
+            return
+
         self.execute_processing_plan(verbose=verbose)
         self.commit_assets_to_vector_store()
 
@@ -159,18 +206,10 @@ class Processor():
 
 class PdfProcessor(Processor):
 
-    def __init__(self, doc_path, ingestion_directory=None, index_name='mm_doc_analysis', delete_existing_output_dir=False, password=None, models=gpt4_models, vision_models=gpt4_models, num_threads=1, processing_mode = 'GPT-4-Vision'):
-        
-        self.processing_mode = processing_mode
-        if self.processing_mode not in ['GPT-4-Vision', 'PyMuPDF', 'document-intelligence']:
-            logc(f"Processing Mode Not Supported {self.processing_mode}. Defaulting to 'GPT-4-Vision'")
-            
-        super().__init__(doc_path, ingestion_directory, index_name, delete_existing_output_dir, password, models, vision_models, num_threads)
-
 
     def develop_processing_plan(self):
         
-        if self.processing_mode == 'GPT-4-Vision':
+        if self.processing_mode == 'gpt-4-vision':
             self.ingestion_pipeline_dict['extract_text_mode'] = "GPT"
             self.ingestion_pipeline_dict['extract_images_mode'] = "GPT"
             self.ingestion_pipeline_dict['extract_text_from_images'] = True
@@ -201,21 +240,11 @@ class PdfProcessor(Processor):
 
 class DocxProcessor(Processor):
 
-    def __init__(self, doc_path, ingestion_directory=None, index_name='mm_doc_analysis', delete_existing_output_dir=False, password=None, models=gpt4_models, vision_models=gpt4_models, num_threads=1, processing_mode = 'py-docx'):
-
-        self.processing_mode = processing_mode
-        if self.processing_mode not in ['py-docx', 'document-intelligence']:
-            logc(f"Processing Mode Not Supported {self.processing_mode}. Defaulting to 'py-docx'")
-            logc("Processing Mode Not Supported", self.processing_mode)
-            
-        super().__init__(doc_path, ingestion_directory, index_name, delete_existing_output_dir, password, models, vision_models, num_threads)
-
-
 
     def develop_processing_plan(self):
 
         if self.processing_mode == 'py-docx':
-            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks', 'harvest_code', 'post_process_images']
+            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks', 'post_process_images']
 
         elif self.processing_mode == 'document-intelligence':
             self.processing_plan = ['extract_doc_using_doc_int', 'create_doc_chunks', 'harvest_code', 'post_process_images']
@@ -233,4 +262,57 @@ class XlsxProcessor(Processor):
     def develop_processing_plan(self):
         self.processing_plan = ['extract_xlsx_using_openpyxl', 'create_doc_chunks']
 
-    
+
+
+
+
+
+def ingest_doc_using_processors(ingestion_params_dict):
+    doc_path = ingestion_params_dict['doc_path']
+    verbose = ingestion_params_dict.get('verbose', False)
+
+    extension = os.path.splitext(os.path.basename(doc_path))[1].strip()
+
+    if extension == '.pdf':
+        processor = PdfProcessor(ingestion_params_dict)
+
+    elif extension == '.docx':
+        processor = DocxProcessor(ingestion_params_dict)
+
+    elif extension == '.xlsx':
+        processor = XlsxProcessor(ingestion_params_dict)
+
+    else:
+        logc("Document Type Not Supported", extension)
+        return
+
+    processor.ingest_document(verbose=verbose)
+
+    return processor.ingestion_pipeline_dict
+
+
+
+def ingest_docs_directory_using_processors(ingestion_params_dict):
+    assets = []
+
+    directory = ingestion_params_dict['download_directory']
+
+    # Walk through the directory
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            # Check if the file is already ingested
+            ingested = os.path.join(root, f"{file}.ingested")
+            if not os.path.exists(ingested):
+                logc(f"Ingesting Document: {file}")
+                # Construct the full file path
+                os.rename(file, file.replace(" ", "_"))
+                file_path = os.path.join(root, file)
+
+                ingestion_params_dict['doc_path'] = file_path
+
+                # Call ingest_doc on the file
+                assets.append(ingest_doc_using_processors(ingestion_params_dict))
+            else:
+                logc(f"Skipping file. Document Already Ingested: {file}")
+
+    return assets 

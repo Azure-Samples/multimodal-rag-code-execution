@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 # Load the environment variables from the .env file
 source ./.env
 
-SUBSCRIPTION=
+SUBSCRIPTION=''
 
 
 while [[ -z "$SUBSCRIPTION" ]] || ! az account list --query "[].id" -o tsv | grep -q "$SUBSCRIPTION"; do

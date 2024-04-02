@@ -91,6 +91,7 @@ class CogSearchHttpRequest(HTTPRequest):
         self.post_url   = f"{search_service_name}/indexes/{index_name}/docs/index?api-version={api_version}"
         self.search_url = f"{search_service_name}/indexes/{index_name}/docs/search?api-version={self.api_version}"
         self.index_url = f"{search_service_name}/indexes?api-version={self.api_version}"
+        self.stats_url = f"{search_service_name}/indexes/{index_name}/stats?api-version={self.api_version}"
         
         
         self.default_headers = {'Content-Type': 'application/json', 'api-key': self.api_key}
@@ -104,6 +105,8 @@ class CogSearchHttpRequest(HTTPRequest):
             url = self.search_url
         elif op == 'indexes':
             url = self.index_url
+        elif op == 'stats':
+            url = self.stats_url
         else:
             url = self.url
 
@@ -246,6 +249,9 @@ class CogSearchRestAPI(CogSearchHttpRequest):
             return None
 
 
+    def get_stats(self):
+        res = self.get(op ='stats')
+        return res
 
 
     def get_documents_by_page(self, top = 100, page = 0, select = '*', filt=""):
@@ -308,7 +314,7 @@ class CogSearchRestAPI(CogSearchHttpRequest):
         self.post(op ='index', body = docs_dict)
 
 
-    def search_documents(self, search_query, select_fields = "*", filter_query = "", top=7, count=False):
+    def search_documents(self, search_query = "*", select_fields = "*", filter_query = "", top=7, count=False):
         search_body = {
             "count": count,
             "search": search_query,

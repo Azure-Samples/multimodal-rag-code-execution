@@ -1,3 +1,31 @@
+#   ________        ___.            .__       __________ .__                    __        __________         .__    __       
+#  /  _____/   ____ \_ |__  _____   |  |      \______   \|  |  _____     ____  |  | __    \______   \  ____  |  | _/  |_     
+# /   \  ___  /  _ \ | __ \ \__  \  |  |       |    |  _/|  |  \__  \  _/ ___\ |  |/ /     |    |  _/_/ __ \ |  | \   __\    
+# \    \_\  \(  <_> )| \_\ \ / __ \_|  |__     |    |   \|  |__ / __ \_\  \___ |    <      |    |   \\  ___/ |  |__|  |      
+#  \______  / \____/ |___  /(____  /|____/     |______  /|____/(____  / \___  >|__|_ \     |______  / \___  >|____/|__|      
+#         \/             \/      \/                   \/            \/      \/      \/            \/      \/                 
+                                                                                                                          
+#                                                        .__                                .__ .__            __            
+# _______   ____    ______  ____  _____  _______   ____  |  |__        ____   ____  ______  |__||  |    ____ _/  |_          
+# \_  __ \_/ __ \  /  ___/_/ __ \ \__  \ \_  __ \_/ ___\ |  |  \     _/ ___\ /  _ \ \____ \ |  ||  |   /  _ \\   __\         
+#  |  | \/\  ___/  \___ \ \  ___/  / __ \_|  | \/\  \___ |   Y  \    \  \___(  <_> )|  |_> >|  ||  |__(  <_> )|  |           
+#  |__|    \___  >/____  > \___  >(____  /|__|    \___  >|___|  /     \___  >\____/ |   __/ |__||____/ \____/ |__|           
+#              \/      \/      \/      \/             \/      \/          \/        |__|                                     
+
+#  /\_/\
+# ( o.o )
+#  > ^ <
+
+# /~\
+# C oo
+#  _( ^)
+# /   ~\
+
+
+
+# AML CHEATSHEET
+# https://azure.github.io/azureml-cheatsheets/docs/cheatsheets/python/v1/compute-targets
+
 import fitz  # PyMuPDF
 import os
 import glob
@@ -76,6 +104,7 @@ try:
         SentenceSplitter,
         SemanticSplitterNodeParser,
     )
+
 except:
     print("WARNING: one of the llama_index module(s) not found. Please install llama_index modules.")
 
@@ -264,9 +293,101 @@ def ask_LLM_with_JSON(prompt, temperature = 0.2, model_info = None):
 
     return result.choices[0].message.content
 
+
+
+
+
+section_generation_prompt= """You are helpful Prompt Engineer whose task is to write specific sub-sections of a main prompt. 
+
+Description of Sub-Section:
+## START OF DESCRIPTION OF SUB-SECTION
+{section}
+## END OF DESCRIPTION OF SUB-SECTION
+
+Given the description of the sub-section above, you need to generate a sub-section of a prompt that can summarize documents relevant to that section. In the generated sub-section, list all essential topics that can be searched to get contents relevant to that sub-section description. 
+
+Always output a sub-section title first, and then the list of topics or questions that can be searched to get contents relevant to that sub-section description.
+
+Be super concise in your output, just like the examples included below. 
+
+##Examples
+
+#Example 1:
+
+Section:
+# Start Section
+Sales segmentation
+# End section
+
+#Output 1
+###Sales Segmentation or Revenue Split###
+
+* Provide sales segmentation by detailing customer demographics (such as age groups, geographic regions, and buying patterns), sales methods (including online, in-store, and direct sales), and distribution methods (like third-party or direct shipping).
+* If full data is available, synthesize sales segmentation and revenue split data, pinpointing trends.
+* In the absence of complete data, utilize available information to offer a reasoned approximation of these elements.
+#END Output 1
+
+#Example 2:
+
+Section:
+# Start Section
+Key financials
+# End section
+
+#Output 1
+###Key Financials###
+
+* Extract and list key financial metrics such as:
+     - EBITDA,
+     - Profit Margins over the past five years,
+     - Annual Revenue,
+     - Compound Annual Growth Rate (CAGR).
+#END Output 2
+
+#Example 3:
+
+Section:
+# Start Section
+Market Outlook
+# End section
+
+#Output 3
+###Market Outlook###
+    *Market Growth Forecast: Investigate and summarize the projected annual growth rate for the Market up to the year 2026. Emphasize any specific growth trends, such as the impact of post-COVID recovery.
+    *Regional Sales Distribution: Present a breakdown of the  market sales by region. Pay special attention to the growth rates and market sizes in key regions such as Asia, Europe, and the Americas, with a specific focus on the biggest market contribution.
+    *Demographic Shifts:Report on the purchasing trends among different consumer demographics, particularly noting the influence of Generation Z and their expected contribution to market growth.
+    *Digital Transformation: Describe the impact on digital purchasing trends and the shift towards online sales within the market. Forecast the role of omnichannel strategies and direct-to-consumer sales as emerging dominant channels in the market.
+    *Market Dynamics: Highlight the most important country anticipated position in the  market by 2025 and the factors contributing to its significant role in the market's growth.
+
+#END Output 3
+
+#Example 4:
+
+Section:
+# Start Section
+Market Growth
+# End section
+
+#Output 4
+###Market Growth###
+    *Historical Growth Rates: Review and summarize the historical growth rates of the Market. Provide context on how these rates have trended over time, up until the present.
+    *Post Recovery and Projections:    Detail the expected recovery path of the market following the downturn. Highlight any forecasts about the market's growth up to 2026, including expectations for sales levels to surpass recent peaks. Analyze the anticipated Compound Annual Growth Rate (CAGR) for the near future, noting differences between the luxury and super-luxury segments.
+    Segment-Specific Growth:
+    *Identify which segments within the market are expected to see the highest growth. Provide specific CAGR figures for these segments from 2022 to 2026, if available.
+    *Influencing Factors: Discuss any external or internal factors that are expected to influence market growth within the forecast period. This may include technological advancements, shifts in consumer behavior, or economic trends.
+#END Output 4
+##End Examples
+
+
+"""
+
+
+
 def generate_section(section):
     prompt = section_generation_prompt.format(section=section)
     return ask_LLM(prompt)
+
+
 
 general_prompt_template = """
 
@@ -746,9 +867,18 @@ def remove_extracted_text(s):
     return re.sub(r"```EXTRACTED TEXT(.*?)```", "", s, flags=re.DOTALL)
 
 
+
+### IMPORTANT FOR WINDOWS USERS TO SUPPORT LONG FILENAME PATHS 
+### IN CASE YOU"RE USING LONG FILENAMES, AND THIS IS CAUSING AN EXCEPTION, FOLLOW THESE 2 STEPS:
+# 1. change a registry setting to allow long path names on this particular Windows system (use regedit.exe): under HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem, set LongPathsEnabled to DWORD value 1
+# 2. Check if the group policy setting is configured to enable long path names. Open the Group Policy Editor (gpedit.msc) and navigate to Local Computer Policy > Computer Configuration > Administrative Templates > System > Filesystem. Look for the "Enable Win32 long paths" policy and make sure it is set to "Enabled".
 def write_to_file(text, text_filename, mode = 'a'):
-    with open(text_filename, mode, encoding='utf-8') as file:
-        file.write(text)
+    try:
+        with open(text_filename, mode, encoding='utf-8') as file:
+            file.write(text)
+    except Exception as e:
+        logc(f"SERIOUS ERROR: {bc.RED}Error writing text to file: {e}{bc.ENDC}")
+
 
 
 def get_current_time():
@@ -1011,50 +1141,74 @@ Output only the generated code and the Markdown table in a Markdown codeblock. D
 
 
 
-gpt4_models = [
+# gpt4_models = [
+#     {
+#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE'),
+#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY'),
+#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
+#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
+#     },
+#     {
+#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_1'),
+#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_1'),
+#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
+#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
+#     },
+#     {
+#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_2'),
+#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_2'),
+#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
+#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
+#     },
+#     {
+#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_3'),
+#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_3'),
+#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
+#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
+#     },
+#     {
+#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_4'),
+#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_4'),
+#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
+#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
+#     },
+#     {
+#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_5'),
+#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_5'),
+#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
+#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
+#     },
+#     {
+#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_6'),
+#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_6'),
+#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
+#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
+#     }
+# ]
+
+
+gpt4_models_init = [
     {
         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE'),
         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY'),
         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-    },
-    {
-        'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_1'),
-        'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_1'),
-        'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-        'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-    },
-    {
-        'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_2'),
-        'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_2'),
-        'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-        'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-    },
-    {
-        'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_3'),
-        'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_3'),
-        'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-        'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-    },
-    {
-        'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_4'),
-        'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_4'),
-        'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-        'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-    },
-    {
-        'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_5'),
-        'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_5'),
-        'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-        'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-    },
-    {
-        'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_6'),
-        'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_6'),
-        'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-        'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
     }
 ]
+    
+addtnl_gpt4_models = [
+    {
+        'AZURE_OPENAI_RESOURCE': os.environ.get(f'AZURE_OPENAI_RESOURCE_{x}'),
+        'AZURE_OPENAI_KEY': os.environ.get(f'AZURE_OPENAI_KEY_{x}'),
+        'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
+        'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
+    } 
+    for x in range(1, 20)
+]
+
+gpt4_models = gpt4_models_init + addtnl_gpt4_models
+
+
 
 
 markdown_extract_header_and_summarize_prompt = """
@@ -1125,9 +1279,19 @@ def chunk_markdown_table_with_overlap(md_table, cols = None, n_tokens = 512, ove
 def chunk_markdown_table(md_table, model_info, n_tokens = 512, overlap = 128):
     prompt = markdown_extract_header_and_summarize_prompt.format(table=md_table.split('\n')[:100])
     output = ask_LLM_with_JSON(prompt, model_info = model_info)
-    outd = json.loads(output)
-    cols = outd['columns'].split(',')
-    summary = outd['summary_of_the_table']
+    try:
+        outd = recover_json(output)
+        cols = outd['columns'].split(',')
+        summary = outd['summary_of_the_table']
+    except:
+        try:
+            output = ask_LLM_with_JSON(prompt, model_info = model_info)
+            outd = recover_json(output)
+            cols = outd['columns'].split(',')
+            summary = outd['summary_of_the_table']
+        except:
+            logc(f"Could not recover with malformed JSON {output}")
+            return [], '', ''
 
     chunks, header = chunk_markdown_table_with_overlap(md_table, cols, n_tokens = n_tokens, overlap = overlap)
     print("Chunks:", len(chunks))
@@ -1189,6 +1353,25 @@ def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
 
 
 
+def sentence_chunk_text_file(file_path, chunk_size=512, chunk_overlap = 80, model='gpt-4', verbose = False):
+
+    text_splitter = SentenceSplitter(
+        separator=" ",
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        paragraph_separator="\n\n\n",
+        secondary_chunking_regex="[^,.;。]+[,.;。]?",
+        tokenizer=tiktoken.encoding_for_model(model).encode
+    )
+
+    documents = SimpleDirectoryReader(input_files=[file_path]).load_data()
+    nodes = text_splitter.get_nodes_from_documents(documents)
+
+    return [n.get_content() for n in nodes]
+
+
+
+
 def semantic_chunk_text_file(file_path, buffer_size=1, breakpoint_percentile_threshold=95, verbose = False):
 
     embed_model = AzureOpenAIEmbedding(
@@ -1209,6 +1392,7 @@ def semantic_chunk_text_file(file_path, buffer_size=1, breakpoint_percentile_thr
 
 
 
+
 def create_doc_chunks(ingestion_pipeline_dict):
 
     chunks = []
@@ -1223,15 +1407,20 @@ def create_doc_chunks(ingestion_pipeline_dict):
     tables = ingestion_pipeline_dict['table_files'] 
 
     model_info = ingestion_pipeline_dict['models'][0]
-    n_tokens = ingestion_pipeline_dict['mk_table_chunk_size']
-    overlap = ingestion_pipeline_dict['mk_table_chunk_overlap']
+    n_tokens = ingestion_pipeline_dict['chunk_size']
+    overlap = ingestion_pipeline_dict['chunk_overlap']
 
     text_files = []
     image_text_files = []
     table_text_files = []
 
+
     try:
-        text_chunks = semantic_chunk_text_file(ingestion_pipeline_dict['full_text_file'])
+        # text_chunks = semantic_chunk_text_file(ingestion_pipeline_dict['full_text_file'])
+        text_chunks = sentence_chunk_text_file(ingestion_pipeline_dict['full_text_file'],
+                                               chunk_size=n_tokens,
+                                               chunk_overlap=overlap
+                                            )
     except:
         text_chunks = []
         logc("Warning", f"Could not perform Semantic Chunking of file {ingestion_pipeline_dict['full_text_file']}")
@@ -1486,25 +1675,32 @@ def extract_docx_using_py_docx(ingestion_pipeline_dict):
     
     # Extract all tables
     for table in doc.tables:
-        headers = [cell.text for cell in table.rows[0].cells]
-        data = []
-        for row in table.rows[1:]:  # Skip header row
-            data.append([cell.text for cell in row.cells])
-        df = pd.DataFrame(data, columns=headers)
-        table_path, table_path_md, table_path_py = write_df_to_files(df, tables_folder, table_count)
-        tables_dfs.append(table_path_py)
-        tables_md.append(table_path_md)
-        tables.append(table_path)
+        try:
+            headers = [cell.text for cell in table.rows[0].cells]
+            data = []
+            for row in table.rows[1:]:  # Skip header row
+                data.append([cell.text for cell in row.cells])
+            df = pd.DataFrame(data, columns=headers)
+            table_path, table_path_md, table_path_py = write_df_to_files(df, tables_folder, table_count)
+            tables_dfs.append(table_path_py)
+            tables_md.append(table_path_md)
+            tables.append(table_path)
+            table_count += 1
+        except Exception as e:
+            logc(f"Couldnt extract table from file: {doc_path}")
     
     # Extract all images
     for rel in doc.part.rels.values():
-        if "image" in rel.target_ref:
-            img = rel.target_part.blob
-            image_path = os.path.join(images_folder, f'chunk_{image_count}_image_0.jpg')
-            with open(image_path, 'wb') as img_file:
-                img_file.write(img)
-            image_count += 1
-            images.append(image_path)
+        try:
+            if "image" in rel.target_ref:
+                img = rel.target_part.blob
+                image_path = os.path.join(images_folder, f'chunk_{image_count}_image_0.jpg')
+                with open(image_path, 'wb') as img_file:
+                    img_file.write(img)
+                image_count += 1
+                images.append(image_path)
+        except Exception as e:
+            logc(f"Couldnt extract image from file: {doc_path}")
     
     concatenated_text = '\n'.join(all_text)
 
@@ -1580,7 +1776,7 @@ def harvest_code_from_text(ingestion_pipeline_dict, chunk_dict, model_info = Non
     data = read_asset_file(text_filename)[0]
 
     if data == '': 
-        logc("Harvesting Code from Text", f"Empty text file: {text_filename}")
+        logc(f"Harvesting Code: Empty text file: {text_filename}")
         return []
 
     code_harvesting_prompt = code_harvesting_from_text.format(text=data, random_block_id=str(uuid.uuid4())[:8])
@@ -2291,13 +2487,27 @@ def get_ingested_document_png_table_images(directory):
 
 
 
-def create_ingestion_pipeline_dict(doc_path, ingestion_directory = None, index_name = 'mm_doc_analysis', delete_existing_output_dir = False, password = None, models = gpt4_models, vision_models = gpt4_models, num_threads=7): #, processing_plan=None):
+def create_ingestion_pipeline_dict(ingestion_params_dict): 
+
+    doc_path = ingestion_params_dict['doc_path'] 
+    ingestion_directory = ingestion_params_dict['ingestion_directory']
+    index_name = ingestion_params_dict['index_name']
+    num_threads = ingestion_params_dict.get('num_threads', len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None]))
+    password = ingestion_params_dict.get('password', None)
+    models = ingestion_params_dict.get('models', gpt4_models)
+    vision_models = ingestion_params_dict.get('models', gpt4_models)
+    delete_existing_output_dir = ingestion_params_dict.get('delete_existing_output_dir', False)
+    chunk_size = int(ingestion_params_dict.get('chunk_size', 512))
+    chunk_overlap = int(ingestion_params_dict.get('chunk_overlap', 128))
 
     if ingestion_directory is None:
         ingestion_directory = os.path.join(ROOT_PATH_INGESTION, index_name)
 
     # Create the Ingestion directory if it doesn't exist
     os.makedirs(ingestion_directory, exist_ok=True)
+
+    download_directory = os.path.join(ingestion_directory, 'downloads')
+    os.makedirs(download_directory, exist_ok=True)
 
     assets = {}
     
@@ -2374,6 +2584,7 @@ def create_ingestion_pipeline_dict(doc_path, ingestion_directory = None, index_n
         'index_name': index_name,
         'document_processing_directory': doc_proc_directory,
         'document_ingestion_directory': ingestion_directory,
+        'document_downloads_directory': download_directory,
         'document_path': document_path,
         'master_py_file': master_py_filename,
         'full_text_file': full_text_filename,
@@ -2401,8 +2612,8 @@ def create_ingestion_pipeline_dict(doc_path, ingestion_directory = None, index_n
         'images_directory': images_directory,
         'text_directory': text_directory,
         'tables_directory': tables_directory,
-        'mk_table_chunk_size': 512,
-        'mk_table_chunk_overlap': 128,
+        'chunk_size': int(chunk_size),
+        'chunk_overlap': int(chunk_overlap),
     }
 
     return ingestion_pipeline_dict
@@ -2554,7 +2765,26 @@ def ingest_docs_directory(directory, ingestion_directory=None, index_name='mm_do
 
 def ingest_doc(doc_path, ingestion_directory = None, index_name = 'mm_doc_analysis', password = None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models = gpt4_models, vision_models = gpt4_models, num_threads=7, delete_existing_output_dir = False, processing_plan=None, verbose = False):
 
-    ingestion_pipeline_dict = create_ingestion_pipeline_dict(doc_path, ingestion_directory, index_name, delete_existing_output_dir)
+    available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
+    download_directory = os.path.join(ingestion_directory, 'downloads')
+    os.makedirs(download_directory, exist_ok=True)
+
+    ingestion_params_dict = {
+        "download_directory" : download_directory,
+        "ingestion_directory" : ingestion_directory,
+        "index_name" : index_name,
+        'num_threads' : available_models,
+        "password" : password,
+        "delete_existing_output_dir" : delete_existing_output_dir,
+        "processing_mode_pdf" : pdf_extraction_option,
+        "processing_mode_docx" : docx_extraction_option,
+        'processing_mode_xlsx' : xlsx_extraction_option,
+        'models': gpt4_models,
+        'vision_models': gpt4_models,
+        'verbose': True
+    }
+
+    ingestion_pipeline_dict = create_ingestion_pipeline_dict(ingestion_params_dict)
 
     base_name = ingestion_pipeline_dict['basename']
 
@@ -2700,9 +2930,6 @@ If you found any mistakes, you will need to generate the **ENTIRE** corrected ou
 
 
 
-
-
-
 context_extension = """
 
 
@@ -2729,9 +2956,6 @@ Next Document Chunk:
 """
 
 
-
-
-
 # Function to encode an image file in base64
 def get_image_base64(image_path):
     with open(image_path, "rb") as image_file: 
@@ -2741,10 +2965,7 @@ def get_image_base64(image_path):
         return encoded_string.decode('ascii')
 
 
-
-
-
-@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(15), after=after_log(logger, logging.DEBUG))
+@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(10), after=after_log(logger, logging.DEBUG))
 def call_gpt4v(imgs, gpt4v_prompt = "describe the attached image", prompt_extension = "", temperature = 0.2, model_info=None):
 
     if model_info is None:
@@ -2974,6 +3195,20 @@ def add_asset_to_vec_store(assets, index, asset_file, document_path, document_id
     return file_id, metadata
 
 
+def check_vecstore_vs_ingestion_dir(index_name):
+    files = glob.glob(f'{index_name}/**/*.vecstore.txt', recursive=True)
+    cogrequest = CogSearchRestAPI(index_name = index_name)
+    doc_count_in_vecstore = cogrequest.get_stats()['documentCount']
+
+    doc_count_in_dir = 0
+
+    for f in files:
+        items = json.loads(read_asset_file(f)[0])
+        doc_count_in_dir += len(items)
+
+    print(f"In VecStore: {doc_count_in_vecstore}. In Directory: {doc_count_in_dir}. Difference: {doc_count_in_vecstore - doc_count_in_dir}")
+    return doc_count_in_vecstore, doc_count_in_dir, (doc_count_in_vecstore - doc_count_in_dir)
+
 
 
 def commit_assets_to_vector_index(assets, ingestion_directory, index_name = 'mm_doc_analysis', vector_type = "AISearch"):
@@ -2984,7 +3219,7 @@ def commit_assets_to_vector_index(assets, ingestion_directory, index_name = 'mm_
     document_path = assets['document_path']
     # document_path = assets['original_document_path']
     document_id = assets['document_id']
-    logc("Assets: ", assets, verbose=True)
+    # logc("Assets: ", assets, verbose=True)
 
 
     if vector_type == "AISearch":
@@ -3167,74 +3402,59 @@ def recover_json(json_str, verbose = False):
 
 
 
-user_query = """
-Refer to the following files. Make sure to import the below modules in every code block you generate:
-{py_files}
+# user_query = """
+# {py_files}
+
+# {run_py_files}
+
+# The below are the contents of the information files, which could be a mix of text, Markdown, Mermaid and Python:
+# {py_code}
 
 
-The below are the contents of the py files:
-{py_code}
+# To answer any question, here's the chain of thought:
 
+# Please analyze the question first, and locate the variables of interests in the question. For each variable, try to locate the relevant dataframes from the above code and the relevant variable assignment statements. Then try to locate the relevant columns or rows in the relevant dataframes. Finally, try to locate the relevant values in the dataframe or in the variable assignment statements. 
 
-Do **NOT** forget to import the below py modules in every new code block you generate:
-# Import the list of Python files specified by the user
-List of Python Files:
-## START OF LIST OF PYTHON FILES TO IMPORT
-{run_py_files}
-## END OF LIST OF PYTHON FILES TO IMPORT
+# Here is the Chain of Thought and the step-by-step that you should follow:
 
-To answer any question, here's the chain of thought:
-
-Please analyze the question first, and locate the variables of interests in the question. For each variable, try to locate the relevant dataframes from the above code and the relevant variable assignment statements. Then try to locate the relevant columns or rows in the relevant dataframes. Finally, try to locate the relevant values in the dataframe or in the variable assignment statements. 
-
-Here is the Chain of Thought and the step-by-step that you should follow:
-
-    1. You **MUST** import the list of Python files specified by the user above in the "List of Python Files" section.
-    2. Use the Codeblocks delimited by '## START OF CODEBLOCK' and '## END OF CODEBLOCK' to identify and print to the output the variables of interest. Include the variable assignment statements in the output. Limit this list to the relevant variables **ONLY**. Generate the Python code that will do this step and execute it.
-    3. Use the Codeblocks delimited by '## START OF CODEBLOCK' and '## END OF CODEBLOCK' to identify and print to the output the relevant dataframes names, and print to the output all their columns. Also print all the variable assignment statements. Include the dataframes assignment statements in the output. Limit this list to the relevant dataframes **ONLY**. Generate the Python code that will do this step and execute it.
-    4. In the case of dataframes, in which columns did the variables of interest in the question appear in the dataframe? use the str.contains method on **ALL** the columns in the dataframe to determine the columns. You **MUST** test **ALL THE COLUMNS**. (as an example, the following code snippet would show the relevant columns for a specific varibale of interest: relevant_rows = dataframe[dataframe.apply(lambda row: row.astype(str).str.contains(<VARIABLE OF INTEREST>).any(), axis=1)] - you can modify the code to suit the the question being asked). Generate the Python code that will do this step and execute it.
-    5. If you want to generate RegEx expressions, make sure that the RegEx expression is valid. Do **NOT** generate something like this: str.replace('[extbackslash	extdollar,]', '', regex=True), which is obviously invalid, since the $ sign is spelled as 'extdollar', and the '\\' is spelled as 'extbackslash'.
-    6. If you have trouble accessing the previously defined variables or the dataframes for any reasons, then use the Python Codeblocks delimited by '## START OF CODEBLOCK' and '## END OF CODEBLOCK' to extract the information you need, and then generate the needed Python code.
-    7. Generate the answer to the query. You **MUST** clarify AND print to the output **ALL** calculation steps leading up to the final answer.
-    8. You **MUST** detail how you came up with the answer. Please provide a complete description of the calculation steps taken to get to the answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34".
-    9. If the answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
-    10. **VERY IMPORTANT**: do **NOT** attempt to create a list of variables or dataframes directly. Instead, you should access the data from the variables and dataframes that were defined in the Python file that was run.
+#     1. You **MUST** import the list of Python files specified by the user above in the "List of Python Files" section if available.
+#     2. Use the Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to identify and print to the output the variables of interest. Include the variable assignment statements in the output. Limit this list to the relevant variables **ONLY**. Generate the Python code that will do this step and execute it.
+#     3. Use the Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to identify and print to the output the relevant dataframes names, and print to the output all their columns. Also print all the variable assignment statements. Include the dataframes assignment statements in the output. Limit this list to the relevant dataframes **ONLY**. Generate the Python code that will do this step and execute it.
+#     4. In the case of dataframes, in which columns did the variables of interest in the question appear in the dataframe? use the str.contains method on **ALL** the columns in the dataframe to determine the columns. You **MUST** test **ALL THE COLUMNS**. (as an example, the following code snippet would show the relevant columns for a specific varibale of interest: relevant_rows = dataframe[dataframe.apply(lambda row: row.astype(str).str.contains(<VARIABLE OF INTEREST>).any(), axis=1)] - you can modify the code to suit the the question being asked). Generate the Python code that will do this step and execute it.
+#     5. If you want to generate RegEx expressions, make sure that the RegEx expression is valid. Do **NOT** generate something like this: str.replace('[extbackslash	extdollar,]', '', regex=True), which is obviously invalid, since the $ sign is spelled as 'extdollar', and the '\\' is spelled as 'extbackslash'.
+#     6. If you have trouble accessing the previously defined variables or the dataframes for any reasons, then use the Python Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to extract the information you need, and then generate the needed Python code.
+#     7. Generate the answer to the query. You **MUST** clarify AND print to the output **ALL** calculation steps leading up to the final answer.
+#     8. You **MUST** detail how you came up with the answer. Please provide a complete description of the calculation steps taken to get to the answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34".
+#     9. If the answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
+#     10. **VERY IMPORTANT**: do **NOT** attempt to create a list of variables or dataframes directly. Instead, you should access the data from the variables and dataframes that were defined in the Python file that was run.
     
 
-Question: {query}
+# Question: {query}
 
-In your final answer, be elaborate in your response. Describe your logic and the calculation steps to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. Describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34". After generating the final response, and if the final answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
+# In your final answer, be elaborate in your response. Describe your logic and the calculation steps to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. Describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34". After generating the final response, and if the final answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
 
-"""
+# """
 
 
 
 user_query = """
-Refer to the following files. Make sure to import the below modules in every code block you generate:
 {py_files}
 
-
-The below are the contents of the py files:
-{py_code}
-
-
-Do **NOT** forget to import the below py modules in every new code block you generate:
-# Import the list of Python files specified by the user
-List of Python Files:
-## START OF LIST OF PYTHON FILES TO IMPORT
 {run_py_files}
-## END OF LIST OF PYTHON FILES TO IMPORT
+
+The below are the contents of the information files, which could be a mix of text, Markdown, Mermaid and Python:
+{py_code}
 
 Here is the Chain of Thought and the step-by-step that you should follow:
 
-    1. Please analyze the question first, and locate the variables of interests in the question. For each variable, try to locate the relevant dataframes in the Codeblocks above (delimited by '## START OF CODEBLOCK' and '## END OF CODEBLOCK') and the relevant variable assignment statements.
-    2. You **MUST** import the list of Python files specified by the user above in the "List of Python Files" section.
-    3. Use the Codeblocks delimited by '## START OF CODEBLOCK' and '## END OF CODEBLOCK' to identify and print to the output the variables of interest. Include the variable assignment statements in the output. Limit this list to the relevant variables **ONLY**. Generate the Python code that will do this step and execute it.
-    4. Use the Codeblocks delimited by '## START OF CODEBLOCK' and '## END OF CODEBLOCK' to identify and print to the output the relevant dataframes names, and print to the output all their columns. Also print all the variable assignment statements. Include the dataframes assignment statements in the output. Limit this list to the relevant dataframes **ONLY**. Generate the Python code that will do this step and execute it.
-    5. If you have trouble accessing the previously defined variables or the dataframes for any reasons, then use the Python Codeblocks delimited by '## START OF CODEBLOCK' and '## END OF CODEBLOCK' to extract the information you need, and then generate the needed Python code.
+    1. Please analyze the question first, and locate the variables of interests in the question. For each variable, try to locate the relevant dataframes in the Infoblocks above (delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK') and the relevant variable assignment statements.
+    2. You **MUST** import the list of Python files specified by the user above in the "List of Python Files" section, if the section is available.
+    3. Use all the information provided in whatever format in the Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to identify and print to the output the variables of interest. Include the variable assignment statements in the output. Limit this list to the relevant variables **ONLY**. If Python code is included in the Infoblock, then generate the custom Python code that will do this step and execute it.
+    4. Use the Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to identify and print to the output the relevant dataframes names if provided, and print to the output all their columns. Also print all the variable assignment statements. Include the dataframes assignment statements in the output. Limit this list to the relevant dataframes **ONLY**. Generate the custom Python code that will do this step and execute it.
+    5. If you have trouble accessing the previously defined variables or the dataframes for any reasons, then use the Python Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to extract the information you need, and then generate the needed Python code.
     6. Generate the answer to the query. You **MUST** clarify AND print to the output **ALL** calculation steps leading up to the final answer.
     7. You **MUST** detail how you came up with the answer. Please provide a complete description of the calculation steps taken to get to the answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34".
-    8. Generate in **FULL** the answer with all explanations and calculations steps associated with it, and share it with the user in text.
+    8. Generate in **FULL** the answer with all explanations and calculations steps associated with it, and share it with the user in text. **MAKE SURE** to mention the final numbers or quantities in the answer.
     9. If the answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
     10. **VERY IMPORTANT**: do **NOT** attempt to create a list of variables or dataframes directly. Instead, you should access the data from the variables and dataframes that were defined in the Python file that was run.
     
@@ -3276,21 +3496,20 @@ Generate the additional code to run to answer the above question. Do not re-gene
 
 table_info = """
 
-## START OF CODEBLOCK 
-Py Filename: {filename}
+## START OF INFOBLOCK 
+{filename}
 Document Filename: {proc_filename}
 Chunk Number: {chunk_number}
 
-Code Block - Contents of the above Py file:
-{codeblock}
+{text}
 
-Here's the same data in Markdown format (if available):
 {markdown}
 
-Here's the Mermaid Code (if available):
 {mermaid}
 
-## END OF CODEBLOCK 
+{codeblock}
+
+## END OF INFOBLOCK 
 
 """
 
@@ -3346,19 +3565,21 @@ class TWHandler():
 
 
 
+py_files_import = """ 
+Do **NOT** forget to import the below py modules in every new code block you generate:
+# Import the list of Python files specified by the user
+List of Python Files:
+## START OF LIST OF PYTHON FILES TO IMPORT
+{run_py_files}
+## END OF LIST OF PYTHON FILES TO IMPORT
+"""
+
+
 
 def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, limit=False, chars_limit = 32768, verbose = True):
     global user_query, table_info
     codeblocks = []
     added = []
-
-    # codeblocks = [table_info.format(filename = os.path.abspath(replace_extension(asset, ".py")), 
-    #                                 proc_filename=assets['filenames'][index], 
-    #                                 chunk_number = extract_chunk_number(assets['asset_filenames'][index]),
-    #                                 codeblock=read_asset_file(asset)[0], 
-    #                                 markdown = read_asset_file(replace_extension(asset, ".md"))[0]) \
-    #                                 for index, asset in enumerate(assets['python_block'])]
-
     py_code = [os.path.abspath(asset) for asset in assets['python_code']]
     py_code = []
 
@@ -3377,6 +3598,7 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
     for p in py_code:
         run_py_files += f"%run {p}\n"
 
+    if verbose: logc("assets", assets)
     if verbose: logc("run_py_files", run_py_files)
     if verbose: logc("py_code", py_code)
     if verbose: logc("codeblocks", codeblocks)
@@ -3384,29 +3606,44 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
 
     for index, asset in enumerate(assets['python_block']):
         if asset not in added:
-            # logc("Assistants API", f"Adding Asset: {asset} to the Prompt ...")
             filename = replace_extension(asset, ".py")
+            filename_field = f"Py Filename: {filename}" if os.path.exists(filename) else ""
             proc_filename = assets['filenames'][index]
             chunk_number = extract_chunk_number(assets['asset_filenames'][index])
             codeblock = read_asset_file(asset)[0]
-            codeblock = codeblock if codeblock != "" else "No Python Code available."
+            codeblock = f"Here's information in Python format:\n{codeblock}" if codeblock != "" else ""
+            text = read_asset_file(asset)[0]
+            text = f"Here's information in text format:\n{text}" if text != "" else ""
             markdown = read_asset_file(replace_extension(asset, ".md"))[0]  
-            markdown = markdown if markdown != "" else "No Markdown available."
+            markdown = f"Here's information in Markdown format:\n{markdown}" if markdown != "" else ""
             mermaid = read_asset_file(replace_extension(asset, ".mermaid"))[0]
-            mermaid = mermaid if mermaid != "" else "No Mermaid available."
+            mermaid = f"Here's information in Mermaid format:\n{mermaid}" if mermaid != "" else ""
             added.append(asset)
 
             if limit and (len('\n'.join(codeblocks)) > (chars_limit - 3000 - len(user_query) - len(run_py_files) - len("\n".join(py_code)))):                          
                 print(f"Limit Reached: {len(codeblocks)} > {chars_limit - len(user_query) - len(run_py_files) - len(py_code) - 3000} | breakdown: {chars_limit} - 3000 - {len(user_query)} - {len(run_py_files)} - {len(py_code)}")
                 break
 
-            codeblocks.append(table_info.format(filename=filename, proc_filename=proc_filename, chunk_number=chunk_number, codeblock=codeblock, markdown=markdown, mermaid=mermaid))      
+            codeblocks.append(table_info.format(
+                filename=filename_field, 
+                proc_filename=proc_filename, 
+                chunk_number=chunk_number, 
+                codeblock=codeblock, 
+                text = text,
+                markdown=markdown, 
+                mermaid=mermaid
+                )
+            )      
             if index > limit: break  
 
     if verbose: logc("Taskweaver", f"Added Codeblocks\n{added}")
 
+    py_code = "\n".join(py_code)
+    py_files_field = f"Refer to the following files. Make sure to import the below modules in every code block you generate:\n{py_code}" if len(py_code) > 0 else ""
 
-    user_query_prompt = user_query.format(query=query, run_py_files=run_py_files, py_files = "\n".join(py_code), py_code = "\n\n".join(codeblocks))
+    py_files_import_prompt = py_files_import.format(run_py_files=run_py_files) if len(py_code) > 0 else ""
+
+    user_query_prompt = user_query.format(query=query, run_py_files=py_files_import_prompt, py_files = py_files_field, py_code = "\n\n".join(codeblocks))
 
     if verbose: logc("User Query Token Count", get_token_count(user_query_prompt))    
     if verbose: logc("User Query: ", user_query_prompt)
@@ -3784,118 +4021,34 @@ If you think the image is not relevant to the User Query or does not offer concr
 
 
 query_entities_prompt = """
-Text:
-## START OF TEXT
+Qyery:
+## START OF QUERY
 {query}
-## END OF TEXT
+## END OF QUERY
 
 
-From the above Text, please perform the following tasks:
-    1. You **MUST** extract the very important and ultra-descriptive tags. These tags will be used to generate embeddings and then used for search purposes. You **MUST** be exhaustive and comprehensive in generating the tags. Do NOT LEAVE OUT any details in the text, and do NOT generate tags that are not in the text.
-    2. Be **VERY** details-oriented, **make sure** you capture ALL the details of the text in the form of tags. Do **NOT** make up or generate tags that are not in the text.
-    3. The tags needs to be ultra-descriptive, elaborate and detailed. Each tag needs to capture and relay all the relationships and connections in the text. For example, when the text says "the actual and estimated revenues of company X", then the ideal tags would be "actual revenues of company X" and "estimated revenues of company X". For this example and instance, do **NOT** generate tags such as "actual", "estimated" and "revenues" which do not capture the full relationships and connections of the tag.
-    4. Each tag needs to have enough information so that the user would understand it without knowing the original text or the context.
+From the above Query, please perform the following tasks:
+    1. You **MUST** extract the most important and ultra-descriptive tags. These tags will be used to generate embeddings and then used for search purposes. You **MUST** be exhaustive and comprehensive in generating the most essential tags. Do NOT LEAVE OUT any details in the Query, and do NOT generate tags that are not in the Query. 
+    2. Be **VERY** details-oriented, **make sure** you capture ALL the details of the Query in the form of tags. Do **NOT** make up or generate tags that are not in the Query. Try to reduce the number of tags, and **DO NOT** generate semantically redundant tags.
+    3. The tags needs to be ultra-descriptive, elaborate and detailed. Each tag needs to capture and relay all the relationships and connections in the Query. For example, when the Query says "the actual and estimated revenues of company X", then the ideal tags would be "actual revenues of company X" and "estimated revenues of company X". For this example and instance, do **NOT** generate tags such as "actual", "estimated" and "revenues" which do not capture the full relationships and connections of the tag.
+    4. Each tag needs to have enough information so that the user would understand it without knowing the original Query or the context.
     5. You **MUST** ignore any embedded Python code. 
-    6. You **MUST NOT** generate tags that include example-specific information from any few-shot examples included in the text. These are usually delimited by either ###Example###, or by ### START OF EXAMPLE and ### END OF EXAMPLE, or some similar delimiters.
-    7. If the text include entity names, dates, numbers or money amounts, you **MUST** include them in the list of tags. 
+    6. You **MUST NOT** generate tags that include example-specific information from any few-shot examples included in the Query. These are usually delimited by either ###Example###, or by ### START OF EXAMPLE and ### END OF EXAMPLE, or some similar delimiters.
+    7. If the Query include entity names, dates, numbers or money amounts, you **MUST** include them in the list of tags. 
     8. Do **NOT** generate tags about Self-Evaluation Guidelines. 
     9. Finally, you **MUST** refactor the list of tags to make sure that there are no redundancies, and to remove the less relevant tags, and to reduce the number of elements in the list so that the list is optimized. 
-    10. Limit the total number to more than {tag_limit} tags. These **MUST BE THE MOST ESSENTIAL {tag_limit} TAGS.**
+    10. Try to reduce the number of tags to the **MOST ESSENTIAL ONES ONLY**, and minimize the overall number of tags. Only if the Query is very long, has lots details, and is absolutely needed, only then you can generate tags up to {tag_limit} tags. You **MUST** limit the total number of tags to no more than {tag_limit} tags.These **MUST BE THE MOST ESSENTIAL {tag_limit} TAGS.**
 
 Do **NOT** generate any other text other than the comma-separated keyword and tag list. Do **NOT** exceed the number of tags to more than {tag_limit} tags.
 
 """
 
-section_generation_prompt= """
-Section:
-## START OF SECTION
-{section}
-## END OF SECTION
-
-You are prompt expert.
-Given the section above, you need to generate a prompt that can summarize documents relevant to that section.
-
-
-##Examples
-
-#Example 1:
-
-Section:
-# Start Section
-Sales segmentation
-# End section
-
-#Output 1
-###Sales Segmentation or Revenue Split###
-
-* Provide sales segmentation by detailing customer demographics (such as age groups, geographic regions, and buying patterns), sales methods (including online, in-store, and direct sales), and distribution methods (like third-party or direct shipping).
-* If full data is available, synthesize sales segmentation and revenue split data, pinpointing trends.
-* In the absence of complete data, utilize available information to offer a reasoned approximation of these elements.
-#END Output 1
-
-#Example 2:
-
-Section:
-# Start Section
-Key financials
-# End section
-
-#Output 1
-###Key Financials###
-
-* Extract and list key financial metrics such as:
-     - EBITDA,
-     - Profit Margins over the past five years,
-     - Annual Revenue,
-     - Compound Annual Growth Rate (CAGR).
-#END Output 2
-
-#Example 3:
-
-Section:
-# Start Section
-Market Outlook
-# End section
-
-#Output 3
-###Market Outlook###
-    *Market Growth Forecast: Investigate and summarize the projected annual growth rate for the Market up to the year 2026. Emphasize any specific growth trends, such as the impact of post-COVID recovery.
-    *Regional Sales Distribution: Present a breakdown of the  market sales by region. Pay special attention to the growth rates and market sizes in key regions such as Asia, Europe, and the Americas, with a specific focus on the biggest market contribution.
-    *Demographic Shifts:Report on the purchasing trends among different consumer demographics, particularly noting the influence of Generation Z and their expected contribution to market growth.
-    *Digital Transformation: Describe the impact on digital purchasing trends and the shift towards online sales within the market. Forecast the role of omnichannel strategies and direct-to-consumer sales as emerging dominant channels in the market.
-    *Market Dynamics: Highlight the most important country anticipated position in the  market by 2025 and the factors contributing to its significant role in the market's growth.
-
-#END Output 3
-
-#Example 4:
-
-Section:
-# Start Section
-Market Growth
-# End section
-
-#Output 4
-###Market Growth###
-    *Historical Growth Rates: Review and summarize the historical growth rates of the Market. Provide context on how these rates have trended over time, up until the present.
-    *Post Recovery and Projections:    Detail the expected recovery path of the market following the downturn. Highlight any forecasts about the market's growth up to 2026, including expectations for sales levels to surpass recent peaks. Analyze the anticipated Compound Annual Growth Rate (CAGR) for the near future, noting differences between the luxury and super-luxury segments.
-    Segment-Specific Growth:
-    *Identify which segments within the market are expected to see the highest growth. Provide specific CAGR figures for these segments from 2022 to 2026, if available.
-    *Influencing Factors: Discuss any external or internal factors that are expected to influence market growth within the forecast period. This may include technological advancements, shifts in consumer behavior, or economic trends.
-#END Output 4
-##End Examples
-
-###Self-evaluation Guidelines###
-
-* Before delivering your response, please do a self-evaluation:
-   - Ensure clarity and brevity by reviewing your response, aiming for succinctness without sacrificing completeness.
-   - Rate the conciseness of your work on a scale of 1-10.
-   - Confirm the accuracy of your answer internally.
-"""
 
 
 
 
-def get_query_entities(query, approx_tag_limit=20, temperature = 0.2):
+
+def get_query_entities(query, approx_tag_limit=10, temperature = 0.2):
 
     query_entities = query_entities_prompt.format(query=query, tag_limit=approx_tag_limit)
     # query_entities = optimize_embeddings_prompt.format(text=query)
@@ -4073,7 +4226,7 @@ def generate_search_assets(all_results, limit = 1000, verbose=False):
 
 
 
-def search(query, learnings = None, top=7, conversation_history = [], user_id = None, computation_approach = "Taskweaver", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 60000, temperature = 0.2, verbose = False):
+def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_history = [], user_id = None, computation_approach = "Taskweaver", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 60000, temperature = 0.2, verbose = False):
     global search_context_extension, search_system_prompt, search_prompt
 
     if vector_directory is None:
@@ -4088,7 +4241,7 @@ def search(query, learnings = None, top=7, conversation_history = [], user_id = 
     files = []
 
     if vector_type == "AISearch":
-        results = aggregate_ai_search(query, index_name, top=top, computation_approach=computation_approach, count=count, temperature=temperature, verbose = verbose)
+        results = aggregate_ai_search(query, index_name, top=top, approx_tag_limit=approx_tag_limit, computation_approach=computation_approach, count=count, temperature=temperature, verbose = verbose)
         text_results = [result['text'] for result in results]
 
 
@@ -4175,7 +4328,7 @@ def search(query, learnings = None, top=7, conversation_history = [], user_id = 
     else:
         full_search_prompt = search_prompt.format(context=context, query=query, vision_support =  vision_support_result, computation_support=computation_support, search_json_output=limited_search_json_output)
 
-    if verbose: logc("Search Function Executing...", f'Full Search Prompt\n{full_search_prompt}')
+    logc("Full Search Prompt...", full_search_prompt)
 
     messages = []
     messages.append({"role": "system", "content": search_system_prompt})     
