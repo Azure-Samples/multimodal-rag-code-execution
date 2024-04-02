@@ -209,7 +209,7 @@ function parse_output_variables() {
     export COSMOS_KEY==$(az cosmosdb keys list --name $COSMOS_DB_NAME --resource-group $RG_WEBAPP_NAME --query primaryMasterKey --output tsv)
     export COSMOS_CONTAINER_NAME="prompts"
     export COSMOS_CATEGORYID="prompts"
-    export COSMOS_LOG_CONTAINER="logs"
+    export COSMOS_LOG_CONTAINER="logs " 
     #Document intelligence--------------------------------------------------------------
     export DI_NAME=$(echo $output_variables | jq -r '.documentIntelligenceName.value')    
     export DI_ID=$(echo $output_variables | jq -r '.documentIntelligenceId.value')    
@@ -218,7 +218,9 @@ function parse_output_variables() {
     # Parse the endpoint, key, and API version
     DI_ENDPOINT=$(echo $resource_details | jq -r '.endpoint')
     DI_KEY=$(az cognitiveservices account keys list --name $DI_NAME --resource-group $RG_WEBAPP_NAME --query key1 --output tsv)
-    DI_API_VERSION=$(echo $resource_details | jq -r '.apiVersion')
+    
+    # reading from the env file, if it does not exist we set the default value
+    DI_API_VERSION=${DI_API_VERSION:-"2024-02-29-preview"}
     
     #Machine learning-------------------------------------------------------------------
     export ML_NAME=$(echo $output_variables | jq -r '.machineLearningName.value')    
