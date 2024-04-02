@@ -77,21 +77,36 @@ echo "Checking script pre-requisites..."
 echo "**********************************"
 # Check if Chocolatey is installed
 echo "Checking if Chocolatey is installed..."
-if ! command -v choco &> /dev/null
-then
-    echo "Chocolatey is not installed. might not be required if this is azure cloud shell or if you have jq alraedy installed."
-    
+if ! command -v choco &> /dev/null; then
+    echo "Chocolatey is not installed. It might not be required if this is Azure Cloud Shell or if you have jq already installed."
+    read -p "Do you want to install Chocolatey? (y/n) " -n 1 -r
+    echo    # move to a new line
+    if [ "$REPLY" = "Y" ] || [ "$REPLY" = "y" ]; then
+        echo "Installing Chocolatey..."
+        /bin/bash -c "$(curl -fsSL https://chocolatey.org/install.sh)"
+    else
+        echo "Skipping Chocolatey installation.Exiting..."
+        exit 1
+    fi
 else
-    echo "Chocolatey is installed."
+    echo "Chocolatey is already installed."
 fi
 
-# Using the command command
+
+
 if command -v docker > /dev/null 2>&1; then
     echo -e "${GREEN}Docker CLI is installed.${RESET}"
 else
-    echo -e "${RED}Docker CLI is not installed. You can deploy only the infrastucture without the container deployment.${RESET}"    
-    
-    read -p "Press enter to continue..." -r
+    echo -e "${RED}Docker CLI is not installed. You can deploy only the infrastructure without the container deployment.${RESET}"
+    read -p "Do you want to install Docker Desktop? (y/n) " -n 1 -r
+    echo    # move to a new line
+    if [ "$REPLY" = "Y" ] || [ "$REPLY" = "y" ]; then
+        echo "Installing Docker Desktop..."
+        choco install docker-desktop -y
+    else
+        echo "Skipping Docker Desktop installation. Exiting..."
+        exit 1
+    fi
 fi
 
 if [[ $AZURE_HTTP_USER_AGENT == *"cloud-shell"* ]]; then
@@ -109,26 +124,39 @@ fi
 
 echo -e "${GREEN} Docker is running. We can continue with the deployment.${RESET}"
 
-# Check if jq is installed
 echo -e "${YELLOW}Checking if jq is installed...${RESET}"
-if ! command -v jq &> /dev/null
-then
-    echo -e "${RED}jq is not installed, installing...${RESET}"
-    choco install jq -y
+if ! command -v jq &> /dev/null; then
+    echo -e "${RED}jq is not installed. Do you want to install it?${RESET}"
+    read -p "Install jq? (y/n) " -n 1 -r
+    echo    # move to a new line
+    if [ "$REPLY" = "Y" ] || [ "$REPLY" = "y" ]; then
+        echo "Installing jq..."
+        choco install jq -y
+    else
+        echo "Skipping jq installation.Exiting..."
+        exit 1
+    fi
 else
     echo -e "${GREEN}jq is installed.${RESET}"
 fi
 
-# Check if Azure CLI is installed
+
 echo "Checking if Azure CLI is installed..."
-if ! command -v az &> /dev/null
-then
-    echo -e "${RED}Azure CLI is not installed. Please install Azure CLI and run this script again.${$RESET}"
-    exit 1
+if ! command -v az &> /dev/null; then
+    echo -e "${RED}Azure CLI is not installed. Do you want to install it?${RESET}"
+    read -p "Install Azure CLI? (y/n) " -n 1 -r
+    echo    # move to a new line
+    if [ "$REPLY" = "Y" ] || [ "$REPLY" = "y" ]; then
+       # Install Azure CLI
+        echo "Installing Azure CLI..."
+        choco install azure-cli -y
+    else
+        echo "Skipping Azure CLI installation.Exiting..."
+        exit 1
+    fi
 else
     echo -e "${GREEN}Azure CLI is installed.${RESET}"
 fi
-
 
 
 echo -e "${RED}*********************************IMPORTANT!***************************************${RESET}"
