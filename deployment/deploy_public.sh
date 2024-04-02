@@ -202,7 +202,35 @@ function parse_output_variables() {
     export ACR_NAME=$(echo $output_variables | jq -r '.containerRegistry.value')
     export ACCOUNTS_VISION_RES_TST_NAME=$(echo $output_variables | jq -r '.accountsVisionResTstName.value')    
     export UNIQUE_ID=$(echo $output_variables | jq -r '.uniqueId.value')        
+    #COSMOS DB-----------------------------------------------------------------------
     export COSMOS_DB=$(echo $output_variables | jq -r '.cosmosDbName.value')        
+    export COSMOS_DB_NAME="$COSMOS_DB"
+    export COSMOS_URI="https://$COSMOS_DB_NAME.documents.azure.com:443/"    
+    export COSMOS_KEY==$(az cosmosdb keys list --name $COSMOS_DB_NAME --resource-group $RG_WEBAPP_NAME --query primaryMasterKey --output tsv)
+    export COSMOS_CONTAINER_NAME="prompts"
+    export COSMOS_CATEGORYID="prompts"
+    export COSMOS_LOG_CONTAINER="logs"
+    #Document intelligence--------------------------------------------------------------
+    export DI_NAME=$(echo $output_variables | jq -r '.documentIntelligenceName.value')    
+    export DI_ID=$(echo $output_variables | jq -r '.documentIntelligenceId.value')    
+    # Get the document intelligence details
+    resource_details=$(az resource show --ids $DI_ID --query properties)
+    # Parse the endpoint, key, and API version
+    DI_ENDPOINT=$(echo $resource_details | jq -r '.endpoint')
+    DI_KEY=$(az cognitiveservices account keys list --name $DI_NAME --resource-group $RG_WEBAPP_NAME --query key1 --output tsv)
+    DI_API_VERSION=$(echo $resource_details | jq -r '.apiVersion')
+    
+    #Machine learning-------------------------------------------------------------------
+    export ML_NAME=$(echo $output_variables | jq -r '.machineLearningName.value')    
+    export ML_ID=$(echo $output_variables | jq -r '.machineLearningId.value')    
+
+
+
+    echo "DI_ENDPOINT: $DI_ENDPOINT"
+    echo "DI_KEY: $DI_KEY"
+    echo "DI_API_VERSION: $DI_API_VERSION"
+    echo "ML_NAME: $ML_NAME"
+    echo "ML_ID: $ML_ID"
 
     echo "WEB_APP_NAME: $WEB_APP_NAME"
     echo "WEB_APP_NAME MAIN: $WEB_APP_NAME_MAIN"
@@ -772,14 +800,7 @@ fi
 # Get the URL of the web app
 webapp_url=$(az webapp show --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query defaultHostName -o tsv)
 CHAINLIT_APP=$webapp_url
-#COSMOS DB
-COSMOS_DB_NAME="$COSMOS_DB"
-COSMOS_URI="https://$COSMOS_DB_NAME.documents.azure.com:443/"
-# Get the primary master key and assign it to a variable
-COSMOS_KEY==$(az cosmosdb keys list --name $COSMOS_DB_NAME --resource-group $RG_WEBAPP_NAME --query primaryMasterKey --output tsv)
-COSMOS_CONTAINER_NAME="prompts"
-COSMOS_CATEGORYID="prompts"
-COSMOS_LOG_CONTAINER="logs"
+
 PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils"
 
 
@@ -800,6 +821,7 @@ read -r -d '' app_settings << EOM
     "LISTEN_PORT": 8000,
     "DI_ENDPOINT": "$DI_ENDPOINT",
     "DI_KEY": "$DI_KEY",
+    "DI_API_VERSION": "$DI_API_VERSION",
     "AZURE_OPENAI_RESOURCE": "$AZURE_OPENAI_RESOURCE",
     "AZURE_OPENAI_KEY": "$AZURE_OPENAI_KEY",
     "AZURE_OPENAI_MODEL": "$AZURE_OPENAI_MODEL",

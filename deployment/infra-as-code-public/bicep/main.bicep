@@ -125,5 +125,6 @@ output aiSearch string =  ai_search.outputs.aiSearchName
 output accountsVisionResTstName string = accountsVisionResTstName.outputs.accountsVisionResTstName
 output cosmosDbName string = cosmosDbModule.outputs.cosmosdbName
 output documentIntelligenceName string = documentInteligence.outputs.documentIntelligenceName
+output documentIntelligenceId string = documentInteligence.outputs.documentIntelligenceId
 output machineLearningName string = machineLearning.outputs.workspaceName
 output machineLearningId string = machineLearning.outputs.workspaceId

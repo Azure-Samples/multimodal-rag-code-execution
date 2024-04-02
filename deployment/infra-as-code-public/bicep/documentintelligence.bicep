@@ -36,3 +36,4 @@ resource devresearchdocumentintelligence 'Microsoft.CognitiveServices/accounts@2
 }
 
 output documentIntelligenceName string = devresearchdocumentintelligence.name
+output documentIntelligenceId string = devresearchdocumentintelligence.id
