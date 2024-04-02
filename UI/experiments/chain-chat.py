@@ -205,7 +205,7 @@ async def app_search(query: str):
         
     id_m = await cl.Message(content=final_answer, elements = final_elements).send()
 
-    pdfs = [p['pdf_path'] for p in references]
+    pdfs = [p['document_path'] for p in references]
     pdfs = list(set(pdfs))
 
     if (output_excel != "")  and (output_excel is not None):

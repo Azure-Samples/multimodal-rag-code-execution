@@ -32,12 +32,17 @@ pypdf
 Pillow
 # chainlit
 openpyxl
+pyperclip
 
 ## Use 2023-10-31-preview
 azure-core
 azure-ai-formrecognizer
 azure-ai-documentintelligence>=1.0.0b2
 azure-search-documents
+azureml-core>=1.55.0
+azure-ai-ml>=1.15.0
+azure-identity>=1.15.0
+
 python-pptx
 python-docx 
 comtypes
@@ -59,3 +64,8 @@ numexpr
 # langchain_openai
 tabulate
 azure-cosmos
+
+
+## Llama-Index
+llama-index==0.10.23
+llama-index-embeddings-azure-openai==0.1.6
