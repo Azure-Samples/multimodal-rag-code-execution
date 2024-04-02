@@ -77,21 +77,36 @@ echo "Checking script pre-requisites..."
 echo "**********************************"
 # Check if Chocolatey is installed
 echo "Checking if Chocolatey is installed..."
-if ! command -v choco &> /dev/null
-then
-    echo "Chocolatey is not installed. might not be required if this is azure cloud shell or if you have jq alraedy installed."
-    
+if ! command -v choco &> /dev/null; then
+    echo "Chocolatey is not installed. It might not be required if this is Azure Cloud Shell or if you have jq already installed."
+    read -p "Do you want to install Chocolatey? (y/n) " -n 1 -r
+    echo    # move to a new line
+    if [ "$REPLY" = "Y" ] || [ "$REPLY" = "y" ]; then
+        echo "Installing Chocolatey..."
+        /bin/bash -c "$(curl -fsSL https://chocolatey.org/install.sh)"
+    else
+        echo "Skipping Chocolatey installation.Exiting..."
+        exit 1
+    fi
 else
-    echo "Chocolatey is installed."
+    echo "Chocolatey is already installed."
 fi
 
-# Using the command command
+
+
 if command -v docker > /dev/null 2>&1; then
     echo -e "${GREEN}Docker CLI is installed.${RESET}"
 else
-    echo -e "${RED}Docker CLI is not installed. You can deploy only the infrastucture without the container deployment.${RESET}"    
-    
-    read -p "Press enter to continue..." -r
+    echo -e "${RED}Docker CLI is not installed. You can deploy only the infrastructure without the container deployment.${RESET}"
+    read -p "Do you want to install Docker Desktop? (y/n) " -n 1 -r
+    echo    # move to a new line
+    if [ "$REPLY" = "Y" ] || [ "$REPLY" = "y" ]; then
+        echo "Installing Docker Desktop..."
+        choco install docker-desktop -y
+    else
+        echo "Skipping Docker Desktop installation. Exiting..."
+        exit 1
+    fi
 fi
 
 if [[ $AZURE_HTTP_USER_AGENT == *"cloud-shell"* ]]; then
@@ -109,26 +124,39 @@ fi
 
 echo -e "${GREEN} Docker is running. We can continue with the deployment.${RESET}"
 
-# Check if jq is installed
 echo -e "${YELLOW}Checking if jq is installed...${RESET}"
-if ! command -v jq &> /dev/null
-then
-    echo -e "${RED}jq is not installed, installing...${RESET}"
-    choco install jq -y
+if ! command -v jq &> /dev/null; then
+    echo -e "${RED}jq is not installed. Do you want to install it?${RESET}"
+    read -p "Install jq? (y/n) " -n 1 -r
+    echo    # move to a new line
+    if [ "$REPLY" = "Y" ] || [ "$REPLY" = "y" ]; then
+        echo "Installing jq..."
+        choco install jq -y
+    else
+        echo "Skipping jq installation.Exiting..."
+        exit 1
+    fi
 else
     echo -e "${GREEN}jq is installed.${RESET}"
 fi
 
-# Check if Azure CLI is installed
+
 echo "Checking if Azure CLI is installed..."
-if ! command -v az &> /dev/null
-then
-    echo -e "${RED}Azure CLI is not installed. Please install Azure CLI and run this script again.${$RESET}"
-    exit 1
+if ! command -v az &> /dev/null; then
+    echo -e "${RED}Azure CLI is not installed. Do you want to install it?${RESET}"
+    read -p "Install Azure CLI? (y/n) " -n 1 -r
+    echo    # move to a new line
+    if [ "$REPLY" = "Y" ] || [ "$REPLY" = "y" ]; then
+       # Install Azure CLI
+        echo "Installing Azure CLI..."
+        choco install azure-cli -y
+    else
+        echo "Skipping Azure CLI installation.Exiting..."
+        exit 1
+    fi
 else
     echo -e "${GREEN}Azure CLI is installed.${RESET}"
 fi
-
 
 
 echo -e "${RED}*********************************IMPORTANT!***************************************${RESET}"
@@ -202,6 +230,7 @@ function parse_output_variables() {
     export ACR_NAME=$(echo $output_variables | jq -r '.containerRegistry.value')
     export ACCOUNTS_VISION_RES_TST_NAME=$(echo $output_variables | jq -r '.accountsVisionResTstName.value')    
     export UNIQUE_ID=$(echo $output_variables | jq -r '.uniqueId.value')        
+    
     #COSMOS DB-----------------------------------------------------------------------
     export COSMOS_DB=$(echo $output_variables | jq -r '.cosmosDbName.value')        
     export COSMOS_DB_NAME="$COSMOS_DB"
@@ -209,7 +238,8 @@ function parse_output_variables() {
     export COSMOS_KEY==$(az cosmosdb keys list --name $COSMOS_DB_NAME --resource-group $RG_WEBAPP_NAME --query primaryMasterKey --output tsv)
     export COSMOS_CONTAINER_NAME="prompts"
     export COSMOS_CATEGORYID="prompts"
-    export COSMOS_LOG_CONTAINER="logs"
+    export COSMOS_LOG_CONTAINER="logs" 
+    
     #Document intelligence--------------------------------------------------------------
     export DI_NAME=$(echo $output_variables | jq -r '.documentIntelligenceName.value')    
     export DI_ID=$(echo $output_variables | jq -r '.documentIntelligenceId.value')    
@@ -218,19 +248,26 @@ function parse_output_variables() {
     # Parse the endpoint, key, and API version
     DI_ENDPOINT=$(echo $resource_details | jq -r '.endpoint')
     DI_KEY=$(az cognitiveservices account keys list --name $DI_NAME --resource-group $RG_WEBAPP_NAME --query key1 --output tsv)
-    DI_API_VERSION=$(echo $resource_details | jq -r '.apiVersion')
+    # reading from the env file, if it does not exist we set the default value
+    DI_API_VERSION=${DI_API_VERSION:-"2024-02-29-preview"}
     
     #Machine learning-------------------------------------------------------------------
     export ML_NAME=$(echo $output_variables | jq -r '.machineLearningName.value')    
     export ML_ID=$(echo $output_variables | jq -r '.machineLearningId.value')    
-
-
-
-    echo "DI_ENDPOINT: $DI_ENDPOINT"
-    echo "DI_KEY: $DI_KEY"
-    echo "DI_API_VERSION: $DI_API_VERSION"
-    echo "ML_NAME: $ML_NAME"
-    echo "ML_ID: $ML_ID"
+    export AML_SUBSCRIPTION_ID=$SUBSCRIPTION
+    export AML_RESOURCE_GROUP=$RG_WEBAPP_NAME
+    export AML_WORKSPACE_NAME=$ML_NAME
+     # Azure Storage File Share
+    export AZURE_FILE_SHARE_ACCOUNT=$STORAGE_ACCOUNT_NAME
+    export AZURE_FILE_SHARE_NAME=$STORAGE_ACCOUNT_NAME
+    export AZURE_FILE_SHARE_KEY=$STORAGE_ACCESS_KEY       
+    # storage related env variables
+    # create the storage mount path if it does not exist in the web app
+    export ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
+    export SHARE_NAME=$STORAGE_ACCOUNT_NAME
+    export STORAGE_ACCESS_KEY= $(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
+    export CUSTOM_ID='fileshare'
+ 
 
     echo "WEB_APP_NAME: $WEB_APP_NAME"
     echo "WEB_APP_NAME MAIN: $WEB_APP_NAME_MAIN"
@@ -240,6 +277,25 @@ function parse_output_variables() {
     echo "ACCOUNTS_VISION_RES_TST_NAME: $ACCOUNTS_VISION_RES_TST_NAME"    
     echo "UNIQUE_ID: $UNIQUE_ID"    
     echo "COSMOS_DB: $COSMOS_DB"    
+    echo "COSMOS_URI: $COSMOS_URI"
+    echo "COSMOS_KEY: $COSMOS_KEY"
+    echo "COSMOS_CONTAINER_NAME: $COSMOS_CONTAINER_NAME"
+    echo "COSMOS_CATEGORYID: $COSMOS_CATEGORYID"
+    echo "COSMOS_LOG_CONTAINER: $COSMOS_LOG_CONTAINER"
+    echo "DI_NAME: $DI_NAME"
+    echo "DI_ID: $DI_ID"
+    echo "DI_ENDPOINT: $DI_ENDPOINT"
+    echo "DI_KEY: $DI_KEY"
+    echo "DI_API_VERSION: $DI_API_VERSION"
+    echo "ML_NAME: $ML_NAME"
+    echo "ML_ID: $ML_ID"
+    echo "ACCOUNT_NAME: $ACCOUNT_NAME"
+    echo "SHARE_NAME: $SHARE_NAME"
+    echo "STORAGE_ACCESS_KEY: $STORAGE_ACCESS_KEY"
+    echo "CUSTOM_ID: $CUSTOM_ID"
+    echo "AZURE_FILE_SHARE_ACCOUNT: $AZURE_FILE_SHARE_ACCOUNT"
+    echo "AZURE_FILE_SHARE_NAME: $AZURE_FILE_SHARE_NAME"
+    echo "AZURE_FILE_SHARE_KEY: $AZURE_FILE_SHARE_KEY"    
     #read -p "Press enter to continue..." -r
 }
 
@@ -803,10 +859,15 @@ CHAINLIT_APP=$webapp_url
 
 PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils"
 
-
 #SCM_BASIC_AUTHENTICATION_ENABLED
 read -r -d '' app_settings << EOM
 {    
+    "AML_SUBSCRIPTION_ID": "$AML_SUBSCRIPTION_ID",
+    "AML_RESOURCE_GROUP": "$AML_RESOURCE_GROUP",
+    "AML_WORKSPACE_NAME": "$AML_WORKSPACE_NAME",
+    "AZURE_FILE_SHARE_ACCOUNT": "$AZURE_FILE_SHARE_ACCOUNT",
+    "AZURE_FILE_SHARE_NAME": "$AZURE_FILE_SHARE_NAME",
+    "AZURE_FILE_SHARE_KEY": "$AZURE_FILE_SHARE_KEY",
     "PYTHONPATH": "$PYTHONPATH",
     "CHAINLIT_APP": "$webapp_url",
     "COSMOS_URI": "$COSMOS_URI",
