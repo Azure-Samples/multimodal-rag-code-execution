@@ -1,6 +1,6 @@
 # Deployment Script for Azure Resources in a sandbox subscription
 
-This repository contains a Bash script (`deploy_public.sh`) that automates the deployment of Azure resources. It does so by deploying everything public, to simplifying prototying and de deployment os POC's in SandBox Subscriptions. 
+This repository contains a Bash script (`deploy_public.sh`) that automates the deployment of Azure resources. It does so by deploying everything public, to simplifying prototying and de deployment of POC's in SandBox Subscriptions. 
 
 We are preparing and enterprise deployment version as well but, in the meantime, you can use this for exploration, demos and POCs.
 
