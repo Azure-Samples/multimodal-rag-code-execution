@@ -31,7 +31,7 @@ The script will veify that you have the following requirements installed.
 - [jq](https://stedolan.github.io/jq/download/)
 - [Chocolatey](https://chocolatey.org/install) (Only for Windows users)
 
-These applications can be installed in severall ways, if the script fails, you will need to troubleshoot the deployment. Or just do it yourself/
+These applications can be installed in severall ways, if the script fails, you will need to troubleshoot the deployment. Or just do it manually.
 
 
 ## Configuration
