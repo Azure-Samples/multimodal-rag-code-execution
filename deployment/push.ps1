@@ -1,4 +1,5 @@
 # PowerShell version of a script to push Docker images to Azure Container Registry
+# Helpful when you just want to add a new tag to an existing image and push it to ACR without all the complexity of a CI/CD pipeline
 
 
 $ACR_NAME = "<your ACR name>"

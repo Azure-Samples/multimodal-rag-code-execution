@@ -12,8 +12,28 @@ RESET='\033[0m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 
+# use this to force redeploy_the infra: 
+# ./deploy_public.sh force_redeploy true
+
+#you can nadd your subscription and resource group name here or relay in your .env file (must be bash compatible)
 SUBSCRIPTION="<add your subscription>"
 RG_WEBAPP_NAME="<add your new resource group>"
+
+# Load variables from .env file in the parent directory
+if [ -f ../.env ]
+then
+  export $(cat ../.env | sed 's/#.*//g' | xargs)
+fi
+
+# Load variables from .env file in the current directory
+if [ -f ./.env ]
+then
+  export $(cat ./.env | sed 's/#.*//g' | xargs)
+fi
+
+# Set variables to their values in .env file or to an empty string
+SUBSCRIPTION=${SUBSCRIPTION:-}
+RG_WEBAPP_NAME=${RG_WEBAPP_NAME:-}
 
 while [[ -z "$SUBSCRIPTION" ]] || ! az account list --query "[].id" -o tsv | grep -q "$SUBSCRIPTION"; do
     read -p "Subscription $SUBSCRIPTION is empty or not valid in this context. Please enter a valid subscription ID: " SUBSCRIPTION
@@ -290,6 +310,13 @@ else
         echo "Exiting the script..."
         exit 1
     fi
+fi
+
+# Check if force_redeploy argument is passed and is set to true
+if [[ "$1" == "force_redeploy" && "$2" == "true" ]]; then
+    echo -e "${YELLOW}You are running the script forcing to re-deploy Infrastucture.${RESET}"
+    read -rp "Press enter to re-deploy or CTRL+C to cancel..."
+    DEPLOY_INFRA="true"
 fi
 
 az config set defaults.group=$RESOURCE_GROUP_NAME

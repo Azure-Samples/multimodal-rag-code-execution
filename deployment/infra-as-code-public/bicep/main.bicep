@@ -93,6 +93,27 @@ module ai_search 'ai_search.bicep' = {
   }
 }
 
+module documentInteligence 'documentintelligence.bicep' =  {
+  name: 'document-Intelligence'
+  params: {
+    namePrefix:namePrefix
+    documentIntelligence: 'doc-int'
+    uniqueid:  uniqueid
+    location: location
+  }
+}
+
+module machineLearning 'machine_learning.bicep' =  {
+  name: 'machine-learing-worksapce'
+  params: {
+    namePrefix:namePrefix
+    machineLearningName: 'mlws' 
+    uniqueid:  uniqueid
+    location: location
+    logWorkspaceName: logWorkspace.name
+  }
+}
+
 
 output webAppNameMain string = webappModule.outputs.appName2
 output webAppName string = webappModule.outputs.appName
@@ -103,4 +124,6 @@ output storageAccount string = storageModule.outputs.storageName
 output aiSearch string =  ai_search.outputs.aiSearchName 
 output accountsVisionResTstName string = accountsVisionResTstName.outputs.accountsVisionResTstName
 output cosmosDbName string = cosmosDbModule.outputs.cosmosdbName
-
+output documentIntelligenceName string = documentInteligence.outputs.documentIntelligenceName
+output machineLearningName string = machineLearning.outputs.workspaceName
+output machineLearningId string = machineLearning.outputs.workspaceId

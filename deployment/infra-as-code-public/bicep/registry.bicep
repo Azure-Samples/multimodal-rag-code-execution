@@ -13,10 +13,6 @@ param location string
 // existing resource name params 
 var varcontainerRegistry = '${namePrefix}${containerRegistry}${uniqueid}'
 
-
-
-
-
 resource containerRegistry_resource 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
   location: location
   name: varcontainerRegistry
