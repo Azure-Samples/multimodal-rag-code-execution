@@ -182,3 +182,5 @@ rag-data*/
 config.json
 denizbank/
 test_aml.py
+temp/
+test/

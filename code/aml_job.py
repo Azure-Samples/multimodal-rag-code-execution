@@ -21,7 +21,7 @@ class AmlJob():
                 account_key = AZURE_FILE_SHARE_KEY,
         ):
 
-        self.cpu_cluster_name = "cpu-cluster"
+        self.cpu_cluster_name = "mm-doc-cpu-cluster"
         self.file_share_datastore_name='research_copilot_datastore'
         self.experiments_name = 'research_copilot_experiments'
         self.env_name = 'research_copilot_env'
@@ -108,7 +108,7 @@ class AmlJob():
 
         except ComputeTargetException:
             compute_config = AmlCompute.provisioning_configuration( vm_size='STANDARD_D2_V2',
-                                                                    max_nodes=1, 
+                                                                    max_nodes=3, 
                                                                     idle_seconds_before_scaledown=2400)
             self.cpu_cluster = ComputeTarget.create(self.ws, self.cpu_cluster_name, compute_config)
             self.cpu_cluster.wait_for_completion(show_output=True)
@@ -129,7 +129,7 @@ class AmlJob():
         ingestion_params_dict['datastore'] = self.file_share_datastore_name
         ingestion_params_dict['datastore_mount'] = str(data_ref)
 
-        command_string = 'export ' + \
+        command_string = 'export MSYS_NO_PATHCONV=1 ' + \
                          ' '.join(self.create_environment_variables_string()) + \
                          f" && python {script} --ingestion_params_dict '{json.dumps(ingestion_params_dict)}'"     
 

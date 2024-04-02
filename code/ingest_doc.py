@@ -45,7 +45,9 @@ if datastore_mount is not None:
     os.environ['ROOT_PATH_INGESTION'] = datastore_mount
     ROOT_PATH_INGESTION = datastore_mount
 
-    os.chdir(datastore_mount)
+    print(f"\n\nROOT_PATH_INGESTION is now {ROOT_PATH_INGESTION}")
+    print(f"Changing Current Working Directory in Python to {os.path.dirname(datastore_mount)}\n\n")
+    os.chdir(os.path.join(datastore_mount, ingestion_params_dict["index_name"]))
 
 else:
     ingestion_directory = ingestion_params_dict['ingestion_directory']
@@ -61,8 +63,9 @@ processing_mode_docx = ingestion_params_dict['processing_mode_docx']
 processing_mode_xlsx = ingestion_params_dict['processing_mode_xlsx']
 
 
-print("Ingestion Directory", ingestion_directory)
+print("\n\nIngestion Directory", ingestion_directory)
 print("Download Directory", download_directory)
+print(f"Current Working Directory {os.getcwd()}\n\n")
 
 
 processing_logs = []

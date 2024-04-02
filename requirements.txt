@@ -54,7 +54,7 @@ chainlit
 mermaid-python
 # pygraphviz
 streamlit>=1.31.1
-accelerate
+# accelerate
 tiktoken
 # pyautogen
 # langchain

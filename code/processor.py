@@ -213,17 +213,13 @@ class PdfProcessor(Processor):
             self.ingestion_pipeline_dict['extract_text_mode'] = "GPT"
             self.ingestion_pipeline_dict['extract_images_mode'] = "GPT"
             self.ingestion_pipeline_dict['extract_text_from_images'] = True
-
             self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'harvest_code', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
 
         elif self.processing_mode == 'document-intelligence':
             self.ingestion_pipeline_dict['extract_text_mode'] = "PDF"
             self.ingestion_pipeline_dict['extract_images_mode'] = "PDF"
             self.ingestion_pipeline_dict['extract_text_from_images'] = False
-
             self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks', 'harvest_code', 'post_process_images']
-
-            # self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks']
 
 
     def execute_processing_plan(self, verbose=False):
@@ -248,7 +244,6 @@ class DocxProcessor(Processor):
 
         elif self.processing_mode == 'document-intelligence':
             self.processing_plan = ['extract_doc_using_doc_int', 'create_doc_chunks', 'harvest_code', 'post_process_images']
-
         else:
             logc("Processing Mode Not Supported - defaulting to 'py-docx'")
             self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks', 'harvest_code', 'post_process_images']

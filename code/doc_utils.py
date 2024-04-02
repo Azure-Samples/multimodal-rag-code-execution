@@ -876,6 +876,8 @@ def write_to_file(text, text_filename, mode = 'a'):
     try:
         with open(text_filename, mode, encoding='utf-8') as file:
             file.write(text)
+
+        print(f"Writing file to full path: {os.path.abspath(text_filename)}")
     except Exception as e:
         logc(f"SERIOUS ERROR: {bc.RED}Error writing text to file: {e}{bc.ENDC}")
 
@@ -3083,6 +3085,9 @@ def create_metadata(asset_file, file_id, document_path, document_id, asset_type=
         "asset_id": file_id
     }
 
+    for m in metadata:
+        metadata[m] = metadata[m].replace("\\", "/")
+
     return metadata
 
 
@@ -3496,7 +3501,7 @@ Generate the additional code to run to answer the above question. Do not re-gene
 
 table_info = """
 
-## START OF INFOBLOCK 
+## START OF INFOBLOCK {number}
 {filename}
 Document Filename: {proc_filename}
 Chunk Number: {chunk_number}
@@ -3603,7 +3608,7 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
     if verbose: logc("py_code", py_code)
     if verbose: logc("codeblocks", codeblocks)
 
-
+    infoblocks_num = 0
     for index, asset in enumerate(assets['python_block']):
         if asset not in added:
             filename = replace_extension(asset, ".py")
@@ -3625,6 +3630,7 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
                 break
 
             codeblocks.append(table_info.format(
+                number = infoblocks_num,
                 filename=filename_field, 
                 proc_filename=proc_filename, 
                 chunk_number=chunk_number, 
@@ -3633,7 +3639,9 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
                 markdown=markdown, 
                 mermaid=mermaid
                 )
-            )      
+            )    
+
+            infoblocks_num += 1  
             if index > limit: break  
 
     if verbose: logc("Taskweaver", f"Added Codeblocks\n{added}")
