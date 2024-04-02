@@ -1,1 +1,0 @@
-read file_B.txt in the same directory to get the further information.
