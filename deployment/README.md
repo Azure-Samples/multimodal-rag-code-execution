@@ -51,7 +51,7 @@ The repo contains a sample .env.sample file. Copy it and adapt it to your needs.
 By default the script checks if the target resource group is empty and, if it is, it will go an attempt deploying all the infrastucture. If the resource group is not empty, it assumes that you want to deploy a new version of the application (CI/CD) and it will do the following: 
 - Build the Docker images.
 - Push them to the Azure Container Registry (ACR).
-- :exclamation: **Important**: Set the web app settings to default values.
+- :exclamation: **Important**: it will set the web app settings to default values and you will loose any customization to the environment variables in both web apps.
 
 The `deploy_public.sh` script accepts an optional `force_redeploy` parameter. This parameter controls whether the script should force a redeployment of the resources, even if they're already present in the resource group. 
 
@@ -64,10 +64,6 @@ To use the `force_redeploy` parameter, pass `true` or `false` as an argument whe
 ## Running the Script
 
 1. Clone this repository to your local machine:
-
-    ```shellscript
-    git clone <repository-url>
-    ```
 
 2. Navigate to the directory containing the script:
 
@@ -87,7 +83,7 @@ To use the `force_redeploy` parameter, pass `true` or `false` as an argument whe
     ./deploy_public.sh
     ```
 
-The script will check if Docker and jq are installed and running. If not, it will prompt you to install them. It will then proceed with the deployment of Azure resources.
+If all the requirements are in place,  the sript will then proceed with the deployment of Azure resources.
 
 ## Troubleshooting
 
