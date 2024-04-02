@@ -265,7 +265,7 @@ function parse_output_variables() {
     # create the storage mount path if it does not exist in the web app
     export ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
     export SHARE_NAME=$STORAGE_ACCOUNT_NAME
-    export STORAGE_ACCESS_KEY= $(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
+    export STORAGE_ACCESS_KEY=$(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
     export CUSTOM_ID='fileshare'
  
 
@@ -664,8 +664,8 @@ fi
 BUILD_ID=$(date +%Y%m%d%H%M%S)
 
 # Use the build ID to tag your Docker images
-DOCKER_CUSTOM_IMAGE_NAME_UI="$ACR_NAME.azurecr.io/research-copilot:$BUILD_ID"
-DOCKER_CUSTOM_IMAGE_NAME_MAIN="$ACR_NAME.azurecr.io/research-copilot-main:$BUILD_ID"
+DOCKER_CUSTOM_IMAGE_NAME_UI="$ACR_NAME.azurecr.io/research-copilot-chainlit:$BUILD_ID"
+DOCKER_CUSTOM_IMAGE_NAME_MAIN="$ACR_NAME.azurecr.io/research-copilot-streamlit:$BUILD_ID"
 
 DOCKERFILE_PATH_UI="docker/dockerfile_chainlit_app"
 DOCKERFILE_PATH_UI_MAIN="docker/dockerfile_streamlit_app"
@@ -782,25 +782,7 @@ if confirm "build the docker?"; then
         az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN .        
     fi        
 fi
-image_exists=$(az acr repository show --name $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --output tsv --query name --verbose)
 
-if [ "$image_exists" == "$DOCKER_CUSTOM_IMAGE_NAME_UI" ]; then
-    echo -e "${GREEN}Image $DOCKER_CUSTOM_IMAGE_NAME_UI exists in registry $ACR_NAME. ${RESET}"
-else
-    echo "the command image_exists az acr repository returned: $image_exists"
-    echo -e "${RED}Image $DOCKER_CUSTOM_IMAGE_NAME_UI does not exist in registry $ACR_NAME. Exiting the script ${RESET}"
-    #exit 1
-fi
-
-image_exists=$(az acr repository show --name $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --output tsv --query name --verbose)
-
-if [ "$image_exists" == "$DOCKER_CUSTOM_IMAGE_NAME_MAIN" ]; then
-    echo e "${GREEN}Image $DOCKER_CUSTOM_IMAGE_NAME_MAIN exists in registry $ACR_NAME.${RESET}"
-else
-    echo "the command image_exists az acr repository returned: $image_exists"
-    echo -e "${RED}Image $DOCKER_CUSTOM_IMAGE_NAME_MAIN does not exist in registry $ACR_NAME. Exiting the script${RESET}"
-    #exit 1
-fi
 
 if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
     #the cloud shell pushes the images to the acr, so in case of using local docker, we need to push the images to the acr
@@ -821,6 +803,26 @@ if [ "$IMAGES_PUSHED" = "true" ]; then
         read -p -r "Press enter to continue..."
     fi
 fi
+
+# image_exists=$(az acr repository show --name $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --output tsv --query name --verbose)
+
+# if [ "$image_exists" == "$DOCKER_CUSTOM_IMAGE_NAME_UI" ]; then
+#     echo -e "${GREEN}Image $DOCKER_CUSTOM_IMAGE_NAME_UI exists in registry $ACR_NAME. ${RESET}"
+# else
+#     echo "the command image_exists az acr repository returned: $image_exists"
+#     echo -e "${RED}Image $DOCKER_CUSTOM_IMAGE_NAME_UI does not exist in registry $ACR_NAME. Exiting the script ${RESET}"
+#     #exit 1
+# fi
+
+# image_exists=$(az acr repository show --name $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --output tsv --query name --verbose)
+
+# if [ "$image_exists" == "$DOCKER_CUSTOM_IMAGE_NAME_MAIN" ]; then
+#     echo e "${GREEN}Image $DOCKER_CUSTOM_IMAGE_NAME_MAIN exists in registry $ACR_NAME.${RESET}"
+# else
+#     echo "the command image_exists az acr repository returned: $image_exists"
+#     echo -e "${RED}Image $DOCKER_CUSTOM_IMAGE_NAME_MAIN does not exist in registry $ACR_NAME. Exiting the script${RESET}"
+#     #exit 1
+# fi
 
 echo -e "${YELLOW}****The next steps will deploy the changesthe webapps to the selected subscription ${RESET}"
 
@@ -940,7 +942,7 @@ fi
 # create the storage mount path if it does not exist in the web app
 ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
 SHARE_NAME=$STORAGE_ACCOUNT_NAME
-STORAGE_ACCESS_KEY= $(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
+STORAGE_ACCESS_KEY=$(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
 CUSTOM_ID='fileshare'
 # Get the current path mappings
 path_mappings=$(az webapp config storage-account list --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query "[?name=='$CUSTOM_ID']")
