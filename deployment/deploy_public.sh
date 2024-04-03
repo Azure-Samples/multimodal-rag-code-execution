@@ -15,6 +15,45 @@ BLUE='\033[0;34m'
 # use this to force redeploy_the infra: 
 # ./deploy_public.sh force_redeploy true
 
+
+# SUPPORTED ARGUMENTS:
+# force_redeploy: true/false - forces the redeployment of the infrastructure
+# update_webapp_settings: true/false - updates the webapp settings to the default ones.
+# build_chainlit: true/false - updates the chainlit webapp
+# build_streamlit: true/false - updates the streamlit webapp
+# EXAMPLE: ./deploy_public.sh rebuild_chainlit=false update_webapp_settings=false
+
+UPDATE_WEBAPP_SETTINGS="true" #by default we  update the webapp settings
+DEPLOY_INFRA="false" #by default we do not deploy the infra
+BUILD_CHAINLIT="true"
+BUILD_STREAMLIT="true"
+
+for arg in "$@"
+do
+    case $arg in
+        force_redeploy=true)
+            echo -e "${YELLOW}You are running the script forcing to re-deploy Infrastructure.${RESET}"
+            read -rp "Press enter to re-deploy or CTRL+C to cancel..."
+            DEPLOY_INFRA="true"
+            ;;
+        update_webapp_settings=false)
+            UPDATE_WEBAPP_SETTINGS="false"
+            ;;
+        build_chainlit=false)
+            BUILD_CHAINLIT="false"
+            ;;
+        build_streamlit=false)
+            BUILD_STREAMLIT="false"
+            ;;
+        *)
+            echo -e "${RED} Unknown argument: $arg ${RESET}"
+            exit 1
+            ;;
+    esac
+done
+
+
+
 #you can nadd your subscription and resource group name here or relay in your .env file (must be bash compatible)
 SUBSCRIPTION="<add your subscription>"
 RG_WEBAPP_NAME="<add your new resource group>"
@@ -43,8 +82,6 @@ while [[ -z "$RG_WEBAPP_NAME" ]] ; do
     read -p "Resource group $RG_WEBAPP_NAME cannot be empty. Please enter a valid resource group name: " RG_WEBAPP_NAME
 done
 
-$ az login --tenant 16b3c013-d300-468d-ac64-7eda0820b6d3
-
 echo -e "${GREEN}Subscription is correct...${RESET}"
 
 clear
@@ -70,7 +107,15 @@ _______   ____    ______  ____  _____  _______   ____  |  |__        ____   ____
 ${RESET}"
 
 #script pre-requisistes: 
-
+echo -e "\n${CYAN}----------------------------------------"
+echo -e "🚀 Detected Parameters:"
+echo -e "----------------------------------------${RESET}"
+printf "${GREEN}%-30s %-30s${RESET}\n" "Parameter" "Value"
+printf "${GREEN}%-30s %-30s${RESET}\n" "force_redeploy" "$DEPLOY_INFRA"
+printf "${GREEN}%-30s %-30s${RESET}\n" "update_webapp_settings" "$UPDATE_WEBAPP_SETTINGS"
+printf "${GREEN}%-30s %-30s${RESET}\n" "build_chainlit" "$BUILD_CHAINLIT"
+printf "${GREEN}%-30s %-30s${RESET}\n" "build_streamlit" "$BUILD_STREAMLIT"
+echo -e "${CYAN}----------------------------------------${RESET}\n"
 
 # Check if Chocolatey is installed
 echo "Checking script pre-requisites..."
@@ -769,17 +814,26 @@ fi
 if confirm "build the docker?"; then
     if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
         # build the docker locally
-        echo -e "${GREEN}Building the chainlit app docke r locally...${RESET}"
-        docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI .
-        echo -e "${GREEN}Building the streamlit app docker locally...${RESET}"
-        docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN .
+        if [ "$BUILD_CHAINLIT" = "true" ]; then
+            echo -e "${GREEN}Building the chainlit app docke r locally...${RESET}"
+            docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI .
+        fi
+
+        if [ "$BUILD_STREAMLIT" = "true" ]; then
+            echo -e "${GREEN}Building the streamlit app docker locally...${RESET}"
+            docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN .
+        fi
 
     else
         # build the docker using Azure Container Registry
-        echo -e "${GREEN}Building the chainlit app docker using Azure Container Registry...${RESET}"
-        az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --file $DOCKERFILE_PATH_UI .        
-        echo -e "${GREEN}Building the streamlit app docker using Azure Container Registry...${RESET}"
-        az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN .        
+        if [ "$BUILD_CHAINLIT" = "true" ]; then
+            echo -e "${GREEN}Building the chainlit app docker using Azure Container Registry...${RESET}"
+            az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --file $DOCKERFILE_PATH_UI .        
+        fi
+        if [ "$BUILD_STREAMLIT" = "true" ]; then
+            echo -e "${GREEN}Building the streamlit app docker using Azure Container Registry...${RESET}"
+            az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN .        
+        fi
     fi        
 fi
 
@@ -787,11 +841,17 @@ fi
 if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
     #the cloud shell pushes the images to the acr, so in case of using local docker, we need to push the images to the acr
     if confirm "push to acr?"; then    
-        echo -e "${GREEN}Pushing the chainlit app docker to Azure Container Registry...${RESET}"
-        docker push $DOCKER_CUSTOM_IMAGE_NAME_UI
-        echo -e "${GREEN}Pushing the streamlit app docker to Azure Container Registry...${RESET}"
-        docker push $DOCKER_CUSTOM_IMAGE_NAME_MAIN
-        IMAGES_PUSHED="true"
+        
+        if [ "$BUILD_CHAINLIT" = "true" ]; then
+            echo -e "${GREEN}Pushing the chainlit app docker to Azure Container Registry...${RESET}"
+            docker push $DOCKER_CUSTOM_IMAGE_NAME_UI
+            IMAGES_PUSHED="true"
+        fi
+        if [ "$BUILD_STREAMLIT" = "true" ]; then
+            echo -e "${GREEN}Pushing the streamlit app docker to Azure Container Registry...${RESET}"
+            docker push $DOCKER_CUSTOM_IMAGE_NAME_MAIN
+            IMAGES_PUSHED="true"
+        fi
     fi
 else
     IMAGES_PUSHED="true"
@@ -831,29 +891,34 @@ if [[ "$CONFIRMATION" == "true" ]]; then
 fi
 
 # Update the UI
-WEBAPP_UPDATED="False"
-if confirm "update the UI on $WEBAPP_NAME_UI and with the new Image?" "$RED"; then
-    # Load the settings from the JSON file
-    
-    output=$(az webapp config container set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_UI --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
-    echo -e "${GREEN}****Container updated into the web app. Give it some time to load it!${RESET}"	    
-    WEBAPP_UPDATED="true"
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Error updating the UI: $output${RESET}"
-        WEBAPP_UPDATED="False"
-    fi   
+
+if [ "$BUILD_CHAINLIT" = "true" ]; then
+    WEBAPP_UPDATED="False"
+    if confirm "update the UI on $WEBAPP_NAME_UI and with the new Image?" "$RED"; then
+        # Load the settings from the JSON file
+        
+        output=$(az webapp config container set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_UI --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
+        echo -e "${GREEN}****Container updated into the web app. Give it some time to load it!${RESET}"	    
+        WEBAPP_UPDATED="true"
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Error updating the UI: $output${RESET}"
+            WEBAPP_UPDATED="False"
+        fi   
+    fi
 fi
 
-WEBAPP_UPDATED="False"
-if confirm "update the UI on $WEBAPP_NAME_UI_MAIN and with the new Image?" "$RED"; then
-    # Load the settings from the JSON file    
-    output=$(az webapp config container set --name $WEBAPP_NAME_UI_MAIN --resource-group $RG_WEBAPP_NAME_MAIN --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_MAIN --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
-    echo -e "${GREEN}****Container updated into the web app. Give it some time to load it!${RESET}"	    
-    WEBAPP_UPDATED="true"
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Error updating the UI: $output${RESET}"
-        WEBAPP_UPDATED="False"
-    fi   
+if [ "$BUILD_STREAMLIT" = "true" ]; then
+    WEBAPP_UPDATED="False"
+    if confirm "update the UI on $WEBAPP_NAME_UI_MAIN and with the new Image?" "$RED"; then
+        # Load the settings from the JSON file    
+        output=$(az webapp config container set --name $WEBAPP_NAME_UI_MAIN --resource-group $RG_WEBAPP_NAME_MAIN --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_MAIN --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
+        echo -e "${GREEN}****Container updated into the web app. Give it some time to load it!${RESET}"	    
+        WEBAPP_UPDATED="true"
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Error updating the UI: $output${RESET}"
+            WEBAPP_UPDATED="False"
+        fi   
+    fi
 fi
 # Get the URL of the web app
 webapp_url=$(az webapp show --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query defaultHostName -o tsv)
@@ -923,19 +988,26 @@ read -r -d '' app_settings << EOM
 }
 EOM
 
-if confirm "update the web app settings in $WEBAPP_NAME_UI? (y/n)" "$RED"; then    
-    settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
-    MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --settings $settings
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Error updating the UI: $output${RESET}"
+if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
+    
+    if [ "$BUILD_CHAINLIT" = "true" ]; then
+        if confirm "update the web app settings in $WEBAPP_NAME_UI? (y/n)" "$RED"; then    
+            settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
+            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --settings $settings
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}Error updating the UI: $output${RESET}"
+            fi
+        fi
     fi
-fi
 
-if confirm "update the web app settings in $WEB_APP_NAME_MAIN? (y/n)" "$RED"; then    
-    settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
-    MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings $settings
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Error updating the UI: $output${RESET}"
+    if [ "$BUILD_STREAMLIT" = "true" ]; then
+        if confirm "update the web app settings in $WEB_APP_NAME_MAIN? (y/n)" "$RED"; then    
+            settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
+            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings $settings
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}Error updating the UI: $output${RESET}"
+            fi
+        fi
     fi
 fi
 

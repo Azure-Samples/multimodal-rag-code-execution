@@ -23,8 +23,7 @@ COPY --chown=appuser:appuser . ./app
 WORKDIR /home/appuser/app
 
 # Adjust PATH to ensure local binaries are usable by both root and appuser
-# ENV PATH="/home/appuser/.local/bin:$PATH"
-ENV PYTHONPATH="${PYTHONPATH}:/home/appuser/app/code:/home/appuser/app/code/utils"
+ENV PATH="/home/appuser/.local/bin:$PATH"
 
 # Switch to the non-root user before installing dependencies
 USER appuser
@@ -37,4 +36,4 @@ RUN pip install --user -r requirements.txt
 EXPOSE 8065
 
 # Run the application with Streamlit
-CMD ["streamlit", "run", "UI/main.py", "--server.port", "8065", "--server.enableXsrfProtection", "false"]
+CMD ["streamlit", "run", "ui/main.py", "--server.port", "8065", "--server.enableXsrfProtection", "false"]
