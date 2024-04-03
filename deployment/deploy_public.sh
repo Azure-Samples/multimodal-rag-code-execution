@@ -21,7 +21,8 @@ BLUE='\033[0;34m'
 # update_webapp_settings: true/false - updates the webapp settings to the default ones.
 # build_chainlit: true/false - updates the chainlit webapp
 # build_streamlit: true/false - updates the streamlit webapp
-# EXAMPLE: ./deploy_public.sh rebuild_chainlit=false update_webapp_settings=false
+
+# EXAMPLE: ./deploy_public.sh build_chainlit=false update_webapp_settings=false
 
 UPDATE_WEBAPP_SETTINGS="true" #by default we  update the webapp settings
 DEPLOY_INFRA="false" #by default we do not deploy the infra
@@ -375,7 +376,7 @@ az provider register --namespace Microsoft.Search #making sure that the search s
 # Log in to Azure
 if [[ "$SKIP_LOGIN_TO_AZURE" != "true" ]]; then
     echo "Loging in to Azure..."
-    az login
+    az login > /dev/null
 fi
 
 # Ask the user for the subscription ID
@@ -667,7 +668,7 @@ fi
 parse_output_variables
 
 echo -e "${YELLOW} Enable Azure trusted services in the acr${RESET}"    
-az acr update --name $ACR_NAME --allow-trusted-services true
+az acr update --name $ACR_NAME --allow-trusted-services true  > /dev/null
 
 #TODO: getting the right configuration from the deployed parameters:
 AZURE_VISION_ENDPOINT="https://$ACCOUNTS_VISION_RES_TST_NAME.cognitiveservices.azure.com/"
@@ -753,7 +754,7 @@ echo "-----------------------------"
 echo -e "${YELLOW}****Make sure you have the docker started...otherwise docker build will fail! ${RESET}"
 
 if [[ "$CONFIRMATION" == "true" ]]; then
-        read -p -r "Press enter to continue..."
+        read -rp "Press enter to continue..."
 fi
 
 
@@ -814,40 +815,63 @@ fi
 if confirm "build the docker?"; then
     if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
         # build the docker locally
-        if [ "$BUILD_CHAINLIT" = "true" ]; then
+        if [[ "$BUILD_CHAINLIT" = "true" ]]; then
             echo -e "${GREEN}Building the chainlit app docke r locally...${RESET}"
             docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI .
         fi
 
-        if [ "$BUILD_STREAMLIT" = "true" ]; then
+        if [[ "$BUILD_STREAMLIT" = "true" ]]; then
             echo -e "${GREEN}Building the streamlit app docker locally...${RESET}"
             docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN .
         fi
 
     else
         # build the docker using Azure Container Registry
-        if [ "$BUILD_CHAINLIT" = "true" ]; then
+        if [[ "$BUILD_CHAINLIT" = "true" ]]; then
             echo -e "${GREEN}Building the chainlit app docker using Azure Container Registry...${RESET}"
-            az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --file $DOCKERFILE_PATH_UI .        
+            az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --file $DOCKERFILE_PATH_UI . 
+            if [ $? -ne 0 ]; then
+                echo "command build failed"
+                read -rp "Press enter to continue..." 
+                # handle the error
+            else    
+                echo "command build OK"
+                read -rp "Press enter to continue..." 
+            fi
         fi
-        if [ "$BUILD_STREAMLIT" = "true" ]; then
-            echo -e "${GREEN}Building the streamlit app docker using Azure Container Registry...${RESET}"
-            az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN .        
-        fi
-    fi        
-fi
 
+        if [[ "$BUILD_STREAMLIT" = "true" ]]; then
+            echo -e "${GREEN}Building the streamlit app docker using Azure Container Registry...${RESET}"
+            az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN .
+            if [ $? -ne 0 ]; then
+                echo "command buildfailed"
+                read -rp "Press enter to continue..." 
+                # handle the error
+            else    
+                echo "command build OK"
+                read -rp "Press enter to continue..." 
+            fi
+        fi
+    fi     
+    if [ $? -ne 0 ]; then
+        echo "command build failed"
+        read -rp "Press enter to continue..." 
+        # handle the error
+    else    
+        echo "command build OK"
+        read -rp "Press enter to continue..." 
+    fi   
+fi
 
 if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
     #the cloud shell pushes the images to the acr, so in case of using local docker, we need to push the images to the acr
-    if confirm "push to acr?"; then    
-        
-        if [ "$BUILD_CHAINLIT" = "true" ]; then
+    if confirm "push to acr?"; then            
+        if [[ "$BUILD_CHAINLIT" = "true" ]]; then
             echo -e "${GREEN}Pushing the chainlit app docker to Azure Container Registry...${RESET}"
             docker push $DOCKER_CUSTOM_IMAGE_NAME_UI
             IMAGES_PUSHED="true"
         fi
-        if [ "$BUILD_STREAMLIT" = "true" ]; then
+        if [[ "$BUILD_STREAMLIT" = "true" ]]; then
             echo -e "${GREEN}Pushing the streamlit app docker to Azure Container Registry...${RESET}"
             docker push $DOCKER_CUSTOM_IMAGE_NAME_MAIN
             IMAGES_PUSHED="true"
@@ -856,6 +880,7 @@ if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
 else
     IMAGES_PUSHED="true"
 fi
+
 # Check if IMAGES_PUSHED is true
 if [ "$IMAGES_PUSHED" = "true" ]; then
     echo -e "${GREEN}Images have been pushed. Please check the Azure portal at $ACR_PORTAL_LOCATION to confirm.${RESET}"
@@ -884,7 +909,7 @@ fi
 #     #exit 1
 # fi
 
-echo -e "${YELLOW}****The next steps will deploy the changesthe webapps to the selected subscription ${RESET}"
+echo -e "${YELLOW}****The next steps will deploy the changes to the webapps to the selected subscription ${RESET}"
 
 if [[ "$CONFIRMATION" == "true" ]]; then
     read -p -r "Press enter to continue..."
@@ -892,30 +917,30 @@ fi
 
 # Update the UI
 
-if [ "$BUILD_CHAINLIT" = "true" ]; then
+if [[ "$BUILD_CHAINLIT" = "true" ]]; then
     WEBAPP_UPDATED="False"
     if confirm "update the UI on $WEBAPP_NAME_UI and with the new Image?" "$RED"; then
         # Load the settings from the JSON file
         
         output=$(az webapp config container set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_UI --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
-        echo -e "${GREEN}****Container updated into the web app. Give it some time to load it!${RESET}"	    
+        echo -e "${GREEN}****Container updated into the chainlit web app. Give it some time to load it!${RESET}"	    
         WEBAPP_UPDATED="true"
         if [ $? -ne 0 ]; then
-            echo -e "${RED}Error updating the UI: $output${RESET}"
+            echo -e "${RED}Error updating the chainlit: $output${RESET}"
             WEBAPP_UPDATED="False"
         fi   
     fi
 fi
 
-if [ "$BUILD_STREAMLIT" = "true" ]; then
+if [[ "$BUILD_STREAMLIT" = "true" ]]; then
     WEBAPP_UPDATED="False"
     if confirm "update the UI on $WEBAPP_NAME_UI_MAIN and with the new Image?" "$RED"; then
         # Load the settings from the JSON file    
         output=$(az webapp config container set --name $WEBAPP_NAME_UI_MAIN --resource-group $RG_WEBAPP_NAME_MAIN --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_MAIN --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
-        echo -e "${GREEN}****Container updated into the web app. Give it some time to load it!${RESET}"	    
+        echo -e "${GREEN}****Container updated into the streamlit web app. Give it some time to load it!${RESET}"	    
         WEBAPP_UPDATED="true"
         if [ $? -ne 0 ]; then
-            echo -e "${RED}Error updating the UI: $output${RESET}"
+            echo -e "${RED}Error updating the streamlit: $output${RESET}"
             WEBAPP_UPDATED="False"
         fi   
     fi
@@ -990,22 +1015,22 @@ EOM
 
 if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     
-    if [ "$BUILD_CHAINLIT" = "true" ]; then
+    if [[ "$BUILD_CHAINLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEBAPP_NAME_UI? (y/n)" "$RED"; then    
             settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
             MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --settings $settings
             if [ $? -ne 0 ]; then
-                echo -e "${RED}Error updating the UI: $output${RESET}"
+                echo -e "${RED}Error updating the chainlit: $output${RESET}"
             fi
         fi
     fi
 
-    if [ "$BUILD_STREAMLIT" = "true" ]; then
+    if [[ "$BUILD_STREAMLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEB_APP_NAME_MAIN? (y/n)" "$RED"; then    
             settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
             MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings $settings
             if [ $? -ne 0 ]; then
-                echo -e "${RED}Error updating the UI: $output${RESET}"
+                echo -e "${RED}Error updating the streamlit: $output${RESET}"
             fi
         fi
     fi

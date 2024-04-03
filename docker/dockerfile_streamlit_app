@@ -36,4 +36,5 @@ RUN pip install --user -r requirements.txt
 EXPOSE 8065
 
 # Run the application with Streamlit
-CMD ["streamlit", "run", "ui/main.py", "--server.port", "8065", "--server.enableXsrfProtection", "false"]
+RUN which streamlit || echo "Streamlit not found"
+CMD ["/home/appuser/.local/bin/streamlit", "run", "./ui/main.py", "--server.port", "8065", "--server.enableXsrfProtection", "false"]
