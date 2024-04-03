@@ -49,7 +49,7 @@ COPY --chown=appuser:appuser ./ui/chainlit.md /home/appuser/app/chainlit.md
 COPY --chown=appuser:appuser ./ui/chainlit.md /home/appuser/app/ui/pages/chainlit.md
 
 # Switch to the non-root user for subsequent commands and container runtime
-USER appuser
+USER root
 
 # Expose the application port
 EXPOSE 8000

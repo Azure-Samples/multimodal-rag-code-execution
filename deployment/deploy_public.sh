@@ -1,5 +1,25 @@
 
 #!/bin/bash
+
+
+echo "Welcome to the script!."
+
+
+
+read -rp "Do you think a pirate would eat a banana? "
+echo "The answer is always NO!!!!"
+
+read -rp "How many bananas can a pirate eat in a minute? "
+echo "Nope, the answer is always NO!!!!"
+
+read -rp "Do you think a banana can be used as a pirate's sword? "
+echo "Haha, the answer is always NO!!!!"
+
+read -rp "Okay, let's get back to work."
+
+echo "NO!"
+
+
 #gh auth login
 # chmod +x deploy.sh
 export MSYS_NO_PATHCONV=1
@@ -688,7 +708,7 @@ echo "AZURE_VISION_ENDPOINT: $AZURE_VISION_ENDPOINT"
 
 
 #check if the file share exists, if not create it with the directories needed for the ingestion
-DIRECTORY_NAME="Ingested_data"
+DIRECTORY_NAME="Data"
 SUB_DIRECTORY_NAME="Ingested_data/multimodal-rag-code-execution"
 CONNECTION_STRING=$(az storage account show-connection-string --name $STORAGE_ACCOUNT_NAME --query connectionString --output tsv)
 # Check if the directory exists
@@ -836,7 +856,7 @@ if confirm "build the docker?"; then
                 # handle the error
             else    
                 echo "command build OK"
-                read -rp "Press enter to continue..." 
+                
             fi
         fi
 
@@ -849,7 +869,6 @@ if confirm "build the docker?"; then
                 # handle the error
             else    
                 echo "command build OK"
-                read -rp "Press enter to continue..." 
             fi
         fi
     fi     
@@ -858,8 +877,7 @@ if confirm "build the docker?"; then
         read -rp "Press enter to continue..." 
         # handle the error
     else    
-        echo "command build OK"
-        read -rp "Press enter to continue..." 
+        echo "command build OK"        
     fi   
 fi
 
