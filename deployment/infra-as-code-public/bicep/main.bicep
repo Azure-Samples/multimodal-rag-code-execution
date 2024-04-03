@@ -115,8 +115,8 @@ module machineLearning 'machine_learning.bicep' =  {
 }
 
 
-output webAppNameMain string = webappModule.outputs.appName2
-output webAppName string = webappModule.outputs.appName
+output webAppNameStreamlit string = webappModule.outputs.appName2
+output webAppNameChainlit string = webappModule.outputs.appName
 output appServiceName string = webappModule.outputs.appServicePlanName
 output containerRegistry string = registry.outputs.containerRegistryName
 output uniqueId string = uniqueid

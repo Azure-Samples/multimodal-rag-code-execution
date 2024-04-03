@@ -286,8 +286,8 @@ function parse_output_variables() {
     output_variables=$(az deployment group show --resource-group $RG_WEBAPP_NAME --name main --query properties.outputs)
 
     # Parse the output variables and load them into bash variables
-    export WEB_APP_NAME=$(echo $output_variables | jq -r '.webAppName.value')
-    export WEB_APP_NAME_MAIN=$(echo $output_variables | jq -r '.webAppNameMain.value')
+    export WEB_APP_NAME=$(echo $output_variables | jq -r '.webAppNameChainlit.value')
+    export WEB_APP_NAME_MAIN=$(echo $output_variables | jq -r '.webAppNameStreamlit.value')
     export STORAGE_ACCOUNT_NAME=$(echo $output_variables | jq -r '.storageAccount.value')
     export APP_SERVICE_NAME=$(echo $output_variables | jq -r '.appServiceName.value')
     export ACR_NAME=$(echo $output_variables | jq -r '.containerRegistry.value')
@@ -931,6 +931,7 @@ if [[ "$CONFIRMATION" == "true" ]]; then
 fi
 
 # Update the UI
+parse_output_variables
 
 if [[ "$BUILD_CHAINLIT" = "true" ]]; then
     WEBAPP_UPDATED="False"
