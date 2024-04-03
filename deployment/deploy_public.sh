@@ -113,23 +113,6 @@ _______   ____    ______  ____  _____  _______   ____  |  |__        ____   ____
 
 ${RESET}"
 
-echo "Welcome to the script!."
-
-
-
-read -rp "Do you think a pirate would eat a banana? "
-echo "The answer is always NO!!!!"
-
-read -rp "How many bananas can a pirate eat in a minute? "
-echo "Nope, the answer is always NO!!!!"
-
-read -rp "Do you think a banana can be used as a pirate's sword? "
-echo "Haha, the answer is always NO!!!!"
-
-read -rp "Okay, let's get back to work."
-
-echo "NO!"
-
 #script pre-requisistes: 
 echo -e "\n${CYAN}----------------------------------------"
 echo -e "🚀 Detected Parameters:"
