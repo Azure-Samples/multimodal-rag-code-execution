@@ -931,7 +931,7 @@ if [[ "$CONFIRMATION" == "true" ]]; then
 fi
 
 # Update the UI
-parse_output_variables
+# parse_output_variables
 
 if [[ "$BUILD_CHAINLIT" = "true" ]]; then
     WEBAPP_UPDATED="False"    
