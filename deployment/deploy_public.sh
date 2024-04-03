@@ -321,6 +321,7 @@ function parse_output_variables() {
     export AML_RESOURCE_GROUP=$RG_WEBAPP_NAME
     export AML_WORKSPACE_NAME=$ML_NAME
      # Azure Storage File Share
+    export STORAGE_ACCESS_KEY=$(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
     export AZURE_FILE_SHARE_ACCOUNT=$STORAGE_ACCOUNT_NAME
     export AZURE_FILE_SHARE_NAME=$STORAGE_ACCOUNT_NAME
     export AZURE_FILE_SHARE_KEY=$STORAGE_ACCESS_KEY       
@@ -328,7 +329,7 @@ function parse_output_variables() {
     # create the storage mount path if it does not exist in the web app
     export ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
     export SHARE_NAME=$STORAGE_ACCOUNT_NAME
-    export STORAGE_ACCESS_KEY=$(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
+    
     export CUSTOM_ID='fileshare'
  
 
@@ -951,7 +952,7 @@ if [[ "$BUILD_STREAMLIT" = "true" ]]; then
     WEBAPP_UPDATED="False"    
     # Load the settings from the JSON file    
     # MAKING SURE THE CONTAINER IS ENABLED FOR CONTINUOUS DEPLOYMENT
-    az webapp deployment container config --enable-cd true --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME_MAIN > /dev/null
+    az webapp deployment container config --enable-cd true --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME > /dev/null
     output=$(az webapp config container set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_MAIN --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
     echo -e "${GREEN}****Container updated into the streamlit web app. Give it some time to load it!${RESET}"	    
     WEBAPP_UPDATED="true"
@@ -964,7 +965,7 @@ fi
 webapp_url=$(az webapp show --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query defaultHostName -o tsv)
 CHAINLIT_APP=$webapp_url
 
-PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils"
+PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils"
 
 #SCM_BASIC_AUTHENTICATION_ENABLED
 read -r -d '' app_settings << EOM
@@ -1033,7 +1034,7 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     if [[ "$BUILD_CHAINLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEBAPP_NAME_UI? (y/n)" "$RED"; then    
             settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
-            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --settings $settings
+            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null
             if [ $? -ne 0 ]; then
                 echo -e "${RED}Error updating the chainlit: $output${RESET}"
             fi
@@ -1043,7 +1044,7 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     if [[ "$BUILD_STREAMLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEB_APP_NAME_MAIN? (y/n)" "$RED"; then    
             settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
-            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings $settings
+            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null
             if [ $? -ne 0 ]; then
                 echo -e "${RED}Error updating the streamlit: $output${RESET}"
             fi
