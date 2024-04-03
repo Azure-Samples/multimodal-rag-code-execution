@@ -140,7 +140,7 @@ resource webApp 'Microsoft.Web/sites@2022-09-01' = {
     }
     storageAccountRequired: false
     vnetContentShareEnabled: false
-    vnetImagePullEnabled: false    
+    vnetImagePullEnabled: false        
   }
   dependsOn: [    
     blobDataReaderRoleAssignment
@@ -431,7 +431,7 @@ resource webAppConfig 'Microsoft.Web/sites/config@2023-01-01' = {
         priority: 2147483647
       }
     ]
-    linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot:latest'
+    linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot:latest'    
     loadBalancing: 'LeastRequests'
     localMySqlEnabled: false
     logsDirectorySizeLimit: 35
@@ -573,6 +573,7 @@ resource webAppHostNameBinding2 'Microsoft.Web/sites/hostNameBindings@2023-01-01
 }
 
 
+
 @description('The name of the app service plan.')
 output appServicePlanName string = appServicePlan.name
 
@@ -580,3 +581,6 @@ output appServicePlanName string = appServicePlan.name
 output appName string = webApp.name
 @description('The name of the web app.')
 output appName2 string = webApp2.name
+
+
+
