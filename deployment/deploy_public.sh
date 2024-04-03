@@ -934,33 +934,31 @@ fi
 parse_output_variables
 
 if [[ "$BUILD_CHAINLIT" = "true" ]]; then
-    WEBAPP_UPDATED="False"
-    if confirm "update the UI on $WEBAPP_NAME_UI and with the new Image?" "$RED"; then
-        # Load the settings from the JSON file
-        az webapp deployment container config --enable-cd true --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME > /dev/null
-        output=$(az webapp config container set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_UI --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
-        echo -e "${GREEN}****Container updated into the chainlit web app. Give it some time to load it!${RESET}"	    
-        WEBAPP_UPDATED="true"
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Error updating the chainlit: $output${RESET}"
-            WEBAPP_UPDATED="False"
-        fi   
-    fi
+    WEBAPP_UPDATED="False"    
+    # Load the settings from the JSON file
+    # MAKING SURE THE CONTAINER IS ENABLED FOR CONTINUOUS DEPLOYMENT    
+    az webapp deployment container config --enable-cd true --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME > /dev/null
+    output=$(az webapp config container set --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_UI --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
+    echo -e "${GREEN}****Container updated into the chainlit web app. Give it some time to load it!${RESET}"	    
+    WEBAPP_UPDATED="true"
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Error updating the chainlit: $output${RESET}"
+        WEBAPP_UPDATED="False"
+    fi       
 fi
 
 if [[ "$BUILD_STREAMLIT" = "true" ]]; then
-    WEBAPP_UPDATED="False"
-    if confirm "update the UI on $WEBAPP_NAME_UI_MAIN and with the new Image?" "$RED"; then
-        # Load the settings from the JSON file    
-        az webapp deployment container config --enable-cd true --name $WEBAPP_NAME_UI_MAIN --resource-group $RG_WEBAPP_NAME_MAIN > /dev/null
-        output=$(az webapp config container set --name $WEBAPP_NAME_UI_MAIN --resource-group $RG_WEBAPP_NAME_MAIN --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_MAIN --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
-        echo -e "${GREEN}****Container updated into the streamlit web app. Give it some time to load it!${RESET}"	    
-        WEBAPP_UPDATED="true"
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Error updating the streamlit: $output${RESET}"
-            WEBAPP_UPDATED="False"
-        fi   
-    fi
+    WEBAPP_UPDATED="False"    
+    # Load the settings from the JSON file    
+    # MAKING SURE THE CONTAINER IS ENABLED FOR CONTINUOUS DEPLOYMENT
+    az webapp deployment container config --enable-cd true --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME_MAIN > /dev/null
+    output=$(az webapp config container set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_MAIN --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
+    echo -e "${GREEN}****Container updated into the streamlit web app. Give it some time to load it!${RESET}"	    
+    WEBAPP_UPDATED="true"
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Error updating the streamlit: $output${RESET}"
+        WEBAPP_UPDATED="False"
+    fi       
 fi
 # Get the URL of the web app
 webapp_url=$(az webapp show --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query defaultHostName -o tsv)
