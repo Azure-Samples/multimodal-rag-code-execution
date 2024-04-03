@@ -35,7 +35,7 @@ do
         force_redeploy=true)
             echo -e "${YELLOW}You are running the script forcing to re-deploy Infrastructure.${RESET}"
             read -rp "Press enter to re-deploy or CTRL+C to cancel..."
-            DEPLOY_INFRA="true"
+            FORCE_DEPLOY="true"
             ;;
         update_webapp_settings=false)
             UPDATE_WEBAPP_SETTINGS="false"
@@ -460,7 +460,7 @@ else
 fi
 
 # Check if force_redeploy argument is passed and is set to true
-if [[ "$1" == "force_redeploy" && "$2" == "true" ]]; then
+if [[ "$FORCE_DEPLOY" == "true" ]]; then
     echo -e "${YELLOW}You are running the script forcing to re-deploy Infrastucture.${RESET}"
     read -rp "Press enter to re-deploy or CTRL+C to cancel..."
     DEPLOY_INFRA="true"
