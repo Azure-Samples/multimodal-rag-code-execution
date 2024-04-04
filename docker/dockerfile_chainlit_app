@@ -57,4 +57,5 @@ EXPOSE 8000
 WORKDIR /home/appuser/app/
 # Use sh -c to ensure the virtual environment is activated before running the application
 # CMD ["sh", "-c", ". venv/bin/activate && chainlit run ./ui/test-app.py"]
-CMD ["venv/bin/chainlit", "run", "./ui/test-app.py"]
+CMD ["sh", "-c", ". venv/bin/activate && chainlit run ./ui/test-app.py"]
+#CMD ["venv/bin/chainlit", "run", "./ui/test-app.py"]

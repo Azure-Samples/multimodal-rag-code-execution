@@ -22,7 +22,8 @@ BLUE='\033[0;34m'
 # build_chainlit: true/false - updates the chainlit webapp
 # build_streamlit: true/false - updates the streamlit webapp
 
-# EXAMPLE: ./deploy_public.sh build_chainlit=false update_webapp_settings=false
+# EXAMPLES: ./deploy_public.sh build_chainlit=false update_webapp_settings=false
+#           ./deploy_public.sh build_streamlit=false update_webapp_settings=false
 
 UPDATE_WEBAPP_SETTINGS="true" #by default we  update the webapp settings
 DEPLOY_INFRA="false" #by default we do not deploy the infra
@@ -320,6 +321,14 @@ function parse_output_variables() {
     export SHARE_NAME=$STORAGE_ACCOUNT_NAME
     
     export CUSTOM_ID='fileshare'
+
+    # AI Search (gonitive search)--------------------------------------------------------
+
+    export AI_SEARCH_RESOURCE=$(echo $output_variables | jq -r '.aiSearch.value')        
+    export COG_SEARCH_ADMIN_KEY=$(az search admin-key show --service-name $AI_SEARCH_RESOURCE --resource-group $RG_WEBAPP_NAME --query primaryKey --output tsv)
+    export COG_SEARCH_ENDPOINT="https://$AI_SEARCH_RESOURCE.search.windows.net"
+    export COG_VEC_SEARCH_API_VERSION="2023-12-01-preview"
+    export COG_SEARCH_ADMIN_KEY_PROD=$COG_SEARCH_ENDPOINT
  
 
     echo "WEB_APP_NAME: $WEB_APP_NAME"
@@ -349,7 +358,14 @@ function parse_output_variables() {
     echo "AZURE_FILE_SHARE_ACCOUNT: $AZURE_FILE_SHARE_ACCOUNT"
     echo "AZURE_FILE_SHARE_NAME: $AZURE_FILE_SHARE_NAME"
     echo "AZURE_FILE_SHARE_KEY: $AZURE_FILE_SHARE_KEY"    
-    #read -p "Press enter to continue..." -r
+    echo "AI_SEARCH_RESOURCE: $AI_SEARCH_RESOURCE"
+    echo "COG_SEARCH_ADMIN_KEY: $COG_SEARCH_ADMIN_KEY"
+    echo "COG_SEARCH_ENDPOINT: $COG_SEARCH_ENDPOINT"
+    echo "COG_VEC_SEARCH_API_VERSION: $COG_VEC_SEARCH_API_VERSION"
+    echo "COG_SEARCH_ADMIN_KEY_PROD: $COG_SEARCH_ADMIN_KEY_PROD"
+    echo "COG_SEARCH_ENDPOINT_PROD: $COG_SEARCH_ENDPOINT_PROD"
+
+    read -p "Press enter to continue..." -r
 }
 
 confirm() {
