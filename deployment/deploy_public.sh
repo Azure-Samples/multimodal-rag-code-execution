@@ -21,6 +21,7 @@ BLUE='\033[0;34m'
 # update_webapp_settings: true/false - updates the webapp settings to the default ones.
 # build_chainlit: true/false - updates the chainlit webapp
 # build_streamlit: true/false - updates the streamlit webapp
+# force_build_on_cloud: true/false - forces the build on acr in the cloud.
 
 # EXAMPLES: ./deploy_public.sh build_chainlit=false update_webapp_settings=false
 #           ./deploy_public.sh build_streamlit=false update_webapp_settings=false
@@ -29,6 +30,7 @@ UPDATE_WEBAPP_SETTINGS="true" #by default we  update the webapp settings
 DEPLOY_INFRA="false" #by default we do not deploy the infra
 BUILD_CHAINLIT="true"
 BUILD_STREAMLIT="true"
+FORCE_BUILD_ON_CLOUD="false"
 
 for arg in "$@"
 do
@@ -46,6 +48,9 @@ do
             ;;
         build_streamlit=false)
             BUILD_STREAMLIT="false"
+            ;;
+        force_build_on_cloud=true)
+            FORCE_BUILD_ON_CLOUD="true"
             ;;
         *)
             echo -e "${RED} Unknown argument: $arg ${RESET}"
@@ -172,6 +177,11 @@ else
         echo -e "${RED}Docker is not running...${RESET}"
         read -p "Start it and then press enter to continue..." -r
     done
+fi
+
+
+if [[ $running_on_azure_cloud_shell == "false" ]]; then
+    running_on_azure_cloud_shell=$FORCE_BUILD_ON_CLOUD
 fi
 
 
@@ -365,7 +375,7 @@ function parse_output_variables() {
     echo "COG_SEARCH_ADMIN_KEY_PROD: $COG_SEARCH_ADMIN_KEY_PROD"
     echo "COG_SEARCH_ENDPOINT_PROD: $COG_SEARCH_ENDPOINT_PROD"
 
-    read -p "Press enter to continue..." -r
+    # read -p "Press enter to continue..." -r
 }
 
 confirm() {
