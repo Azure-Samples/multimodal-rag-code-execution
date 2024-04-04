@@ -25,6 +25,7 @@ BLUE='\033[0;34m'
 
 # EXAMPLES: ./deploy_public.sh build_chainlit=false update_webapp_settings=false
 #           ./deploy_public.sh build_streamlit=false update_webapp_settings=false
+#           ./deploy_public.sh build_streamlit=false force_build_on_cloud=true
 
 UPDATE_WEBAPP_SETTINGS="true" #by default we  update the webapp settings
 DEPLOY_INFRA="false" #by default we do not deploy the infra
@@ -128,6 +129,7 @@ printf "${GREEN}%-30s %-30s${RESET}\n" "force_redeploy" "$DEPLOY_INFRA"
 printf "${GREEN}%-30s %-30s${RESET}\n" "update_webapp_settings" "$UPDATE_WEBAPP_SETTINGS"
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_chainlit" "$BUILD_CHAINLIT"
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_streamlit" "$BUILD_STREAMLIT"
+printf "${GREEN}%-30s %-30s${RESET}\n" "build_on_cloud" "$FORCE_BUILD_ON_CLOUD"
 echo -e "${CYAN}----------------------------------------${RESET}\n"
 
 # Check if Chocolatey is installed
