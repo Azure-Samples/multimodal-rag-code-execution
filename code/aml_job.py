@@ -37,7 +37,13 @@ class AmlJob():
         credential = DefaultAzureCredential()
 
         try:
-            self.ws = Workspace.from_config()
+            # self.ws = Workspace.from_config()
+            self.ws = Workspace(
+                subscription_id=subscription_id,
+                resource_group=resource_group,
+                workspace_name=workspace_name,
+                auth=credential
+            )
             print(f'Accessing workspace using config.json.')
         except:
             try:
