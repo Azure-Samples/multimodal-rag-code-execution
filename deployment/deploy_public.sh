@@ -351,7 +351,9 @@ function parse_output_variables() {
     export COG_SEARCH_ENDPOINT="https://$AI_SEARCH_RESOURCE.search.windows.net"
     export COG_VEC_SEARCH_API_VERSION="2023-12-01-preview"
     export COG_SEARCH_ADMIN_KEY_PROD=$COG_SEARCH_ENDPOINT
- 
+    export COG_SEARCH_ENDPOINT_PROD="https://$AI_SEARCH_RESOURCE.search.windows.net"
+     
+
 
     echo "WEB_APP_NAME: $WEB_APP_NAME"
     echo "WEB_APP_NAME MAIN: $WEB_APP_NAME_MAIN"
@@ -905,13 +907,6 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
                 fi
             fi
         fi     
-        if [ $? -ne 0 ]; then
-            echo "command build failed"
-            read -rp "Press enter to continue..." 
-            # handle the error
-        else    
-            echo "command build OK"        
-        fi   
     fi
 
     if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
@@ -939,26 +934,6 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             read -p -r "Press enter to continue..."
         fi
     fi
-
-    # image_exists=$(az acr repository show --name $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --output tsv --query name --verbose)
-
-    # if [ "$image_exists" == "$DOCKER_CUSTOM_IMAGE_NAME_UI" ]; then
-    #     echo -e "${GREEN}Image $DOCKER_CUSTOM_IMAGE_NAME_UI exists in registry $ACR_NAME. ${RESET}"
-    # else
-    #     echo "the command image_exists az acr repository returned: $image_exists"
-    #     echo -e "${RED}Image $DOCKER_CUSTOM_IMAGE_NAME_UI does not exist in registry $ACR_NAME. Exiting the script ${RESET}"
-    #     #exit 1
-    # fi
-
-    # image_exists=$(az acr repository show --name $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --output tsv --query name --verbose)
-
-    # if [ "$image_exists" == "$DOCKER_CUSTOM_IMAGE_NAME_MAIN" ]; then
-    #     echo e "${GREEN}Image $DOCKER_CUSTOM_IMAGE_NAME_MAIN exists in registry $ACR_NAME.${RESET}"
-    # else
-    #     echo "the command image_exists az acr repository returned: $image_exists"
-    #     echo -e "${RED}Image $DOCKER_CUSTOM_IMAGE_NAME_MAIN does not exist in registry $ACR_NAME. Exiting the script${RESET}"
-    #     #exit 1
-    # fi
 
     echo -e "${YELLOW}****The next steps will deploy the changes to the webapps to the selected subscription ${RESET}"
 
