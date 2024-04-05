@@ -5,6 +5,7 @@ from azureml.core import Workspace, Experiment, Environment, ScriptRunConfig, Da
 from azureml.core.compute import ComputeTarget, AmlCompute
 from azureml.core.compute_target import ComputeTargetException
 from azureml.exceptions import UserErrorException
+from azure.identity import DefaultAzureCredential
 
 from env_vars import *
 
