@@ -50,6 +50,7 @@ module webappModule 'webapp.bicep' = if (DeployThis) {
     containerRegistry: registry.outputs.containerRegistryName
     storageAccount:storageModule.outputs.storageName  
     namePrefix:namePrefix
+    mlWorkspaceName: machineLearning.outputs.workspaceName
    }
 }
 

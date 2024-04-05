@@ -31,7 +31,9 @@ class AmlJob():
         self.account_key = account_key
         self.subscription_id = subscription_id
         self.resource_group = resource_group
-        self.workspace_name = workspace_name
+        self.workspace_name = workspace_name        
+
+        credential = DefaultAzureCredential()
 
         try:
             self.ws = Workspace.from_config()
@@ -42,10 +44,11 @@ class AmlJob():
                     subscription_id=subscription_id,
                     resource_group=resource_group,
                     workspace_name=workspace_name,
+                    auth=credential
                 )
                 print(f'Accessing workspace {workspace_name} using environment variables.')
             except Exception as e:
-                logc(f"Could not access AML Workspace", str(e))
+                print(f"Could not access AML Workspace", str(e))
 
         self.cpu_cluster = None
         self.env = None

@@ -2,6 +2,11 @@
   Deploy a web app with a managed identity, diagnostic, and a private endpoint
 */
 // param appName string
+
+
+
+@description('The name of the storage account')
+param mlWorkspaceName string
 @description('The name of the storage account')
 param storageAccount string
 
@@ -52,6 +57,9 @@ resource logWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' exis
   name: logWorkspaceName
 }
 
+resource azureMlWorkspace 'Microsoft.MachineLearningServices/workspaces@2021-04-01' existing = {
+  name: mlWorkspaceName
+}
 
 // Built-in Azure RBAC role that is applied to a Key storage to grant data reader permissions. 
 resource blobDataReaderRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
@@ -78,6 +86,22 @@ resource blobDataReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2
     principalId: appServiceManagedIdentity.properties.principalId
   }
 }
+
+resource contributorRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  scope: subscription()
+  name: 'b24988ac-6180-42a0-ab88-20f7382dd24c' // Contributor role ID
+}
+
+resource mlContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: azureMlWorkspace 
+  name: guid(resourceGroup().id, appServiceManagedIdentity.name, contributorRole.id)
+  properties: {
+    roleDefinitionId: contributorRole.id
+    principalType: 'ServicePrincipal'
+    principalId: appServiceManagedIdentity.properties.principalId
+  }
+}
+
 
 //App service plan
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
