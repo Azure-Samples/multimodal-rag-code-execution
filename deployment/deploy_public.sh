@@ -181,19 +181,18 @@ if [[ $AZURE_HTTP_USER_AGENT == *"cloud-shell"* ]]; then
     echo -e "${YELLOW} This script is running in Azure Cloud Shell. Docker is not required running. You can continue with the deployment. ${RESET}"
     export running_on_azure_cloud_shell="true"
 else
-    echo -e "${YELLOW}This script is not running in Azure Cloud Shell. You need Docker running.${RESET}"
-    export running_on_azure_cloud_shell="false"
-    while ! docker info > /dev/null 2>&1; do
-        echo -e "${RED}Docker is not running...${RESET}"
-        read -p "Start it and then press enter to continue..." -r
-    done
+    if [[ "$FORCE_BUILD_ON_CLOUD" = "true" ]]; then
+        echo -e "${YELLOW}This script is forced to run the build on Azure ACR.${RESET}"
+        running_on_azure_cloud_shell=$FORCE_BUILD_ON_CLOUD    
+    else
+        echo -e "${YELLOW}This script is not running in Azure Cloud Shell. You need Docker running.${RESET}"
+        export running_on_azure_cloud_shell="false"
+        while ! docker info > /dev/null 2>&1; do
+            echo -e "${RED}Docker is not running...${RESET}"
+            read -p "Start it and then press enter to continue..." -r
+        done
+    fi
 fi
-
-
-if [[ $running_on_azure_cloud_shell == "false" ]]; then
-    running_on_azure_cloud_shell=$FORCE_BUILD_ON_CLOUD
-fi
-
 
 echo -e "${GREEN} Docker is running. We can continue with the deployment.${RESET}"
 
@@ -899,7 +898,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
                 echo -e "${GREEN}Building the streamlit app docker using Azure Container Registry...${RESET}"
                 az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN .
                 if [ $? -ne 0 ]; then
-                    echo "command buildfailed"
+                    echo "command build failed"
                     read -rp "Press enter to continue..." 
                     # handle the error
                 else    
