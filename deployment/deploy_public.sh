@@ -976,18 +976,14 @@ else
     echo -e "${GREEN}****You are running the script with update_settings_only=true.${RESET}"	    
     parse_output_variables || echo -e "${RED}Error parsing the output variables from the main deployment.${RESET}"
 
-fi 
-  
-# Get the URL of the web app
-#this is not needed anymore at this stage: 
-#webapp_url=$(az webapp show --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query defaultHostName -o tsv)
-#CHAINLIT_APP=$webapp_url
+fi   
 
 PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils"
 
 #SCM_BASIC_AUTHENTICATION_ENABLED
 read -r -d '' app_settings << EOM
 {    
+    "INITIAL_INDEX": "rag-data",
     "AML_SUBSCRIPTION_ID": "$AML_SUBSCRIPTION_ID",
     "AML_RESOURCE_GROUP": "$AML_RESOURCE_GROUP",
     "AML_WORKSPACE_NAME": "$AML_WORKSPACE_NAME",
