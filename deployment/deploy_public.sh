@@ -979,6 +979,9 @@ else
 
 fi #end of the update settings only
 
+if [ $? -ne 0 ]; then
+    #there are errros in the script
+fi      
 # Get the URL of the web app
 #this is not needed anymore at this stage: 
 #webapp_url=$(az webapp show --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query defaultHostName -o tsv)
