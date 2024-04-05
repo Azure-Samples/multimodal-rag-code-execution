@@ -5,7 +5,8 @@ from azureml.core import Workspace, Experiment, Environment, ScriptRunConfig, Da
 from azureml.core.compute import ComputeTarget, AmlCompute
 from azureml.core.compute_target import ComputeTargetException
 from azureml.exceptions import UserErrorException
-from azureml.core.authentication import MsiAuthentication
+from azureml.core.authentication import ServicePrincipalAuthentication
+
 
 from env_vars import *
 
@@ -34,7 +35,12 @@ class AmlJob():
         self.resource_group = resource_group
         self.workspace_name = workspace_name        
 
-        msi_auth = MsiAuthentication()
+        svc_pr_password = os.environ.get("AZUREML_PASSWORD")        
+
+        svc_pr = ServicePrincipalAuthentication(
+        tenant_id=os.environ.get("AML_TENANT_ID"),
+        service_principal_id=os.environ.get("AML_SERVICE_PRINCIPAL_ID"),
+        service_principal_password=svc_pr_password)
 
         try:
             # self.ws = Workspace.from_config()
@@ -42,7 +48,7 @@ class AmlJob():
                 subscription_id=subscription_id,
                 resource_group=resource_group,
                 workspace_name=workspace_name,
-                auth=msi_auth
+                auth=svc_pr
             )
             print(f'Accessing workspace using config.json.')
         except:
@@ -51,7 +57,7 @@ class AmlJob():
                     subscription_id=subscription_id,
                     resource_group=resource_group,
                     workspace_name=workspace_name,
-                    auth=msi_auth
+                    auth=svc_pr
                 )
                 print(f'Accessing workspace {workspace_name} using environment variables.')
             except Exception as e:

@@ -979,10 +979,13 @@ else
 fi   
 
 PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils"
-
+AML_PASSWORD=""
 #SCM_BASIC_AUTHENTICATION_ENABLED
 read -r -d '' app_settings << EOM
 {    
+    "AML_TENANT_ID": "",
+    "AML_SERVICE_PRINCIPAL_ID": "",    
+    "AML_PASSWORD": "$AML_PASSWORD",
     "INITIAL_INDEX": "rag-data",
     "AML_SUBSCRIPTION_ID": "$AML_SUBSCRIPTION_ID",
     "AML_RESOURCE_GROUP": "$AML_RESOURCE_GROUP",
