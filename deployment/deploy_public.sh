@@ -265,7 +265,7 @@ azure_unique_name=$(generate_azure_compatible_name)
 SKIP_LOGIN_TO_AZURE="false"
 USE_DEFAULT_NAMES="true"
 CONFIRMATION="false"  #if set to true it will ask for confirmations.
-ROOT_PATH_INGESTION="/data"
+ROOT_PATH_INGESTION="/data/data"
 PROMPTS_PATH="prompts" #path to save the prompts in the shared file share in the web app.
 INGESTED_DATA_NAME="Ingested_data" #path to save the ingested data in the shared file share in the web app.
 
