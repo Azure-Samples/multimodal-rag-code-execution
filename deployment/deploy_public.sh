@@ -28,6 +28,7 @@ BLUE='\033[0;34m'
 #           ./deploy_public.sh build_streamlit=false update_webapp_settings=false
 #           ./deploy_public.sh build_streamlit=false force_build_on_cloud=true
 #           ./deploy_public.sh update_settings_only=true this will only update the webapp settings without building the containers and no infra deployment.
+#           ./deploy_public.sh force_build_on_cloud=true this will force the build on acr in the cloud.
 
 UPDATE_WEBAPP_SETTINGS="true" #by default we  update the webapp settings
 DEPLOY_INFRA="false" #by default we do not deploy the infra
@@ -734,7 +735,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
 
     #check if the file share exists, if not create it with the directories needed for the ingestion
     DIRECTORY_NAME="Data"
-    SUB_DIRECTORY_NAME="Ingested_data/multimodal-rag-code-execution"
+    #SUB_DIRECTORY_NAME="Ingested_data/multimodal-rag-code-execution"
     CONNECTION_STRING=$(az storage account show-connection-string --name $STORAGE_ACCOUNT_NAME --query connectionString --output tsv)
     # Check if the directory exists
     directory_exists=$(az storage directory exists --name $DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING --output tsv --query exists)
@@ -744,10 +745,17 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
     else
         echo -e "${YELLOW}Directory $DIRECTORY_NAME does not exist in file share $STORAGE_ACCOUNT_NAME. Creating...${RESET}"
         # Create a directory in the file share
-        az storage directory create  --name $DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING
-        echo -e "${GREEN}Directory $DIRECTORY_NAME created successfully.${RESET}"
-        az storage directory create  --name $SUB_DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING
-        echo -e "${GREEN}Directory $SUB_DIRECTORY_NAME created successfully.${RESET}"
+        az storage directory create --name $DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING
+        #check for errors
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}An error occurred while creating the directory $DIRECTORY_NAME in file share $STORAGE_ACCOUNT_NAME ${RESET}"
+            #exit 1
+        else
+            echo -e "${GREEN}Directory $DIRECTORY_NAME created successfully.${RESET}"
+        fi
+        
+        # az storage directory create  --name $SUB_DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING
+        # echo -e "${GREEN}Directory $SUB_DIRECTORY_NAME created successfully.${RESET}"
     fi
 
 
@@ -992,7 +1000,8 @@ else
     # the script is run with update settings only flag
     # we get the output variables from the main deployment
     echo -e "${GREEN}****You are running the script with update_settings_only=true.${RESET}"	    
-    parse_output_variables
+    parse_output_variables || echo -e "${RED}Error parsing the output variables from the main deployment.${RESET}"
+
 fi #end of the update settings only
 
 # Get the URL of the web app
@@ -1085,38 +1094,6 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
         fi
     fi
 fi
-
-# !!!!not reqquired as the fileshare is created using bicep now
-# create the storage mount path if it does not exist in the web app
-# ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
-# SHARE_NAME=$STORAGE_ACCOUNT_NAME
-# STORAGE_ACCESS_KEY=$(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
-# CUSTOM_ID='fileshare'
-# # Get the current path mappings
-# path_mappings=$(az webapp config storage-account list --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query "[?name=='$CUSTOM_ID']")
-
-# # Check if the 'fileshare' path mapping exists
-# if [[ $path_mappings == "[]" ]]; then
-#     echo -e "${YELLOW}The fileshare path mapping does not exist in the web app $WEBAPP_NAME_UI.${RESET}"
-#     # If it doesn't exist, create it
-#     if confirm "Create the fileshare  $SHARE_NAME in $WEBAPP_NAME_UI? (y/n)" "$RED"; then        
-#         MSYS_NO_PATHCONV=1 az webapp config storage-account add -g $RG_WEBAPP_NAME \
-#         -n $WEBAPP_NAME_UI \
-#         --custom-id $CUSTOM_ID \
-#         --storage-type AzureFiles \
-#         --account-name $ACCOUNT_NAME \
-#         --share-name $SHARE_NAME \
-#         --access-key $STORAGE_ACCESS_KEY \
-#         --mount-path /data                        
-#         if [ $? -ne 0 ]; then
-#             echo "Error creating the path mapping" >&2
-#             # exit 1
-#         fi
-#     fi
-# else    
-#     echo -e "${GREEN}The fileshare path mapping exists in the web app $WEBAPP_NAME_UI.${RESET}"
-# fi
-
 
 if [ "$WEBAPP_UPDATED" = "true" ]; then
     echo -e "${YELLOW}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
