@@ -736,7 +736,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
 
 
     #check if the file share exists, if not create it with the directories needed for the ingestion
-    DIRECTORY_NAME="Data"
+    DIRECTORY_NAME="data"
     #SUB_DIRECTORY_NAME="Ingested_data/multimodal-rag-code-execution"
     CONNECTION_STRING=$(az storage account show-connection-string --name $STORAGE_ACCOUNT_NAME --query connectionString --output tsv)
     # Check if the directory exists
