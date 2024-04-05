@@ -22,16 +22,19 @@ BLUE='\033[0;34m'
 # build_chainlit: true/false - updates the chainlit webapp
 # build_streamlit: true/false - updates the streamlit webapp
 # force_build_on_cloud: true/false - forces the build on acr in the cloud.
+# update_settings_only: true/false - only updates the webapp settings without building the containers and no infra deployment.
 
 # EXAMPLES: ./deploy_public.sh build_chainlit=false update_webapp_settings=false
 #           ./deploy_public.sh build_streamlit=false update_webapp_settings=false
 #           ./deploy_public.sh build_streamlit=false force_build_on_cloud=true
+#           ./deploy_public.sh update_settings_only=true this will only update the webapp settings without building the containers and no infra deployment.
 
 UPDATE_WEBAPP_SETTINGS="true" #by default we  update the webapp settings
 DEPLOY_INFRA="false" #by default we do not deploy the infra
 BUILD_CHAINLIT="true"
 BUILD_STREAMLIT="true"
 FORCE_BUILD_ON_CLOUD="false"
+UPDATE_SETTINGS_ONLY="false"
 
 for arg in "$@"
 do
@@ -52,6 +55,9 @@ do
             ;;
         force_build_on_cloud=true)
             FORCE_BUILD_ON_CLOUD="true"
+            ;;
+        update_settings_only=true)
+            UPDATE_SETTINGS_ONLY="true"
             ;;
         *)
             echo -e "${RED} Unknown argument: $arg ${RESET}"
@@ -130,6 +136,7 @@ printf "${GREEN}%-30s %-30s${RESET}\n" "update_webapp_settings" "$UPDATE_WEBAPP_
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_chainlit" "$BUILD_CHAINLIT"
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_streamlit" "$BUILD_STREAMLIT"
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_on_cloud" "$FORCE_BUILD_ON_CLOUD"
+printf "${GREEN}%-30s %-30s${RESET}\n" "update_settings_only" "$UPDATE_SETTINGS_ONLY"
 echo -e "${CYAN}----------------------------------------${RESET}\n"
 
 # Check if Chocolatey is installed
@@ -323,14 +330,16 @@ function parse_output_variables() {
     export AML_RESOURCE_GROUP=$RG_WEBAPP_NAME
     export AML_WORKSPACE_NAME=$ML_NAME
      # Azure Storage File Share
+    export ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
+    export SHARE_NAME=$STORAGE_ACCOUNT_NAME
+
     export STORAGE_ACCESS_KEY=$(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
     export AZURE_FILE_SHARE_ACCOUNT=$STORAGE_ACCOUNT_NAME
     export AZURE_FILE_SHARE_NAME=$STORAGE_ACCOUNT_NAME
     export AZURE_FILE_SHARE_KEY=$STORAGE_ACCESS_KEY       
     # storage related env variables
     # create the storage mount path if it does not exist in the web app
-    export ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
-    export SHARE_NAME=$STORAGE_ACCOUNT_NAME
+    
     
     export CUSTOM_ID='fileshare'
 
@@ -428,559 +437,568 @@ fi
 az account set --subscription "$SUBSCRIPTION"
 echo -e "${GREEN}****SUBCRIPTION SET TO: $SUBSCRIPTION ${RESET}"
 
-# Ask the user for the resource group name
+if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
 
-# Use the default name if the user didn't provide a name
-if [ -z "$RESOURCE_GROUP_NAME" ]; then
-    if [ "$USE_DEFAULT_NAMES" != "true" ]; then
-        read -p -r "Enter the resource group name (default: $RG_WEBAPP_NAME): " RESOURCE_GROUP_NAME
-    else
-        echo "Using the default resource group name: $RG_WEBAPP_NAME"
-        RESOURCE_GROUP_NAME=$RG_WEBAPP_NAME
-        
-    fi
-fi
 
-echo "Check if the resource group name already exists in the subscription..."
-# Check if the resource group name already exists in the subscription
-az group show --name $RESOURCE_GROUP_NAME &>/dev/null
-
-if [ $? -eq 0 ]; then    
-    echo -e "${RED}Resource group $RESOURCE_GROUP_NAME already exists. ${RESET}"
-    RESOURCE_COUNT=$(az resource list --resource-group $RESOURCE_GROUP_NAME --query "length([?id != ''])")
-
-    if [ $RESOURCE_COUNT -eq 0 ]
-    then
-        echo "Resource group $RESOURCE_GROUP_NAME is empty. You can deploy infrastucture"
-        DEPLOY_INFRA="true"
-    else
-        echo ""
-        DEPLOY_INFRA="false"
-        echo -e "${YELLOW}Resource group $RESOURCE_GROUP_NAME is not empty. Infrastructure will not be deployed.. ${RESET}"
-        echo -e "${YELLOW}if you want to deploy the infra, remove this RG or set a new RG name when asked. ${RESET}"
-        if [[ "$CONFIRMATION" == "true" ]]; then
-            read -p -r "Press enter to continue with the container deployment..."
+    # Use the default name if the user didn't provide a name
+    if [ -z "$RESOURCE_GROUP_NAME" ]; then
+        if [ "$USE_DEFAULT_NAMES" != "true" ]; then
+            read -p -r "Enter the resource group name (default: $RG_WEBAPP_NAME): " RESOURCE_GROUP_NAME
         else
-            echo -e "${GREEN}Continuing to the container build and push... ${RESET}"
-        fi    
+            echo "Using the default resource group name: $RG_WEBAPP_NAME"
+            RESOURCE_GROUP_NAME=$RG_WEBAPP_NAME
+            
+        fi
     fi
+
+    echo "Check if the resource group name already exists in the subscription..."
+    # Check if the resource group name already exists in the subscription
+    az group show --name $RESOURCE_GROUP_NAME &>/dev/null
+
+    if [ $? -eq 0 ]; then    
+        echo -e "${RED}Resource group $RESOURCE_GROUP_NAME already exists. ${RESET}"
+        RESOURCE_COUNT=$(az resource list --resource-group $RESOURCE_GROUP_NAME --query "length([?id != ''])")
+
+        if [ $RESOURCE_COUNT -eq 0 ]
+        then
+            echo "Resource group $RESOURCE_GROUP_NAME is empty. You can deploy infrastucture"
+            DEPLOY_INFRA="true"
+        else
+            echo ""
+            DEPLOY_INFRA="false"
+            echo -e "${YELLOW}Resource group $RESOURCE_GROUP_NAME is not empty. Infrastructure will not be deployed.. ${RESET}"
+            echo -e "${YELLOW}if you want to deploy the infra, remove this RG or set a new RG name when asked. ${RESET}"
+            if [[ "$CONFIRMATION" == "true" ]]; then
+                read -p -r "Press enter to continue with the container deployment..."
+            else
+                echo -e "${GREEN}Continuing ... ${RESET}"
+            fi    
+        fi
+        
     
-  
-else    
-    echo -e "${GREEN}Resource group $RESOURCE_GROUP_NAME does not exist. ${RESET}"    
-    if confirm "create the resource group $RESOURCE_GROUP_NAME"; then
-        # Create the resource group
-        az group create --name $RESOURCE_GROUP_NAME --location $DEFAULT_LOCATION
-    else
-        echo "Exiting the script..."
-        exit 1
-    fi
-fi
-
-# Check if force_redeploy argument is passed and is set to true
-if [[ "$FORCE_DEPLOY" == "true" ]]; then
-    echo -e "${YELLOW}You are running the script forcing to re-deploy Infrastucture.${RESET}"
-    read -rp "Press enter to re-deploy or CTRL+C to cancel..."
-    DEPLOY_INFRA="true"
-fi
-
-az config set defaults.group=$RESOURCE_GROUP_NAME
-if [[ "$DEPLOY_INFRA" == "true" ]]; then
-    echo -e "${YELLOW}Infrastucture will be deployed now...${RESET}"
-    if [ "$USE_DEFAULT_NAMES" != "true" ]; then
-        read -p -r "Enter the location of the deployment: (default: $DEFAULT_LOCATION): " LOCATION
-    fi
-
-    # Use the default location if the user didn't provide a name
-    if [ -z "$LOCATION" ]; then
-        echo "Using the default location: $DEFAULT_LOCATION"    
-        LOCATION=$DEFAULT_LOCATION
-    fi
-
-    if [ "$USE_DEFAULT_NAMES" != "true" ]; then
-        read -p -r "Enter A prefix for the deployment names: (default: $DEFAULT_PREFIX): " PREFIX
-    fi
-
-    # Use the default location if the user didn't provide a name
-    if [ -z "$PREFIX" ]; then
-        echo "Using the default prefix: $DEFAULT_PREFIX"    
-        PREFIX=$DEFAULT_PREFIX
-    fi
-
-
-    if [ "$USE_DEFAULT_NAMES" != "true" ]; then
-        read -p -r "Enter the acr name : (default: $DEFAULT_ACR): " ACR_NAME
-    fi
-
-    # Use the default location if the user didn't provide a name
-    if [ -z "$ACR_NAME" ]; then
-        echo "Using the default acr name: $DEFAULT_ACR"    
-        ACR_NAME=$DEFAULT_ACR
-    fi
-
-    if [ "$USE_DEFAULT_NAMES" != "true" ]; then
-        read -p -r "Enter the name of the OpeanAI resource: (default: $DEFAULT_OPEN_AI_RESOURCE): " OPEN_AI_RESOURCE
-    fi
-
-    # Use the default location if the user didn't provide a name
-    if [ -z "$OPEN_AI_RESOURCE" ]; then
-        echo "Using the default OpenAI resource name: $DEFAULT_OPEN_AI_RESOURCE"    
-        OPEN_AI_RESOURCE=$DEFAULT_OPEN_AI_RESOURCE
-    fi
-
-    # Use the default location if the user didn't provide a name
-    if [ "$USE_DEFAULT_NAMES" != "true" ]; then
-        read -p -r "Enter the App service name : (default: $DEFAULT_APP_SERVICE_NAME): " APP_SERVICE_NAME
-    fi
-
-    # Use the default location if the user didn't provide a name
-    if [ -z "$APP_SERVICE_NAME" ]; then
-        echo "Using the default app service name: $DEFAULT_APP_SERVICE_NAME"    
-        APP_SERVICE_NAME=$DEFAULT_APP_SERVICE_NAME
-    fi
-
-    # Use the default location if the user didn't provide a name
-    if [ "$USE_DEFAULT_NAMES" != "true" ]; then
-        read -p -r "Enter the web App Name name : (default: $DEFAULT_WEB_APP_NAME): " WEB_APP_NAME
-    fi
-
-  #
-    if [ -z "$WEB_APP_NAME" ]; then
-        echo "Using the default web app name: $DEFAULT_WEB_APP_NAME"    
-        WEB_APP_NAME=$DEFAULT_WEB_APP_NAME
-    fi
-
-    if [ -z "$WEB_APP_NAME_MAIN" ]; then
-        echo "Using the default web app name: $DEFAULT_WEB_APP_NAME_MAIN"    
-        WEB_APP_NAME_MAIN=$DEFAULT_WEB_APP_NAME_MAIN
-    fi
-
-    # Use the default location if the user didn't provide a name
-    if [ "$USE_DEFAULT_NAMES" != "true" ]; then
-        read -p -r "Enter the ai search name: (default: $DEFAULT_AI_SEARCH_RESOURCE): " AI_SEARCH_RESOURCE
-    fi
-
-    # Use the default location if the user didn't provide a name
-    if [ -z "$AI_SEARCH_RESOURCE" ]; then
-        echo "Using the default ai search name: $DEFAULT_AI_SEARCH_RESOURCE"    
-        AI_SEARCH_RESOURCE=$DEFAULT_AI_SEARCH_RESOURCE
-    fi
-
-    if [ "$USE_DEFAULT_NAMES" != "true" ]; then
-        read -p -r "Enter the storage account name : (default: $DEFAULT_STORAGE_ACCOUNT_NAME): " STORAGE_ACCOUNT_NAME
-    fi
-
-    # Use the default location if the user didn't provide a name
-    if [ -z "$STORAGE_ACCOUNT_NAME" ]; then
-        echo "Using the default storagea account name: $DEFAULT_STORAGE_ACCOUNT_NAME"    
-        STORAGE_ACCOUNT_NAME=$DEFAULT_STORAGE_ACCOUNT_NAME
-    fi
-
-    echo -e "${GREEN}Attempting to deploy the infrastucture... ${RESET}"
-
-    # TEMPLATE_FILE_PATH="./infra/research_copilot_template.json"            
-
-    deploy="true" #this is used to check if the user wants to deploy the infra resources while coding just for dev reasons.
-    
-
-    if [[ "$deploy" == "true" ]]; then
-        TEMPLATE_FILE_PATH="./infra-as-code-public/bicep/main.bicep"
-        MSYS_NO_PATHCONV=1 az deployment group create \
-        --template-file $TEMPLATE_FILE_PATH \
-        --resource-group $RG_WEBAPP_NAME \
-        --parameters namePrefix=$DEFAULT_PREFIX \
-                     aiSearchRegion=$aiSearchRegion \
-        --mode Incremental || echo -e "${RED}An error occurred, but the script will continue, check the deployment log in azure portal for more details.${RESET}"
-
-        # Check the exit status of the deployment
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}Deployment was successful/RG already existed. Continuing with the script...${RESET}"    
-            # ... continue with the script ...
-        else    
-            echo -e "${RED}Deployment failed. Exiting the script.${RED}"    
+    else    
+        echo -e "${GREEN}Resource group $RESOURCE_GROUP_NAME does not exist. ${RESET}"    
+        if confirm "create the resource group $RESOURCE_GROUP_NAME"; then
+            # Create the resource group
+            az group create --name $RESOURCE_GROUP_NAME --location $DEFAULT_LOCATION
+        else
+            echo "Exiting the script..."
             exit 1
         fi
     fi
-    # Get the output variables from the main deployment , this contains the names of the resources that were created
-    parse_output_variables        
-    #open ai deployments
-    #supported locations for vision as of Feb 2024
-    SUPPORTED_LOCATIONS=("swedencentral" "australiaeast" "westus" "switzerlandnorth")
-    SUPPORTED_LOCATIONS=("swedencentral") #only this 3 to start with switzerlandnorth DOES NOT HAVE TURBO
-    #extracted from: https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
-    # Sweden Central
-    # West US
-    # Japan East
-    # Switzerland North
-    # Australia East
-   
-    if [ -z "$UNIQUE_ID" ]; then
-        UNIQUE_ID="k6rxhsic3me36"
+
+    # Check if force_redeploy argument is passed and is set to true
+    if [[ "$FORCE_DEPLOY" == "true" ]]; then
+        echo -e "${YELLOW}You are running the script forcing to re-deploy Infrastucture.${RESET}"
+        read -rp "Press enter to re-deploy or CTRL+C to cancel..."
+        DEPLOY_INFRA="true"
     fi
 
-    if [ -z "$PREFIX" ]; then
-       #to make sure prefix is set.
-       echo "Using the default prefix: $DEFAULT_PREFIX"    
-       PREFIX=$DEFAULT_PREFIX
+    az config set defaults.group=$RESOURCE_GROUP_NAME
+    if [[ "$DEPLOY_INFRA" == "true" ]]; then
+        echo -e "${YELLOW}Infrastucture will be deployed now...${RESET}"
+        if [ "$USE_DEFAULT_NAMES" != "true" ]; then
+            read -p -r "Enter the location of the deployment: (default: $DEFAULT_LOCATION): " LOCATION
+        fi
+
+        # Use the default location if the user didn't provide a name
+        if [ -z "$LOCATION" ]; then
+            echo "Using the default location: $DEFAULT_LOCATION"    
+            LOCATION=$DEFAULT_LOCATION
+        fi
+
+        if [ "$USE_DEFAULT_NAMES" != "true" ]; then
+            read -p -r "Enter A prefix for the deployment names: (default: $DEFAULT_PREFIX): " PREFIX
+        fi
+
+        # Use the default location if the user didn't provide a name
+        if [ -z "$PREFIX" ]; then
+            echo "Using the default prefix: $DEFAULT_PREFIX"    
+            PREFIX=$DEFAULT_PREFIX
+        fi
+
+
+        if [ "$USE_DEFAULT_NAMES" != "true" ]; then
+            read -p -r "Enter the acr name : (default: $DEFAULT_ACR): " ACR_NAME
+        fi
+
+        # Use the default location if the user didn't provide a name
+        if [ -z "$ACR_NAME" ]; then
+            echo "Using the default acr name: $DEFAULT_ACR"    
+            ACR_NAME=$DEFAULT_ACR
+        fi
+
+        if [ "$USE_DEFAULT_NAMES" != "true" ]; then
+            read -p -r "Enter the name of the OpeanAI resource: (default: $DEFAULT_OPEN_AI_RESOURCE): " OPEN_AI_RESOURCE
+        fi
+
+        # Use the default location if the user didn't provide a name
+        if [ -z "$OPEN_AI_RESOURCE" ]; then
+            echo "Using the default OpenAI resource name: $DEFAULT_OPEN_AI_RESOURCE"    
+            OPEN_AI_RESOURCE=$DEFAULT_OPEN_AI_RESOURCE
+        fi
+
+        # Use the default location if the user didn't provide a name
+        if [ "$USE_DEFAULT_NAMES" != "true" ]; then
+            read -p -r "Enter the App service name : (default: $DEFAULT_APP_SERVICE_NAME): " APP_SERVICE_NAME
+        fi
+
+        # Use the default location if the user didn't provide a name
+        if [ -z "$APP_SERVICE_NAME" ]; then
+            echo "Using the default app service name: $DEFAULT_APP_SERVICE_NAME"    
+            APP_SERVICE_NAME=$DEFAULT_APP_SERVICE_NAME
+        fi
+
+        # Use the default location if the user didn't provide a name
+        if [ "$USE_DEFAULT_NAMES" != "true" ]; then
+            read -p -r "Enter the web App Name name : (default: $DEFAULT_WEB_APP_NAME): " WEB_APP_NAME
+        fi
+
+    #
+        if [ -z "$WEB_APP_NAME" ]; then
+            echo "Using the default web app name: $DEFAULT_WEB_APP_NAME"    
+            WEB_APP_NAME=$DEFAULT_WEB_APP_NAME
+        fi
+
+        if [ -z "$WEB_APP_NAME_MAIN" ]; then
+            echo "Using the default web app name: $DEFAULT_WEB_APP_NAME_MAIN"    
+            WEB_APP_NAME_MAIN=$DEFAULT_WEB_APP_NAME_MAIN
+        fi
+
+        # Use the default location if the user didn't provide a name
+        if [ "$USE_DEFAULT_NAMES" != "true" ]; then
+            read -p -r "Enter the ai search name: (default: $DEFAULT_AI_SEARCH_RESOURCE): " AI_SEARCH_RESOURCE
+        fi
+
+        # Use the default location if the user didn't provide a name
+        if [ -z "$AI_SEARCH_RESOURCE" ]; then
+            echo "Using the default ai search name: $DEFAULT_AI_SEARCH_RESOURCE"    
+            AI_SEARCH_RESOURCE=$DEFAULT_AI_SEARCH_RESOURCE
+        fi
+
+        if [ "$USE_DEFAULT_NAMES" != "true" ]; then
+            read -p -r "Enter the storage account name : (default: $DEFAULT_STORAGE_ACCOUNT_NAME): " STORAGE_ACCOUNT_NAME
+        fi
+
+        # Use the default location if the user didn't provide a name
+        if [ -z "$STORAGE_ACCOUNT_NAME" ]; then
+            echo "Using the default storagea account name: $DEFAULT_STORAGE_ACCOUNT_NAME"    
+            STORAGE_ACCOUNT_NAME=$DEFAULT_STORAGE_ACCOUNT_NAME
+        fi
+
+        echo -e "${GREEN}Attempting to deploy the infrastucture... ${RESET}"
+
+        # TEMPLATE_FILE_PATH="./infra/research_copilot_template.json"            
+
+        deploy="true" #this is used to check if the user wants to deploy the infra resources while coding just for dev reasons.
+        
+
+        if [[ "$deploy" == "true" ]]; then
+            TEMPLATE_FILE_PATH="./infra-as-code-public/bicep/main.bicep"
+            MSYS_NO_PATHCONV=1 az deployment group create \
+            --template-file $TEMPLATE_FILE_PATH \
+            --resource-group $RG_WEBAPP_NAME \
+            --parameters namePrefix=$DEFAULT_PREFIX \
+                        aiSearchRegion=$aiSearchRegion \
+            --mode Incremental || echo -e "${RED}An error occurred, but the script will continue, check the deployment log in azure portal for more details.${RESET}"
+
+            # Check the exit status of the deployment
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}Deployment was successful/RG already existed. Continuing with the script...${RESET}"    
+                # ... continue with the script ...
+            else    
+                echo -e "${RED}Deployment failed. Exiting the script.${RED}"    
+                exit 1
+            fi
+        fi
+        # Get the output variables from the main deployment , this contains the names of the resources that were created
+        parse_output_variables        
+        #open ai deployments
+        #supported locations for vision as of Feb 2024
+        SUPPORTED_LOCATIONS=("swedencentral" "australiaeast" "westus" "switzerlandnorth")
+        SUPPORTED_LOCATIONS=("swedencentral") #only this 3 to start with switzerlandnorth DOES NOT HAVE TURBO
+        #extracted from: https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
+        # Sweden Central
+        # West US
+        # Japan East
+        # Switzerland North
+        # Australia East
+    
+        if [ -z "$UNIQUE_ID" ]; then
+            UNIQUE_ID="k6rxhsic3me36"
+        fi
+
+        if [ -z "$PREFIX" ]; then
+        #to make sure prefix is set.
+        echo "Using the default prefix: $DEFAULT_PREFIX"    
+        PREFIX=$DEFAULT_PREFIX
+        fi
+
+        location_counter=1
+        echo -e "${YELLOW}Deploying the openAI resources in the following supported locations (February 2024) ${SUPPORTED_LOCATIONS[@]} ${RESET}"
+        for location in "${SUPPORTED_LOCATIONS[@]}"
+            do
+
+                # Create the openAI resource for the current location            
+                deployment_name="openai" #the template already adds the location to the name
+                aoai_resource_name="${PREFIX}${deployment_name}${location}${UNIQUE_ID}"
+                openAiSkuName="S0"
+                bicepDeploymentName=$aoai_resource_name
+
+                echo -e "${YELLOW} Creating the openAI resource $aoai_resource_name in location $location...${RESET}"
+                TEMPLATE_FILE_PATH="./infra-as-code-public/bicep/openai.bicep"
+                
+                MSYS_NO_PATHCONV=1 az deployment group create \
+                    --resource-group $RG_WEBAPP_NAME \
+                    --name $bicepDeploymentName \
+                    --template-file $TEMPLATE_FILE_PATH \
+                    --parameters \
+                        envName=$DEFAULT_PREFIX \
+                        location="$location" \
+                        aoaiResourceName=$aoai_resource_name \
+                        openAiSkuName="$openAiSkuName" \
+                    --mode Incremental || echo -e "${RED}An error occurred, but the script will continue, check the deployment log in azure portal for more details.${RESET}"
+                # Check the exit status of the deployment        
+                output_variables=$(MSYS_NO_PATHCONV=1 az deployment group show --resource-group $RG_WEBAPP_NAME --name $bicepDeploymentName --query properties.outputs)
+
+                aoaiResourceId=$(echo $output_variables | jq -r '.aoaiResourceId.value')                        
+                echo -e "${GREEN}OpenAI resource $aoai_resource_name created successfully.${RESET}"                           
+                echo -e "${YELLOW} The opean ai resource id is: $aoaiResourceId ${RESET}"
+
+                aoai_temp_key=$(az cognitiveservices account keys list --name $aoai_resource_name --resource-group $RG_WEBAPP_NAME --query key1 --output tsv)        
+
+                if [ $location_counter = 1 ]; then        
+                    #first open ai service
+                    AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE=$aoai_resource_name
+                    AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY=$aoai_temp_key
+                    AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION="2023-12-01-preview"    
+
+                    AZURE_OPENAI_RESOURCE=$aoai_resource_name
+                    AZURE_OPENAI_KEY=$aoai_temp_key
+
+                    AZURE_OPENAI_RESOURCE_1=$aoai_resource_name
+                    AZURE_OPENAI_KEY_1=$aoai_temp_key
+
+                    AZURE_OPENAI_MODEL=gpt-4
+                    AZURE_OPENAI_EMBEDDING_MODEL=text-embedding-ada-002
+                    AZURE_OPENAI_MODEL_VISION=gpt4v
+
+                    AZURE_OPENAI_API_VERSION="2024-02-15-preview"
+                    AZURE_OPENAI_VISION_API_VERSION="2023-12-01-preview"
+                    AZURE_OPENAI_TEMPERATURE=0
+                    AZURE_OPENAI_TOP_P=1.0
+                    AZURE_OPENAI_MAX_TOKENS=1000
+                    AZURE_OPENAI_STOP_SEQUENCE=                
+                else
+                    #this are the 2nd to 4th locations:
+                    case $location_counter in
+                        2)
+                            AZURE_OPENAI_RESOURCE_2=$aoai_resource_name
+                            AZURE_OPENAI_KEY_2=$aoai_temp_key                
+                            ;;
+                        3)
+                            AZURE_OPENAI_RESOURCE_3=$aoai_resource_name
+                            AZURE_OPENAI_KEY_3=$aoai_temp_key                
+                            ;;
+                        4)
+                            AZURE_OPENAI_RESOURCE_4=$aoai_resource_name
+                            AZURE_OPENAI_KEY_4=$aoai_temp_key                
+                            ;;            
+                    esac                                
+                fi                             
+                #we increament the location so that we get the next location in the next iteration         
+                location_counter=$((location_counter+1))
+            done
     fi
+    parse_output_variables
 
-    location_counter=1
-    echo -e "${YELLOW}Deploying the openAI resources in the following supported locations (February 2024) ${SUPPORTED_LOCATIONS[@]} ${RESET}"
-    for location in "${SUPPORTED_LOCATIONS[@]}"
-        do
+    echo -e "${YELLOW} Enable Azure trusted services in the acr${RESET}"    
+    az acr update --name $ACR_NAME --allow-trusted-services true  > /dev/null
 
-            # Create the openAI resource for the current location            
-            deployment_name="openai" #the template already adds the location to the name
-            aoai_resource_name="${PREFIX}${deployment_name}${location}${UNIQUE_ID}"
-            openAiSkuName="S0"
-            bicepDeploymentName=$aoai_resource_name
+    #TODO: getting the right configuration from the deployed parameters:
+    AZURE_VISION_ENDPOINT="https://$ACCOUNTS_VISION_RES_TST_NAME.cognitiveservices.azure.com/"
+    AZURE_VISION_KEY=$(az cognitiveservices account keys list --name $ACCOUNTS_VISION_RES_TST_NAME --resource-group $RG_WEBAPP_NAME --query key1 --output tsv)
 
-            echo -e "${YELLOW} Creating the openAI resource $aoai_resource_name in location $location...${RESET}"
-            TEMPLATE_FILE_PATH="./infra-as-code-public/bicep/openai.bicep"
-            
-             MSYS_NO_PATHCONV=1 az deployment group create \
-                --resource-group $RG_WEBAPP_NAME \
-                --name $bicepDeploymentName \
-                --template-file $TEMPLATE_FILE_PATH \
-                --parameters \
-                    envName=$DEFAULT_PREFIX \
-                    location="$location" \
-                    aoaiResourceName=$aoai_resource_name \
-                    openAiSkuName="$openAiSkuName" \
-                --mode Incremental || echo -e "${RED}An error occurred, but the script will continue, check the deployment log in azure portal for more details.${RESET}"
-            # Check the exit status of the deployment        
-            output_variables=$(MSYS_NO_PATHCONV=1 az deployment group show --resource-group $RG_WEBAPP_NAME --name $bicepDeploymentName --query properties.outputs)
+    # Print the bash variables
 
-            aoaiResourceId=$(echo $output_variables | jq -r '.aoaiResourceId.value')                        
-            echo -e "${GREEN}OpenAI resource $aoai_resource_name created successfully.${RESET}"                           
-            echo -e "${YELLOW} The opean ai resource id is: $aoaiResourceId ${RESET}"
-
-            aoai_temp_key=$(az cognitiveservices account keys list --name $aoai_resource_name --resource-group $RG_WEBAPP_NAME --query key1 --output tsv)        
-
-            if [ $location_counter = 1 ]; then        
-                #first open ai service
-                AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE=$aoai_resource_name
-                AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY=$aoai_temp_key
-                AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION="2023-12-01-preview"    
-
-                AZURE_OPENAI_RESOURCE=$aoai_resource_name
-                AZURE_OPENAI_KEY=$aoai_temp_key
-
-                AZURE_OPENAI_RESOURCE_1=$aoai_resource_name
-                AZURE_OPENAI_KEY_1=$aoai_temp_key
-
-                AZURE_OPENAI_MODEL=gpt-4
-                AZURE_OPENAI_EMBEDDING_MODEL=text-embedding-ada-002
-                AZURE_OPENAI_MODEL_VISION=gpt4v
-
-                AZURE_OPENAI_API_VERSION="2024-02-15-preview"
-                AZURE_OPENAI_VISION_API_VERSION="2023-12-01-preview"
-                AZURE_OPENAI_TEMPERATURE=0
-                AZURE_OPENAI_TOP_P=1.0
-                AZURE_OPENAI_MAX_TOKENS=1000
-                AZURE_OPENAI_STOP_SEQUENCE=                
-            else
-                #this are the 2nd to 4th locations:
-                case $location_counter in
-                    2)
-                        AZURE_OPENAI_RESOURCE_2=$aoai_resource_name
-                        AZURE_OPENAI_KEY_2=$aoai_temp_key                
-                        ;;
-                    3)
-                        AZURE_OPENAI_RESOURCE_3=$aoai_resource_name
-                        AZURE_OPENAI_KEY_3=$aoai_temp_key                
-                        ;;
-                    4)
-                        AZURE_OPENAI_RESOURCE_4=$aoai_resource_name
-                        AZURE_OPENAI_KEY_4=$aoai_temp_key                
-                        ;;            
-                esac                                
-            fi                             
-            #we increament the location so that we get the next location in the next iteration         
-            location_counter=$((location_counter+1))
-        done
-fi
-parse_output_variables
-
-echo -e "${YELLOW} Enable Azure trusted services in the acr${RESET}"    
-az acr update --name $ACR_NAME --allow-trusted-services true  > /dev/null
-
-#TODO: getting the right configuration from the deployed parameters:
-AZURE_VISION_ENDPOINT="https://$ACCOUNTS_VISION_RES_TST_NAME.cognitiveservices.azure.com/"
-AZURE_VISION_KEY=$(az cognitiveservices account keys list --name $ACCOUNTS_VISION_RES_TST_NAME --resource-group $RG_WEBAPP_NAME --query key1 --output tsv)
-
-# Print the bash variables
-
-echo "webAppName: $WEB_APP_NAME"
-echo "webAppName main (Streamlit) : $WEB_APP_NAME_MAIN"
-echo "storageAccount: $STORAGE_ACCOUNT_NAME"
-echo "appServiceName: $APP_SERVICE_NAME"
-echo "containerRegistry: $ACR_NAME"
-echo "AI_SEARCH_RESOURCE: $AI_SEARCH_RESOURCE"
-echo "openAIResource: $openAIResource"
-echo "ACCOUNTS_VISION_RES_TST_NAME: $ACCOUNTS_VISION_RES_TST_NAME"
-echo "AZURE_VISION_ENDPOINT: $AZURE_VISION_ENDPOINT"
+    echo "webAppName: $WEB_APP_NAME"
+    echo "webAppName main (Streamlit) : $WEB_APP_NAME_MAIN"
+    echo "storageAccount: $STORAGE_ACCOUNT_NAME"
+    echo "appServiceName: $APP_SERVICE_NAME"
+    echo "containerRegistry: $ACR_NAME"
+    echo "AI_SEARCH_RESOURCE: $AI_SEARCH_RESOURCE"
+    echo "openAIResource: $openAIResource"
+    echo "ACCOUNTS_VISION_RES_TST_NAME: $ACCOUNTS_VISION_RES_TST_NAME"
+    echo "AZURE_VISION_ENDPOINT: $AZURE_VISION_ENDPOINT"
 
 
-#check if the file share exists, if not create it with the directories needed for the ingestion
-DIRECTORY_NAME="Data"
-SUB_DIRECTORY_NAME="Ingested_data/multimodal-rag-code-execution"
-CONNECTION_STRING=$(az storage account show-connection-string --name $STORAGE_ACCOUNT_NAME --query connectionString --output tsv)
-# Check if the directory exists
-directory_exists=$(az storage directory exists --name $DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING --output tsv --query exists)
+    #check if the file share exists, if not create it with the directories needed for the ingestion
+    DIRECTORY_NAME="Data"
+    SUB_DIRECTORY_NAME="Ingested_data/multimodal-rag-code-execution"
+    CONNECTION_STRING=$(az storage account show-connection-string --name $STORAGE_ACCOUNT_NAME --query connectionString --output tsv)
+    # Check if the directory exists
+    directory_exists=$(az storage directory exists --name $DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING --output tsv --query exists)
 
-if [ "$directory_exists" == "true" ]; then
-    echo -e "${YELLOW}Directory $DIRECTORY_NAME already exists in file share $STORAGE_ACCOUNT_NAME. ${RESET}"
-else
-    echo -e "${YELLOW}Directory $DIRECTORY_NAME does not exist in file share $STORAGE_ACCOUNT_NAME. Creating...${RESET}"
-    # Create a directory in the file share
-    az storage directory create  --name $DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING
-    echo -e "${GREEN}Directory $DIRECTORY_NAME created successfully.${RESET}"
-    az storage directory create  --name $SUB_DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING
-    echo -e "${GREEN}Directory $SUB_DIRECTORY_NAME created successfully.${RESET}"
-fi
-
-
-# Generate a unique build ID based on the current date and time
-BUILD_ID=$(date +%Y%m%d%H%M%S)
-
-# Use the build ID to tag your Docker images
-DOCKER_CUSTOM_IMAGE_NAME_UI="$ACR_NAME.azurecr.io/research-copilot-chainlit:$BUILD_ID"
-DOCKER_CUSTOM_IMAGE_NAME_MAIN="$ACR_NAME.azurecr.io/research-copilot-streamlit:$BUILD_ID"
-
-DOCKERFILE_PATH_UI="docker/dockerfile_chainlit_app"
-DOCKERFILE_PATH_UI_MAIN="docker/dockerfile_streamlit_app"
-
-
-DOCKER_REGISTRY_URL="https://$ACR_NAME.azurecr.io"
-DOCKER_REGISTRY_NAME="$ACR_NAME.azurecr.io"
-WEBAPP_NAME_UI=$WEB_APP_NAME
-
-# Get the ACR credentials
-acr_credentials=$(az acr credential show --name $ACR_NAME -g $RG_WEBAPP_NAME)
-
-# Parse the credentials and load them into bash variables
-DOCKER_USER_ID=$(echo $acr_credentials | jq -r '.username')
-DOCKER_USER_PASSWORD=$(echo $acr_credentials | jq -r '.passwords[0].value')
-
-echo "Docker User ID: $DOCKER_USER_ID"
-echo "Docker User Password: $DOCKER_USER_PASSWORD"
-
-
-
-
-echo "Script Execution Flow:"
-echo "------------------------------"
-echo "|     1. Docker Login        |"
-echo "|              |             |"
-echo "|              V             |"
-echo "| 2. Build the chainlit app  |"
-echo "|              |             |"
-echo "|              V             |"
-echo "| 3. Build the streamlit app |"
-echo "|              |             |"
-echo "|              V             |"
-echo "| 4. Update chainlit app     |"
-echo "|              |             |"
-echo "|              V             |"
-echo "| 5. Update streamlit apps   |"
-echo "|                            |"
-echo "-----------------------------"
-echo -e "${YELLOW}****Make sure you have the docker started...otherwise docker build will fail! ${RESET}"
-
-if [[ "$CONFIRMATION" == "true" ]]; then
-        read -rp "Press enter to continue..."
-fi
-
-
-# Function to find and change to a directory
-change_directory() {
-    target=$1
-    directory=$PWD
-
-    # Loop until the directory is found or we reach the root directory
-    while [[ "$directory" != "" && "$(basename "$directory")" != "$target" ]]; do
-        directory=$(dirname "$directory")
-    done
-
-    # Check if the directory was found
-    if [[ "$(basename "$directory")" == "$target" ]]; then
-        # Change to the directory
-        cd "$directory"
-        echo -e "${GREEN}Changed the current directory to $directory.${RESET}"
+    if [ "$directory_exists" == "true" ]; then
+        echo -e "${YELLOW}Directory $DIRECTORY_NAME already exists in file share $STORAGE_ACCOUNT_NAME. ${RESET}"
     else
-        echo "The $target directory was not found."
-        exit 1
+        echo -e "${YELLOW}Directory $DIRECTORY_NAME does not exist in file share $STORAGE_ACCOUNT_NAME. Creating...${RESET}"
+        # Create a directory in the file share
+        az storage directory create  --name $DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING
+        echo -e "${GREEN}Directory $DIRECTORY_NAME created successfully.${RESET}"
+        az storage directory create  --name $SUB_DIRECTORY_NAME --share-name $STORAGE_ACCOUNT_NAME --account-name $STORAGE_ACCOUNT_NAME --connection-string $CONNECTION_STRING
+        echo -e "${GREEN}Directory $SUB_DIRECTORY_NAME created successfully.${RESET}"
     fi
-}
 
-# Check if the current directory is multimodal-rag-code-execution
-if [[ "$(basename "$PWD")" != "multimodal-rag-code-execution" ]]; then
-    echo -e "${YELLOW}Warning: You are not in the multimodal-rag-code-execution directory. This is required as the Docker build expects you there.${RESET}"
-    confirm "change the current directory to multimodal-rag-code-execution"
-    if [ $? -eq 0 ]; then
-        # Change the current directory to ccp-backend
-        change_directory "multimodal-rag-code-execution"
+
+    # Generate a unique build ID based on the current date and time
+    BUILD_ID=$(date +%Y%m%d%H%M%S)
+
+    # Use the build ID to tag your Docker images
+    DOCKER_CUSTOM_IMAGE_NAME_UI="$ACR_NAME.azurecr.io/research-copilot-chainlit:$BUILD_ID"
+    DOCKER_CUSTOM_IMAGE_NAME_MAIN="$ACR_NAME.azurecr.io/research-copilot-streamlit:$BUILD_ID"
+
+    DOCKERFILE_PATH_UI="docker/dockerfile_chainlit_app"
+    DOCKERFILE_PATH_UI_MAIN="docker/dockerfile_streamlit_app"
+
+
+    DOCKER_REGISTRY_URL="https://$ACR_NAME.azurecr.io"
+    DOCKER_REGISTRY_NAME="$ACR_NAME.azurecr.io"
+    WEBAPP_NAME_UI=$WEB_APP_NAME
+
+    # Get the ACR credentials
+    acr_credentials=$(az acr credential show --name $ACR_NAME -g $RG_WEBAPP_NAME)
+
+    # Parse the credentials and load them into bash variables
+    DOCKER_USER_ID=$(echo $acr_credentials | jq -r '.username')
+    DOCKER_USER_PASSWORD=$(echo $acr_credentials | jq -r '.passwords[0].value')
+
+    echo "Docker User ID: $DOCKER_USER_ID"
+    echo "Docker User Password: $DOCKER_USER_PASSWORD"
+
+
+
+
+    echo "Script Execution Flow:"
+    echo "------------------------------"
+    echo "|     1. Docker Login        |"
+    echo "|              |             |"
+    echo "|              V             |"
+    echo "| 2. Build the chainlit app  |"
+    echo "|              |             |"
+    echo "|              V             |"
+    echo "| 3. Build the streamlit app |"
+    echo "|              |             |"
+    echo "|              V             |"
+    echo "| 4. Update chainlit app     |"
+    echo "|              |             |"
+    echo "|              V             |"
+    echo "| 5. Update streamlit apps   |"
+    echo "|                            |"
+    echo "-----------------------------"
+    echo -e "${YELLOW}****Make sure you have the docker started...otherwise docker build will fail! ${RESET}"
+
+    if [[ "$CONFIRMATION" == "true" ]]; then
+            read -rp "Press enter to continue..."
+    fi
+
+
+    # Function to find and change to a directory
+    change_directory() {
+        target=$1
+        directory=$PWD
+
+        # Loop until the directory is found or we reach the root directory
+        while [[ "$directory" != "" && "$(basename "$directory")" != "$target" ]]; do
+            directory=$(dirname "$directory")
+        done
+
+        # Check if the directory was found
+        if [[ "$(basename "$directory")" == "$target" ]]; then
+            # Change to the directory
+            cd "$directory"
+            echo -e "${GREEN}Changed the current directory to $directory.${RESET}"
+        else
+            echo "The $target directory was not found."
+            exit 1
+        fi
+    }
+
+    # Check if the current directory is multimodal-rag-code-execution
+    if [[ "$(basename "$PWD")" != "multimodal-rag-code-execution" ]]; then
+        echo -e "${YELLOW}Warning: You are not in the multimodal-rag-code-execution directory. This is required as the Docker build expects you there.${RESET}"
+        confirm "change the current directory to multimodal-rag-code-execution"
+        if [ $? -eq 0 ]; then
+            # Change the current directory to ccp-backend
+            change_directory "multimodal-rag-code-execution"
+            if [[ "$CONFIRMATION" == "true" ]]; then
+                read -p -r "Press enter to continue..."
+            fi
+        else
+            echo "Please navigate to the multimodal-rag-code-execution directory and run the script again."
+            exit 1
+        fi
+    fi
+
+    # Login to the Docker registry
+
+    echo -e "${YELLOW}Make sure you have the docker started...${RESET}"
+
+
+    if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
+        echo -e "${GREEN}Attempting to log in to Docker registry usiing docker locally $DOCKER_REGISTRY_NAME...${RESET}"
+        docker login $DOCKER_REGISTRY_NAME --username $DOCKER_USER_ID --password $DOCKER_USER_PASSWORD
+    else
+        #running on azure cloud shell
+        echo -e "${GREEN}Attempting to log in az acr remotely $DOCKER_REGISTRY_NAME...${RESET}"
+        # az acr login --name $ACR_NAME --username $DOCKER_USER_ID --password $DOCKER_USER_PASSWORD --expose-token    
+        TOKEN=$(az acr login --name $ACR_NAME --expose-token --output tsv --query accessToken)    
+        # docker login $DOCKER_REGISTRY_NAME --username "00000000-0000-0000-0000-000000000000" --password-stdin <<< $TOKEN
+        docker login $DOCKER_REGISTRY_NAME --username "00000000-0000-0000-0000-000000000000" --password $TOKEN
+    fi
+
+    if confirm "build the docker?"; then
+        if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
+            # build the docker locally
+            if [[ "$BUILD_CHAINLIT" = "true" ]]; then
+                echo -e "${GREEN}Building the chainlit app docke r locally...${RESET}"
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI .
+            fi
+
+            if [[ "$BUILD_STREAMLIT" = "true" ]]; then
+                echo -e "${GREEN}Building the streamlit app docker locally...${RESET}"
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN .
+            fi
+
+        else
+            # build the docker using Azure Container Registry
+            if [[ "$BUILD_CHAINLIT" = "true" ]]; then
+                echo -e "${GREEN}Building the chainlit app docker using Azure Container Registry...${RESET}"
+                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --file $DOCKERFILE_PATH_UI . 
+                if [ $? -ne 0 ]; then
+                    echo "command build failed"
+                    read -rp "Press enter to continue..." 
+                    # handle the error
+                else    
+                    echo "command build OK"
+                    
+                fi
+            fi
+
+            if [[ "$BUILD_STREAMLIT" = "true" ]]; then
+                echo -e "${GREEN}Building the streamlit app docker using Azure Container Registry...${RESET}"
+                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN .
+                if [ $? -ne 0 ]; then
+                    echo "command buildfailed"
+                    read -rp "Press enter to continue..." 
+                    # handle the error
+                else    
+                    echo "command build OK"
+                fi
+            fi
+        fi     
+        if [ $? -ne 0 ]; then
+            echo "command build failed"
+            read -rp "Press enter to continue..." 
+            # handle the error
+        else    
+            echo "command build OK"        
+        fi   
+    fi
+
+    if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
+        #the cloud shell pushes the images to the acr, so in case of using local docker, we need to push the images to the acr
+        if confirm "push to acr?"; then            
+            if [[ "$BUILD_CHAINLIT" = "true" ]]; then
+                echo -e "${GREEN}Pushing the chainlit app docker to Azure Container Registry...${RESET}"
+                docker push $DOCKER_CUSTOM_IMAGE_NAME_UI
+                IMAGES_PUSHED="true"
+            fi
+            if [[ "$BUILD_STREAMLIT" = "true" ]]; then
+                echo -e "${GREEN}Pushing the streamlit app docker to Azure Container Registry...${RESET}"
+                docker push $DOCKER_CUSTOM_IMAGE_NAME_MAIN
+                IMAGES_PUSHED="true"
+            fi
+        fi
+    else
+        IMAGES_PUSHED="true"
+    fi
+
+    # Check if IMAGES_PUSHED is true
+    if [ "$IMAGES_PUSHED" = "true" ]; then
+        echo -e "${GREEN}Images have been pushed. Please check the Azure portal at $ACR_PORTAL_LOCATION to confirm.${RESET}"
         if [[ "$CONFIRMATION" == "true" ]]; then
             read -p -r "Press enter to continue..."
         fi
-    else
-        echo "Please navigate to the multimodal-rag-code-execution directory and run the script again."
-        exit 1
     fi
-fi
 
-# Login to the Docker registry
+    # image_exists=$(az acr repository show --name $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --output tsv --query name --verbose)
 
-echo -e "${YELLOW}Make sure you have the docker started...${RESET}"
+    # if [ "$image_exists" == "$DOCKER_CUSTOM_IMAGE_NAME_UI" ]; then
+    #     echo -e "${GREEN}Image $DOCKER_CUSTOM_IMAGE_NAME_UI exists in registry $ACR_NAME. ${RESET}"
+    # else
+    #     echo "the command image_exists az acr repository returned: $image_exists"
+    #     echo -e "${RED}Image $DOCKER_CUSTOM_IMAGE_NAME_UI does not exist in registry $ACR_NAME. Exiting the script ${RESET}"
+    #     #exit 1
+    # fi
 
+    # image_exists=$(az acr repository show --name $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --output tsv --query name --verbose)
 
-if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
-    echo -e "${GREEN}Attempting to log in to Docker registry usiing docker locally $DOCKER_REGISTRY_NAME...${RESET}"
-    docker login $DOCKER_REGISTRY_NAME --username $DOCKER_USER_ID --password $DOCKER_USER_PASSWORD
-else
-    #running on azure cloud shell
-    echo -e "${GREEN}Attempting to log in az acr remotely $DOCKER_REGISTRY_NAME...${RESET}"
-    # az acr login --name $ACR_NAME --username $DOCKER_USER_ID --password $DOCKER_USER_PASSWORD --expose-token    
-    TOKEN=$(az acr login --name $ACR_NAME --expose-token --output tsv --query accessToken)    
-    # docker login $DOCKER_REGISTRY_NAME --username "00000000-0000-0000-0000-000000000000" --password-stdin <<< $TOKEN
-    docker login $DOCKER_REGISTRY_NAME --username "00000000-0000-0000-0000-000000000000" --password $TOKEN
-fi
+    # if [ "$image_exists" == "$DOCKER_CUSTOM_IMAGE_NAME_MAIN" ]; then
+    #     echo e "${GREEN}Image $DOCKER_CUSTOM_IMAGE_NAME_MAIN exists in registry $ACR_NAME.${RESET}"
+    # else
+    #     echo "the command image_exists az acr repository returned: $image_exists"
+    #     echo -e "${RED}Image $DOCKER_CUSTOM_IMAGE_NAME_MAIN does not exist in registry $ACR_NAME. Exiting the script${RESET}"
+    #     #exit 1
+    # fi
 
-if confirm "build the docker?"; then
-    if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
-        # build the docker locally
-        if [[ "$BUILD_CHAINLIT" = "true" ]]; then
-            echo -e "${GREEN}Building the chainlit app docke r locally...${RESET}"
-            docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI .
-        fi
+    echo -e "${YELLOW}****The next steps will deploy the changes to the webapps to the selected subscription ${RESET}"
 
-        if [[ "$BUILD_STREAMLIT" = "true" ]]; then
-            echo -e "${GREEN}Building the streamlit app docker locally...${RESET}"
-            docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN .
-        fi
-
-    else
-        # build the docker using Azure Container Registry
-        if [[ "$BUILD_CHAINLIT" = "true" ]]; then
-            echo -e "${GREEN}Building the chainlit app docker using Azure Container Registry...${RESET}"
-            az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --file $DOCKERFILE_PATH_UI . 
-            if [ $? -ne 0 ]; then
-                echo "command build failed"
-                read -rp "Press enter to continue..." 
-                # handle the error
-            else    
-                echo "command build OK"
-                
-            fi
-        fi
-
-        if [[ "$BUILD_STREAMLIT" = "true" ]]; then
-            echo -e "${GREEN}Building the streamlit app docker using Azure Container Registry...${RESET}"
-            az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN .
-            if [ $? -ne 0 ]; then
-                echo "command buildfailed"
-                read -rp "Press enter to continue..." 
-                # handle the error
-            else    
-                echo "command build OK"
-            fi
-        fi
-    fi     
-    if [ $? -ne 0 ]; then
-        echo "command build failed"
-        read -rp "Press enter to continue..." 
-        # handle the error
-    else    
-        echo "command build OK"        
-    fi   
-fi
-
-if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
-    #the cloud shell pushes the images to the acr, so in case of using local docker, we need to push the images to the acr
-    if confirm "push to acr?"; then            
-        if [[ "$BUILD_CHAINLIT" = "true" ]]; then
-            echo -e "${GREEN}Pushing the chainlit app docker to Azure Container Registry...${RESET}"
-            docker push $DOCKER_CUSTOM_IMAGE_NAME_UI
-            IMAGES_PUSHED="true"
-        fi
-        if [[ "$BUILD_STREAMLIT" = "true" ]]; then
-            echo -e "${GREEN}Pushing the streamlit app docker to Azure Container Registry...${RESET}"
-            docker push $DOCKER_CUSTOM_IMAGE_NAME_MAIN
-            IMAGES_PUSHED="true"
-        fi
-    fi
-else
-    IMAGES_PUSHED="true"
-fi
-
-# Check if IMAGES_PUSHED is true
-if [ "$IMAGES_PUSHED" = "true" ]; then
-    echo -e "${GREEN}Images have been pushed. Please check the Azure portal at $ACR_PORTAL_LOCATION to confirm.${RESET}"
     if [[ "$CONFIRMATION" == "true" ]]; then
         read -p -r "Press enter to continue..."
     fi
-fi
 
-# image_exists=$(az acr repository show --name $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --output tsv --query name --verbose)
+    # Update the UI
+    # parse_output_variables
 
-# if [ "$image_exists" == "$DOCKER_CUSTOM_IMAGE_NAME_UI" ]; then
-#     echo -e "${GREEN}Image $DOCKER_CUSTOM_IMAGE_NAME_UI exists in registry $ACR_NAME. ${RESET}"
-# else
-#     echo "the command image_exists az acr repository returned: $image_exists"
-#     echo -e "${RED}Image $DOCKER_CUSTOM_IMAGE_NAME_UI does not exist in registry $ACR_NAME. Exiting the script ${RESET}"
-#     #exit 1
-# fi
+    if [[ "$BUILD_CHAINLIT" = "true" ]]; then
+        WEBAPP_UPDATED="False"    
+        # Load the settings from the JSON file
+        # MAKING SURE THE CONTAINER IS ENABLED FOR CONTINUOUS DEPLOYMENT    
+        az webapp deployment container config --enable-cd true --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME > /dev/null
+        output=$(az webapp config container set --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_UI --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
+        echo -e "${GREEN}****Container updated into the chainlit web app. Give it some time to load it!${RESET}"	    
+        WEBAPP_UPDATED="true"
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Error updating the chainlit: $output${RESET}"
+            WEBAPP_UPDATED="False"
+        fi       
+    fi
 
-# image_exists=$(az acr repository show --name $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --output tsv --query name --verbose)
+    if [[ "$BUILD_STREAMLIT" = "true" ]]; then
+        WEBAPP_UPDATED="False"    
+        # Load the settings from the JSON file    
+        # MAKING SURE THE CONTAINER IS ENABLED FOR CONTINUOUS DEPLOYMENT
+        az webapp deployment container config --enable-cd true --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME > /dev/null
+        output=$(az webapp config container set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_MAIN --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
+        echo -e "${GREEN}****Container updated into the streamlit web app. Give it some time to load it!${RESET}"	    
+        WEBAPP_UPDATED="true"
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Error updating the streamlit: $output${RESET}"
+            WEBAPP_UPDATED="False"
+        fi       
+    fi 
+else
+    # the script is run with update settings only flag
+    # we get the output variables from the main deployment
+    echo -e "${GREEN}****You are running the script with update_settings_only=true.${RESET}"	    
+    parse_output_variables
+fi #end of the update settings only
 
-# if [ "$image_exists" == "$DOCKER_CUSTOM_IMAGE_NAME_MAIN" ]; then
-#     echo e "${GREEN}Image $DOCKER_CUSTOM_IMAGE_NAME_MAIN exists in registry $ACR_NAME.${RESET}"
-# else
-#     echo "the command image_exists az acr repository returned: $image_exists"
-#     echo -e "${RED}Image $DOCKER_CUSTOM_IMAGE_NAME_MAIN does not exist in registry $ACR_NAME. Exiting the script${RESET}"
-#     #exit 1
-# fi
-
-echo -e "${YELLOW}****The next steps will deploy the changes to the webapps to the selected subscription ${RESET}"
-
-if [[ "$CONFIRMATION" == "true" ]]; then
-    read -p -r "Press enter to continue..."
-fi
-
-# Update the UI
-# parse_output_variables
-
-if [[ "$BUILD_CHAINLIT" = "true" ]]; then
-    WEBAPP_UPDATED="False"    
-    # Load the settings from the JSON file
-    # MAKING SURE THE CONTAINER IS ENABLED FOR CONTINUOUS DEPLOYMENT    
-    az webapp deployment container config --enable-cd true --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME > /dev/null
-    output=$(az webapp config container set --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_UI --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
-    echo -e "${GREEN}****Container updated into the chainlit web app. Give it some time to load it!${RESET}"	    
-    WEBAPP_UPDATED="true"
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Error updating the chainlit: $output${RESET}"
-        WEBAPP_UPDATED="False"
-    fi       
-fi
-
-if [[ "$BUILD_STREAMLIT" = "true" ]]; then
-    WEBAPP_UPDATED="False"    
-    # Load the settings from the JSON file    
-    # MAKING SURE THE CONTAINER IS ENABLED FOR CONTINUOUS DEPLOYMENT
-    az webapp deployment container config --enable-cd true --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME > /dev/null
-    output=$(az webapp config container set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_MAIN --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
-    echo -e "${GREEN}****Container updated into the streamlit web app. Give it some time to load it!${RESET}"	    
-    WEBAPP_UPDATED="true"
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Error updating the streamlit: $output${RESET}"
-        WEBAPP_UPDATED="False"
-    fi       
-fi
 # Get the URL of the web app
-webapp_url=$(az webapp show --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query defaultHostName -o tsv)
-CHAINLIT_APP=$webapp_url
+#this is not needed anymore at this stage: 
+#webapp_url=$(az webapp show --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query defaultHostName -o tsv)
+#CHAINLIT_APP=$webapp_url
 
 PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils"
 
@@ -993,8 +1011,7 @@ read -r -d '' app_settings << EOM
     "AZURE_FILE_SHARE_ACCOUNT": "$AZURE_FILE_SHARE_ACCOUNT",
     "AZURE_FILE_SHARE_NAME": "$AZURE_FILE_SHARE_NAME",
     "AZURE_FILE_SHARE_KEY": "$AZURE_FILE_SHARE_KEY",
-    "PYTHONPATH": "$PYTHONPATH",
-    "CHAINLIT_APP": "$webapp_url",
+    "PYTHONPATH": "$PYTHONPATH",    
     "COSMOS_URI": "$COSMOS_URI",
     "COSMOS_KEY": "$COSMOS_KEY",
     "COSMOS_DB_NAME": "$COSMOS_DB_NAME",
@@ -1049,9 +1066,9 @@ EOM
 if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     
     if [[ "$BUILD_CHAINLIT" = "true" ]]; then
-        if confirm "update the web app settings in $WEBAPP_NAME_UI? (y/n)" "$RED"; then    
+        if confirm "update the web app settings in $WEB_APP_NAME? (y/n)" "$RED"; then    
             settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
-            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null
+            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null
             if [ $? -ne 0 ]; then
                 echo -e "${RED}Error updating the chainlit: $output${RESET}"
             fi
@@ -1069,35 +1086,36 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     fi
 fi
 
+# !!!!not reqquired as the fileshare is created using bicep now
 # create the storage mount path if it does not exist in the web app
-ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
-SHARE_NAME=$STORAGE_ACCOUNT_NAME
-STORAGE_ACCESS_KEY=$(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
-CUSTOM_ID='fileshare'
-# Get the current path mappings
-path_mappings=$(az webapp config storage-account list --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query "[?name=='$CUSTOM_ID']")
+# ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
+# SHARE_NAME=$STORAGE_ACCOUNT_NAME
+# STORAGE_ACCESS_KEY=$(az storage account keys list --account-name $ACCOUNT_NAME --resource-group $RG_WEBAPP_NAME --query '[0].value' --output tsv)
+# CUSTOM_ID='fileshare'
+# # Get the current path mappings
+# path_mappings=$(az webapp config storage-account list --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query "[?name=='$CUSTOM_ID']")
 
-# Check if the 'fileshare' path mapping exists
-if [[ $path_mappings == "[]" ]]; then
-    echo -e "${YELLOW}The fileshare path mapping does not exist in the web app $WEBAPP_NAME_UI.${RESET}"
-    # If it doesn't exist, create it
-    if confirm "Create the fileshare  $SHARE_NAME in $WEBAPP_NAME_UI? (y/n)" "$RED"; then        
-        MSYS_NO_PATHCONV=1 az webapp config storage-account add -g $RG_WEBAPP_NAME \
-        -n $WEBAPP_NAME_UI \
-        --custom-id $CUSTOM_ID \
-        --storage-type AzureFiles \
-        --account-name $ACCOUNT_NAME \
-        --share-name $SHARE_NAME \
-        --access-key $STORAGE_ACCESS_KEY \
-        --mount-path /data                        
-        if [ $? -ne 0 ]; then
-            echo "Error creating the path mapping" >&2
-            # exit 1
-        fi
-    fi
-else    
-    echo -e "${GREEN}The fileshare path mapping exists in the web app $WEBAPP_NAME_UI.${RESET}"
-fi
+# # Check if the 'fileshare' path mapping exists
+# if [[ $path_mappings == "[]" ]]; then
+#     echo -e "${YELLOW}The fileshare path mapping does not exist in the web app $WEBAPP_NAME_UI.${RESET}"
+#     # If it doesn't exist, create it
+#     if confirm "Create the fileshare  $SHARE_NAME in $WEBAPP_NAME_UI? (y/n)" "$RED"; then        
+#         MSYS_NO_PATHCONV=1 az webapp config storage-account add -g $RG_WEBAPP_NAME \
+#         -n $WEBAPP_NAME_UI \
+#         --custom-id $CUSTOM_ID \
+#         --storage-type AzureFiles \
+#         --account-name $ACCOUNT_NAME \
+#         --share-name $SHARE_NAME \
+#         --access-key $STORAGE_ACCESS_KEY \
+#         --mount-path /data                        
+#         if [ $? -ne 0 ]; then
+#             echo "Error creating the path mapping" >&2
+#             # exit 1
+#         fi
+#     fi
+# else    
+#     echo -e "${GREEN}The fileshare path mapping exists in the web app $WEBAPP_NAME_UI.${RESET}"
+# fi
 
 
 if [ "$WEBAPP_UPDATED" = "true" ]; then
@@ -1113,8 +1131,4 @@ fi
 
 echo -e "${GREEN}Process Finished! happy testing!.${RESET}"
 
-# Print the URL as a clickable link
-echo -e "${BLUE}Web app URL: http://$webapp_url${RESET}"
-echo -e "${YELLOW}Browsing the app to make sure the latest container gets loaded into the web app.${RESET}"
-curl "http://$webapp_url"
 
