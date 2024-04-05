@@ -42,6 +42,7 @@ azure-search-documents
 azureml-core>=1.55.0
 azure-ai-ml>=1.15.0
 azure-identity>=1.15.0
+azure-storage-file-share>=12.15.0
 
 python-pptx
 python-docx 

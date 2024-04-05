@@ -99,3 +99,4 @@ COSMOS_CONTAINER_NAME = os.environ.get('COSMOS_CONTAINER_NAME', '')
 COSMOS_CATEGORYID = os.environ.get('COSMOS_CATEGORYID', '')
 
 
+INITIAL_INDEX = os.environ.get('INITIAL_INDEX', 'rag-data')

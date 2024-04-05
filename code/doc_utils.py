@@ -74,7 +74,8 @@ from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import AnalyzeResult
 from azure.ai.documentintelligence.models import AnalyzeDocumentRequest, ContentFormat
 
-
+from azure.storage.fileshare import ShareFileClient, generate_file_sas, FileSasPermissions
+from datetime import datetime, timedelta
 
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 logger = logging.getLogger(__name__)
@@ -939,6 +940,20 @@ def read_asset_file(text_filename):
         status = False
 
     return text, status
+
+
+def generate_file_sas_full_link(p):
+    try:
+        p = os.path.normpath(os.path.join(ROOT_PATH_INGESTION, p)).replace("\\", "/")
+        logc(f"Generate SAS Token for {p}")
+        service = ShareFileClient(account_url=f"https://{AZURE_FILE_SHARE_ACCOUNT}.file.core.windows.net", credential=AZURE_FILE_SHARE_KEY, share_name=AZURE_FILE_SHARE_NAME, file_path=p)
+
+
+        token = generate_file_sas(AZURE_FILE_SHARE_ACCOUNT, AZURE_FILE_SHARE_NAME, p.split('/'), AZURE_FILE_SHARE_KEY, expiry=datetime.utcnow() + timedelta(hours=20*365*24), permission=FileSasPermissions(read=True))
+
+        return service.url + '?' + token
+    except:
+        return ""
 
 
 
@@ -3847,17 +3862,18 @@ def try_code_interpreter_for_tables_using_assistants_api(assets, query, user_id 
 
 search_context_extension = """
 
-Search Result:
-## START OF SEARCH RESULT
+
+## START OF SEARCH RESULT NUMBER {number}
 Asset Filename: {filename}
 Document Filename: {proc_filename}
 Document Path: {document_path}
-Chunk Number: {chunk_number}
+Section Number: {chunk_number}
 Asset Type: {type}
 
 Text:
 {search_result}
-## END OF SEARCH RESULT
+## END OF SEARCH RESULT NUMBER {number}
+
 
 """
 
@@ -3918,7 +3934,7 @@ In case the user question asks a question which requires computation, you can re
 
 
 **Final Answer:**
-Be elaborate in your response. Describe your logic to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. If there any computation steps you took, please relay them to the user, and clarify how you got to the final answer. If applicable, describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. You **MUST** reference the PDF Document(s) and the chunk number(s) you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunks 34 and 36". The reference **MUST** contain the chunk number as well. If an answer is given in the Computation Support section, then give more weight to this section since it was computed by the Code Interpreter, and use the answer provided in the Computation Support section as a solid basis to your final answer. Do **NOT** mention the search result sections labeled "Search Result: ## START OF SEARCH RESULT" and "## END OF SEARCH RESULT." as references in your final answer. If there are some elements in the final answer that can be tabularized such as a timeseries of data, or a dataset, or a sequence of numbers or a matrix of categories, then you **MUST** format these elements as a Markdown table, in addition to all other explanations described above.  
+Be elaborate in your response. Describe your logic to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. If there any computation steps you took, please relay them to the user, and clarify how you got to the final answer. If applicable, describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. You **MUST** reference the PDF Document(s) and the section number(s) you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', section 34 and 36". The reference **MUST** contain the section number as well. If an answer is given in the Computation Support section, then give more weight to this section since it was computed by the Code Interpreter, and use the answer provided in the Computation Support section as a solid basis to your final answer. Do **NOT** mention the search result sections labeled "Search Result: ## START OF SEARCH RESULT" and "## END OF SEARCH RESULT." as references in your final answer. If there are some elements in the final answer that can be tabularized such as a timeseries of data, or a dataset, or a sequence of numbers or a matrix of categories, then you **MUST** format these elements as a Markdown table, in addition to all other explanations described above.  
 
 **Critiquing the Final Answer**:
 After generating the Final Answer, please try to answer the below questions. These questions are for the Assistant. 
@@ -3926,10 +3942,12 @@ After generating the Final Answer, please try to answer the below questions. The
     2. Rate your work on a scale of 1-10 for sound logic
     3. Do you think that you are correct?
 
+You **MUST** include in the output the most 3 to 5 most relevant reference numbers. Do not generate the document names or document paths, as these will be identified by the reference number in the "search_result_number" field. The correct reference format in the Final Answer is to include the search result number in brackets, e.g. [6], or [3]. 
+
 
 **JSON Output**:
 
-The JSON dictionary output should include the Final Answer and the References. The references is an array of dictionaries. Each Reference includes in it the path to the asset file, the path to the PDF file, the name of the PDF file, the chunk number and the type. The JSON dictionary **MUST** be in the following format:
+The JSON dictionary output should include the Final Answer and the References. The references is an array of dictionaries. Each Reference includes in it the path to the asset file, the path to the document file, the name of the document file, the section number and the type. You **MUST** include in the output the most 3 to 5 most relevant reference numbers. The JSON dictionary **MUST** be in the following format:
 
 {search_json_output}
 
@@ -3942,17 +3960,16 @@ You **MUST** generate the JSON dictionary. Do **NOT** return the Final Answer on
 
 full_search_json_output = """
 {{
-    "final_answer": "The final answer that you generated, which is described above in the Final Answer section",
+    "final_answer": "The final answer that you generated, which is described above in the Final Answer section. Include the references as search result number in brackets.",
     "output_excel_file": "If an Excel file for the final answer has been generated and mentioned under the 'Computation Support' section, then include it here, otherwise, output an empty string ''."
     "references": [
-        "asset": "full-path reference to the asset which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'Asset Filename'."
-        "document_path": "full-path reference to the document which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'PDF Path'.",
-        "original_document": "name of the document which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'PDF Filename'.",
-        "chunk": "chunk for the 'asset' which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'PDF Chunk'.",
-        "type": "type of the 'asset' which you have based the Final Answer upon. These are mentioned inside the Context between the ## START OF SEARCH RESULT and ## END OF SEARCH RESULT tags as 'Asset Type'. The type can strictly be on of three values: 'text', 'image', or 'table'"
+        "search_result_number": "the number of the search result as delimited by ## START OF SEARCH RESULT <number> and ## END OF SEARCH RESULT <number> tags"
     ]
 }}
 """
+
+
+
 
 
 limited_search_json_output = """
@@ -4196,7 +4213,7 @@ def generate_search_assets(all_results, limit = 1000, verbose=False):
     assets['document_paths'] = []
     assets['vision_images'] = []
 
-    logc("All Results", all_results)
+    # logc("All Results", all_results)
     results = all_results[:limit]
 
     # logc("Metadatas", json.dumps(results, indent=4), verbose = verbose)
@@ -4234,7 +4251,7 @@ def generate_search_assets(all_results, limit = 1000, verbose=False):
 
 
 
-def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_history = [], user_id = None, computation_approach = "Taskweaver", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 60000, temperature = 0.2, verbose = False):
+def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_history = [], user_id = None, computation_approach = "Taskweaver", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, verbose = False):
     global search_context_extension, search_system_prompt, search_prompt
 
     if vector_directory is None:
@@ -4307,12 +4324,14 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
             unique_results.append(result)
 
 
-    context_array = [search_context_extension.format(search_result = clean_up_text(result['text']), 
-                                                         filename = os.path.relpath(result['asset_path']),
-                                                         proc_filename = os.path.basename(result['document_path']),
-                                                         document_path = os.path.relpath(result['document_path']),
-                                                         type = result['type'],
-                                                         chunk_number = result['chunk_number']) for result in unique_results]
+    context_array = [search_context_extension.format(   
+            number = index,
+            search_result = clean_up_text(result['text']), 
+            filename = os.path.relpath(result['asset_path']),
+            proc_filename = os.path.basename(result['document_path']),
+            document_path = os.path.relpath(result['document_path']),
+            type = result['type'],
+            chunk_number = result['chunk_number']) for index, result in enumerate(unique_results)]
 
     context_window = []
     token_window = 0 
@@ -4325,6 +4344,8 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
             break
 
     context = '\n'.join(context_window)
+
+    logc("Full Context", context)
 
 
     if learnings is not None:
@@ -4349,7 +4370,23 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
     if verbose: logc("Final Prompt", f"{result.choices[0].message.content}")
 
     final_json = recover_json(result.choices[0].message.content)
+    # logc("Final Answer in JSON", final_json)
+
+
+    for r in final_json['references']:
+        num = int(r['search_result_number'])
+        result = unique_results[num]
+
+        r['asset'] = result['asset_path']
+        r['document_path'] = result['document_path']
+        r['original_document'] = result['filename']
+        r['section'] = result['chunk_number']
+        r['type'] = result['type']
+        r['search_result_number'] = num
+        r['sas_link'] = generate_file_sas_full_link(result['document_path'])
+
     logc("Final Answer in JSON", final_json)
+
 
     try:
         final_answer = final_json['final_answer']
@@ -4363,10 +4400,8 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
         references = []
         output_excel = ""
 
-
     conversation_history.append({"role": "user", "content": query})
     conversation_history.append({"role": "assistant", "content": final_answer})
-
 
     return final_answer, references, output_excel, search_results, files
 
