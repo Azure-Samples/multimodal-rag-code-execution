@@ -183,7 +183,7 @@ if [[ $AZURE_HTTP_USER_AGENT == *"cloud-shell"* ]]; then
 else
     if [[ "$FORCE_BUILD_ON_CLOUD" = "true" ]]; then
         echo -e "${YELLOW}This script is forced to run the build on Azure ACR.${RESET}"
-        running_on_azure_cloud_shell=$FORCE_BUILD_ON_CLOUD    
+        export running_on_azure_cloud_shell=$FORCE_BUILD_ON_CLOUD    
     else
         echo -e "${YELLOW}This script is not running in Azure Cloud Shell. You need Docker running.${RESET}"
         export running_on_azure_cloud_shell="false"
@@ -976,11 +976,8 @@ else
     echo -e "${GREEN}****You are running the script with update_settings_only=true.${RESET}"	    
     parse_output_variables || echo -e "${RED}Error parsing the output variables from the main deployment.${RESET}"
 
-fi #end of the update settings only
-
-if [ $? -ne 0 ]; then
-    #there are errros in the script
-fi      
+fi 
+  
 # Get the URL of the web app
 #this is not needed anymore at this stage: 
 #webapp_url=$(az webapp show --name $WEBAPP_NAME_UI --resource-group $RG_WEBAPP_NAME --query defaultHostName -o tsv)
