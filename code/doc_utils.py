@@ -875,6 +875,7 @@ def remove_extracted_text(s):
 # 2. Check if the group policy setting is configured to enable long path names. Open the Group Policy Editor (gpedit.msc) and navigate to Local Computer Policy > Computer Configuration > Administrative Templates > System > Filesystem. Look for the "Enable Win32 long paths" policy and make sure it is set to "Enabled".
 def write_to_file(text, text_filename, mode = 'a'):
     try:
+        text_filename = text_filename.replace("\\", "/")
         with open(text_filename, mode, encoding='utf-8') as file:
             file.write(text)
 
@@ -931,6 +932,7 @@ def execute_python_code_block(file_path, additional_code = ""):
 
 def read_asset_file(text_filename):
     try:
+        text_filename = text_filename.replace("\\", "/")
         with open(text_filename, 'r', encoding='utf-8') as file:
             text = file.read()
         status = True
@@ -946,12 +948,12 @@ def generate_file_sas_full_link(p):
     try:
         p = os.path.normpath(os.path.join(ROOT_PATH_INGESTION, p)).replace("\\", "/")
         logc(f"Generate SAS Token for {p}")
+        if p.startswith('/'): p = p[1:]
         service = ShareFileClient(account_url=f"https://{AZURE_FILE_SHARE_ACCOUNT}.file.core.windows.net", credential=AZURE_FILE_SHARE_KEY, share_name=AZURE_FILE_SHARE_NAME, file_path=p)
 
-
         token = generate_file_sas(AZURE_FILE_SHARE_ACCOUNT, AZURE_FILE_SHARE_NAME, p.split('/'), AZURE_FILE_SHARE_KEY, expiry=datetime.utcnow() + timedelta(hours=20*365*24), permission=FileSasPermissions(read=True))
-
-        return service.url + '?' + token
+        full_path = service.url + '?' + token
+        return full_path
     except:
         return ""
 
@@ -4402,6 +4404,8 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
 
     conversation_history.append({"role": "user", "content": query})
     conversation_history.append({"role": "assistant", "content": final_answer})
+
+    print("Final Answer", final_answer)
 
     return final_answer, references, output_excel, search_results, files
 

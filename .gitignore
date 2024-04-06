@@ -185,3 +185,5 @@ test_aml.py
 temp/
 test/
 deployment_output/
+blk_v3.zip
+push_local.ps1
