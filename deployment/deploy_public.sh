@@ -681,7 +681,9 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
         fi
         #we assign the role to the service principal to rg
         #az role assignment create --assignee $appId --role Contributor --scope $ML_ID
+        # az role assignment create --assignee $appId --role Contributor --scope $RG_WEBAPP_NAME
         az role assignment create --assignee $appId --role Contributor --scope $RG_WEBAPP_NAME
+        az role assignment create --assignee $appId --role "Azure Machine Learning Compute Operator" --scope $RG_WEBAPP_NAME
 
         #check if error
         if [ $? -eq 0 ]; then
