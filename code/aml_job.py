@@ -114,8 +114,6 @@ class AmlJob():
 
         return env_vars
 
-
-
     def create_or_get_compute(self):
         # Verify that the cluster does not exist already
         try:
@@ -123,7 +121,7 @@ class AmlJob():
             print(f'Found existing cluster {self.cpu_cluster_name}, use it.')
 
         except ComputeTargetException:
-            compute_config = AmlCompute.provisioning_configuration( vm_size='STANDARD_D2_V2',
+            compute_config = AmlCompute.provisioning_configuration( vm_size=os.environ.get("AML_VMSIZE", "STANDARD_D2_V2"),
                                                                     max_nodes=3, 
                                                                     idle_seconds_before_scaledown=2400)
             self.cpu_cluster = ComputeTarget.create(self.ws, self.cpu_cluster_name, compute_config)
@@ -145,12 +143,12 @@ class AmlJob():
         ingestion_params_dict['datastore'] = self.file_share_datastore_name
         ingestion_params_dict['datastore_mount'] = str(data_ref)
 
-        # Check if source_directory exists, if not, use '../code'
+        # Check if source_directory exists, if not, use '../code or .'
         if not os.path.isdir(source_directory):
             source_directory = '../code'
         if not os.path.isdir(source_directory):
             source_directory = '.'
-        
+
         command_string = 'export MSYS_NO_PATHCONV=1 ' + \
                          ' '.join(self.create_environment_variables_string()) + \
                          f" && python {script} --ingestion_params_dict '{json.dumps(ingestion_params_dict)}'"     

@@ -1078,10 +1078,12 @@ WEBSITES_ENABLE_APP_SERVICE_STORAGE="true"
 PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils"
 #SCM_BASIC_AUTHENTICATION_ENABLED
 
+AML_VMSIZE="STANDARD_D2_V2"
 
 if [[ "$UPDATE_OPEN_AI_SETTINGS" = "true" ]]; then
     read -r -d '' app_settings << EOM
     {    
+        "AML_VMSIZE": "$AML_VMSIZE",
         "BUILD_ID": "$BUILD_ID",
         "PYTHONUNBUFFERED": "1",
         "WEBSITES_ENABLE_APP_SERVICE_STORAGE": "$WEBSITES_ENABLE_APP_SERVICE_STORAGE",
@@ -1149,6 +1151,7 @@ EOM
 else
     read -r -d '' app_settings << EOM
     {    
+        "AML_VMSIZE": "$AML_VMSIZE",
         "BUILD_ID": "$BUILD_ID",
         "PYTHONUNBUFFERED": "1",
         "WEBSITES_ENABLE_APP_SERVICE_STORAGE": "$WEBSITES_ENABLE_APP_SERVICE_STORAGE",
