@@ -1233,7 +1233,7 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     fi
 fi
 
-if [[ "$DEPLOY_INFRA" = "false" ]]; then
+if [[ "$DEPLOY_INFRA" = "false" ]] && [[ "$FORCE_DEPLOY" = "false" ]]; then
     # if deply infra means that this is the first time we are deploying the infra, so we need to export the settings to the files after changing the settings
     #  and not before because they will be empty or default.
     export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
