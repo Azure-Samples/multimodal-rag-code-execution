@@ -379,7 +379,7 @@ function parse_output_variables() {
     export AI_SEARCH_RESOURCE=$(echo $output_variables | jq -r '.aiSearch.value')        
     export COG_SEARCH_ADMIN_KEY=$(az search admin-key show --service-name $AI_SEARCH_RESOURCE --resource-group $RG_WEBAPP_NAME --query primaryKey --output tsv)
     export COG_SEARCH_ENDPOINT="https://$AI_SEARCH_RESOURCE.search.windows.net"
-    export COG_VEC_SEARCH_API_VERSION="2023-11-01-preview"
+    export COG_VEC_SEARCH_API_VERSION="2023-11-01"
     export COG_SEARCH_ADMIN_KEY_PROD=$COG_SEARCH_ADMIN_KEY
     export COG_SEARCH_ENDPOINT_PROD="https://$AI_SEARCH_RESOURCE.search.windows.net"
     export COG_SERV_ENDPOINT=$COG_SEARCH_ENDPOINT_PROD

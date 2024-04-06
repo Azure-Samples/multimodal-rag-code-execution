@@ -1,6 +1,6 @@
 # Use a specific version of the python image for more predictable builds
 #FROM python:3.10.13-slim-bookworm
-FROM python:python:3.11-slim-bookworm
+FROM python:3.11-slim-bookworm
 
 
 # Create a non-root user 'appuser' and set the home directory
