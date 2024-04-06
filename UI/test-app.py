@@ -52,6 +52,20 @@ def log_message(message, level):
 
 
 
+print("ROOT_PATH_INGESTION:", ROOT_PATH_INGESTION)
+print("Current working directory:", os.path.abspath(os.getcwd()))
+p = "../denizbank\\P-KRD-İŞB.001_KOBİ_BANKACILIĞI_KREDİLERİ.docx\\text\\chunk_82.txt".replace("\\", "/")
+print("Full path", os.path.join(ROOT_PATH_INGESTION, 'openai_faq'))
+
+cwd = os.path.join(ROOT_PATH_INGESTION, INITIAL_INDEX)
+
+print("Changing to Current Directory", os.makedirs(cwd, exist_ok=True)
+)
+os.makedirs(cwd, exist_ok=True)
+os.chdir(cwd)
+
+
+
 ######################  TEST INSTALLATION  ######################
 ## pip install chainlit
 ## chainlit run test-app.py -w --port 8050
@@ -134,6 +148,9 @@ top_ns = {}
 async def post_message(label, message):
     async with cl.Step(name=label) as step:
         step.output = message
+
+    # print(f"{str(label)}: {str(message)}")
+    
 
 def post_message_sync(label, message):
     run_sync(post_message(label, message))
@@ -551,18 +568,22 @@ async def app_search(query: str):
 
     for index, r in enumerate(files + references):
         try:
+            text = read_asset_file(r['asset'])[0]
+            if text == '':
+                text = f"Current working directory {os.path.abspath(os.getcwd())}\nFile Abs Path: {os.path.abspath(r['asset'])}"
+
             if r['type'] == 'text':
-                e = [cl.Text(name=f"Text below:", content=read_asset_file(r['asset'])[0], display="inline")]
+                e = [cl.Text(name=f"Text below:", content=text, display="inline")]
             elif r['type'] == 'image':
                 e = [cl.Image(name=os.path.basename(r['asset']), path=replace_extension(r['asset'], '.jpg'), size='large', display="inline"),
-                        cl.Text(name=f"Text below:", content=read_asset_file(r['asset'])[0], display="inline")]
+                        cl.Text(name=f"Text below:", content=text, display="inline")]
             elif r['type'] == 'table':
                 e = []
                 if os.path.exists(replace_extension(r['asset'], '.png')):
                     e.append(cl.Image(name=os.path.basename(r['asset']), path=replace_extension(r['asset'], '.png'), size='large', display="inline"),
-                        cl.Text(name=f"Text below:", content=read_asset_file(r['asset'])[0], display="inline"))
+                        cl.Text(name=f"Text below:", content=text, display="inline"))
                 if os.path.exists(r['asset']):
-                    e.append(cl.Text(name=f"Text below:", content=read_asset_file(r['asset'])[0], display="inline"))
+                    e.append(cl.Text(name=f"Text below:", content=text, display="inline"))
             elif r['type'] == 'file':
                 e = [cl.File(name="Results File", path=r['asset'], display="inline")]
             elif r['type'] == 'assistant_image':
