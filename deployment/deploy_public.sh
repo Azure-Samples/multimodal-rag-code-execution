@@ -669,7 +669,9 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             output=$(az ad sp create-for-rbac --name "$spName" --query "{appId: appId, password: password, tenant: tenant}" --output json)                
             appId=$(echo $output | jq -r .appId)
             spPassword=$(echo $output | jq -r .password)
-            tenantId=$(echo $output | jq -r .tenant)                                                
+            tenantId=$(echo $output | jq -r .tenant)   
+
+            az role assignment create --role "Contributor" --assignee "$appId"  --scope "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG_WEBAPP_NAME/providers/Microsoft.MachineLearningServices/workspaces/$ML_NAME"                                          
         else
             echo -e "${YELLOW}Service principal $spName already exists.${RESET}"
             echo "existingSp: $existingSp"
@@ -678,6 +680,8 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             appId=$existingSp
             #we reset the password:
             spPassword=$(az ad sp credential reset --id $appId --query "password" --output tsv)
+
+
         fi
         #we assign the role to the service principal to rg
         #az role assignment create --assignee $appId --role Contributor --scope $ML_ID
