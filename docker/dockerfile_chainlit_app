@@ -22,7 +22,7 @@ WORKDIR /home/appuser/app/
 # Set the PYTHONPATH environment variable to include the /home/appuser/app/code directory
 ENV PATH="/home/appuser/.local/bin:$PATH"
 ENV PYTHONPATH="${PYTHONPATH}:/home/appuser/app/code:/home/appuser/app/code/utils"
-
+ENV PYTHONUNBUFFERED=1
 # Upgrade pip to the latest version
 RUN pip install --upgrade pip
 
