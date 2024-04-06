@@ -379,7 +379,7 @@ function parse_output_variables() {
     export AI_SEARCH_RESOURCE=$(echo $output_variables | jq -r '.aiSearch.value')        
     export COG_SEARCH_ADMIN_KEY=$(az search admin-key show --service-name $AI_SEARCH_RESOURCE --resource-group $RG_WEBAPP_NAME --query primaryKey --output tsv)
     export COG_SEARCH_ENDPOINT="https://$AI_SEARCH_RESOURCE.search.windows.net"
-    export COG_VEC_SEARCH_API_VERSION="2023-11-01-preview"
+    export COG_VEC_SEARCH_API_VERSION="2023-11-01"
     export COG_SEARCH_ADMIN_KEY_PROD=$COG_SEARCH_ADMIN_KEY
     export COG_SEARCH_ENDPOINT_PROD="https://$AI_SEARCH_RESOURCE.search.windows.net"
     export COG_SERV_ENDPOINT=$COG_SEARCH_ENDPOINT_PROD
@@ -669,7 +669,9 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             output=$(az ad sp create-for-rbac --name "$spName" --query "{appId: appId, password: password, tenant: tenant}" --output json)                
             appId=$(echo $output | jq -r .appId)
             spPassword=$(echo $output | jq -r .password)
-            tenantId=$(echo $output | jq -r .tenant)                                                
+            tenantId=$(echo $output | jq -r .tenant)   
+
+            az role assignment create --role "Contributor" --assignee "$appId"  --scope "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG_WEBAPP_NAME/providers/Microsoft.MachineLearningServices/workspaces/$ML_NAME"                                          
         else
             echo -e "${YELLOW}Service principal $spName already exists.${RESET}"
             echo "existingSp: $existingSp"
@@ -678,6 +680,8 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             appId=$existingSp
             #we reset the password:
             spPassword=$(az ad sp credential reset --id $appId --query "password" --output tsv)
+
+
         fi
         #we assign the role to the service principal to rg
         #az role assignment create --assignee $appId --role Contributor --scope $ML_ID
