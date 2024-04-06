@@ -145,6 +145,12 @@ class AmlJob():
         ingestion_params_dict['datastore'] = self.file_share_datastore_name
         ingestion_params_dict['datastore_mount'] = str(data_ref)
 
+        # Check if source_directory exists, if not, use '../code'
+        if not os.path.isdir(source_directory):
+            source_directory = '../code'
+        if not os.path.isdir(source_directory):
+            source_directory = '.'
+        
         command_string = 'export MSYS_NO_PATHCONV=1 ' + \
                          ' '.join(self.create_environment_variables_string()) + \
                          f" && python {script} --ingestion_params_dict '{json.dumps(ingestion_params_dict)}'"     
