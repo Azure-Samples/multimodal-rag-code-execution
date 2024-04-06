@@ -152,7 +152,7 @@ class AmlJob():
         command_string = 'export MSYS_NO_PATHCONV=1 ' + \
                          ' '.join(self.create_environment_variables_string()) + \
                          f" && python {script} --ingestion_params_dict '{json.dumps(ingestion_params_dict)}'"     
-
+        print (f'Source directory for AML: ${source_directory}')
         self.config = ScriptRunConfig(
             source_directory=source_directory,
             command=command_string,
