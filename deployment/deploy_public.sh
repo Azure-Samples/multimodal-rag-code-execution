@@ -680,8 +680,6 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             appId=$existingSp
             #we reset the password:
             spPassword=$(az ad sp credential reset --id $appId --query "password" --output tsv)
-
-
         fi
         #we assign the role to the service principal to rg
         #az role assignment create --assignee $appId --role Contributor --scope $ML_ID
@@ -695,7 +693,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
         else
             echo -e "${RED}Error assigning role to the service principal.${RESET}"
         fi
-
+        
         export AML_PASSWORD=$spPassword
         export AML_TENANT_ID=$tenantId
         export AML_SERVICE_PRINCIPAL_ID=$appId  
