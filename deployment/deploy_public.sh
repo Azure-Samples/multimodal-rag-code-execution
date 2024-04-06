@@ -1082,7 +1082,9 @@ PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:.
 
 AML_VMSIZE="STANDARD_D2_V2"
 
-if [[ "$UPDATE_OPEN_AI_SETTINGS" = "true" ]]; then
+# if [[ "$UPDATE_OPEN_AI_SETTINGS" = "true" ]]; then
+# IF WE JUST RE-DEPLOYED THE INFRA WE NEED TO UPDATE THE SETTINGS INCLUDING THE OPEN AI SETTINGS SO THAT THEY EXIST IN THE ENV SETTINGS
+if [[ "$UPDATE_OPEN_AI_SETTINGS" = "true" ]] || [[ "$DEPLOY_INFRA" = "true" ]]; then
     read -r -d '' app_settings << EOM
     {    
         "AML_VMSIZE": "$AML_VMSIZE",

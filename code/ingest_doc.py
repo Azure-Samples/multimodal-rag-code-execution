@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 import json
-#sys.path.append("./")
+sys.path.append("./")
 from doc_utils import ingest_doc
 from processor import *
 import doc_utils
