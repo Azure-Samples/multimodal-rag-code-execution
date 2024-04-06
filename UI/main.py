@@ -12,8 +12,8 @@ if "page_config" not in st.session_state:
     st.session_state.page_config = True
 
 build_id = os.getenv('BUILD_ID')
-st.markdown(f"# Research CoPilot {build_id}")
-st.markdown("""#### Version:.""")
+st.markdown(f"# Research CoPilot")
+st.markdown(f"""#### Version: {build_id}""")
 st.markdown("## Prompt Management")
 st.markdown("""#### This section of the application is the place to create and manage the prompts. You can create a new prompt, delete an existing prompt, and generate the content for the prompt.To test the prompts, please select the index name and the prompt category.""")
 
