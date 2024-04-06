@@ -1208,10 +1208,11 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
             MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null
             if [ $? -ne 0 ]; then
                 echo -e "${RED}Error updating the chainlit: $output${RESET}"
+            else
+                echo -e "${GREEN}****Web app (chainlit)  $WEB_APP_NAME settings updated successfully!${RESET}"
             fi
         fi
-    fi
-    echo -e "${YELLOW}****The next steps will update the webapps settings in the selected subscription ${RESET}"
+    fi    
     # read -rp "Press enter ..."
     if [[ "$BUILD_STREAMLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEB_APP_NAME_MAIN? (y/n)" "$RED"; then    
@@ -1219,6 +1220,8 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
             MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null
             if [ $? -ne 0 ]; then
                 echo -e "${RED}Error updating the streamlit: $output${RESET}"
+            else    
+                echo -e "${GREEN}****Web app (Streamlit) $WEB_APP_NAME_MAIN settings updated successfully!${RESET}"
             fi
         fi
     fi
