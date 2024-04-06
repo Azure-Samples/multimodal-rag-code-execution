@@ -254,6 +254,37 @@ remove_path_from_string() {
   echo "${str//C:\/Program Files\/Git\//}"
 }
 
+function export_app_settings() {
+    # Parameters
+    local APP_NAME=$1
+    local RG_NAME=$2    
+    
+    # Ask the user for the base filename
+    # read -p "Enter the base filename: " BASE_FILENAME
+
+    # Get the current date and time
+    DATE_TIME=$(date '+%Y-%m-%d_%H-%M-%S')
+
+    # Create the filename by appending the date and time to the base filename
+    
+       
+    FILENAME="deployment_output/web_app_settings/${APP_NAME}_${DATE_TIME}.json"
+    # Check if the directory exists and create it if necessary
+    if [[ ! -d "deployment_output/web_app_settings" ]]; then
+        mkdir -p "deployment_output/web_app_settings"
+    fi
+    # Get the app settings and save them to the file
+    az webapp config appsettings list --name $APP_NAME --resource-group $RG_NAME > $FILENAME
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to get app settings"
+        exit 1
+    fi
+
+    echo "App settings have been saved to $FILENAME"
+    #read -p "pause..."
+    sleep 2
+}
+
 DEPLOY_INFRA="true" #this is used later in the script, this value now has no effect, it will be reasigned later in the script
 
 enableDdosProtection='false'
@@ -288,36 +319,6 @@ OPEN_AI_RESOURCE="research-openai"
 WEB_APP_NAME_MAIN="rescopilot"
 ACR_NAME="" #this will be reasigned later in the script
 
-
-function export_app_settings() {
-    # Parameters
-    local WEB_APP_NAME=$1
-    local RG_NAME=$2    
-    
-    # Ask the user for the base filename
-    # read -p "Enter the base filename: " BASE_FILENAME
-
-    # Get the current date and time
-    DATE_TIME=$(date '+%Y-%m-%d_%H-%M-%S')
-
-    # Create the filename by appending the date and time to the base filename
-    
-       
-    FILENAME="deployment_output/web_app_settings/${WEB_APP_NAME}_${DATE_TIME}.json"
-    # Check if the directory exists and create it if necessary
-    if [[ ! -d "deployment_output/web_app_settings" ]]; then
-        mkdir -p "deployment_output/web_app_settings"
-    fi
-    # Get the app settings and save them to the file
-    az webapp config appsettings list --name $WEB_APP_NAME --resource-group $RG_NAME > $FILENAME
-
-    if [[ $? -ne 0 ]]; then
-        echo "Failed to get app settings"
-        exit 1
-    fi
-
-    echo "App settings have been saved to $FILENAME"
-}
 
 function parse_output_variables() {
     export MSYS_NO_PATHCONV=1
@@ -800,7 +801,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
     parse_output_variables
 
     
-    read -p "pause after file creation filename: " BASE_FILENAME
+    
 
     echo -e "${YELLOW} Enable Azure trusted services in the acr${RESET}"    
     az acr update --name $ACR_NAME --allow-trusted-services true  > /dev/null
@@ -920,6 +921,9 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             exit 1
         fi
     }
+    #exporting the original web app settings to files.
+    export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
+    export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
 
     # Check if the current directory is multimodal-rag-code-execution
     if [[ "$(basename "$PWD")" != "multimodal-rag-code-execution" ]]; then
@@ -959,12 +963,12 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             # build the docker locally
             if [[ "$BUILD_CHAINLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the chainlit app docke r locally...${RESET}"
-                #docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI .
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI .
             fi
 
             if [[ "$BUILD_STREAMLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the streamlit app docker locally...${RESET}"
-                #docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN .
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN .
             fi
 
         else
@@ -1062,13 +1066,13 @@ else
     # the script is run with update settings only flag
     # we get the output variables from the main deployment
     echo -e "${GREEN}****You are running the script with update_settings_only=true.${RESET}"	    
+    #parse_output_variables || echo -e "${RED}Error parsing the output variables from the main deployment.${RESET}"
     parse_output_variables || echo -e "${RED}Error parsing the output variables from the main deployment.${RESET}"
-
+    #exporting the original web app settings to files.
+    export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
+    export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
 fi   
 
-#exporting the original web app settings to files.
-export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
-export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
 
 WEBSITES_ENABLE_APP_SERVICE_STORAGE="true"
 PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils"
