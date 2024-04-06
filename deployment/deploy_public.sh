@@ -693,7 +693,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
         else
             echo -e "${RED}Error assigning role to the service principal.${RESET}"
         fi
-        
+
         export AML_PASSWORD=$spPassword
         export AML_TENANT_ID=$tenantId
         export AML_SERVICE_PRINCIPAL_ID=$appId  
@@ -1079,7 +1079,7 @@ fi
 
 
 WEBSITES_ENABLE_APP_SERVICE_STORAGE="true"
-PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils"
+PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils:/home/app/code:/home/app/code/utils"
 #SCM_BASIC_AUTHENTICATION_ENABLED
 
 AML_VMSIZE="STANDARD_D2_V2"
