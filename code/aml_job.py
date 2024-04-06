@@ -35,12 +35,12 @@ class AmlJob():
         self.resource_group = resource_group
         self.workspace_name = workspace_name        
 
-        svc_pr_password = os.environ.get("AZUREML_PASSWORD")        
+        svc_pr_password = os.environ.get("AML_PASSWORD")
 
         svc_pr = ServicePrincipalAuthentication(
-        tenant_id=os.environ.get("AML_TENANT_ID"),
-        service_principal_id=os.environ.get("AML_SERVICE_PRINCIPAL_ID"),
-        service_principal_password=svc_pr_password)
+            tenant_id=os.environ.get("AML_TENANT_ID"),
+            service_principal_id=os.environ.get("AML_SERVICE_PRINCIPAL_ID"),
+            service_principal_password=svc_pr_password)
 
         try:
             # self.ws = Workspace.from_config()

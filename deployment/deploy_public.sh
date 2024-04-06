@@ -67,8 +67,6 @@ do
     esac
 done
 
-
-
 #you can nadd your subscription and resource group name here or relay in your .env file (must be bash compatible)
 SUBSCRIPTION="<add your subscription>"
 RG_WEBAPP_NAME="<add your new resource group>"
@@ -290,6 +288,37 @@ OPEN_AI_RESOURCE="research-openai"
 WEB_APP_NAME_MAIN="rescopilot"
 ACR_NAME="" #this will be reasigned later in the script
 
+
+function export_app_settings() {
+    # Parameters
+    local WEB_APP_NAME=$1
+    local RG_NAME=$2    
+    
+    # Ask the user for the base filename
+    # read -p "Enter the base filename: " BASE_FILENAME
+
+    # Get the current date and time
+    DATE_TIME=$(date '+%Y-%m-%d_%H-%M-%S')
+
+    # Create the filename by appending the date and time to the base filename
+    
+       
+    FILENAME="deployment_output/web_app_settings/${WEB_APP_NAME}_${DATE_TIME}.json"
+    # Check if the directory exists and create it if necessary
+    if [[ ! -d "deployment_output/web_app_settings" ]]; then
+        mkdir -p "deployment_output/web_app_settings"
+    fi
+    # Get the app settings and save them to the file
+    az webapp config appsettings list --name $WEB_APP_NAME --resource-group $RG_NAME > $FILENAME
+
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to get app settings"
+        exit 1
+    fi
+
+    echo "App settings have been saved to $FILENAME"
+}
+
 function parse_output_variables() {
     export MSYS_NO_PATHCONV=1
     output_variables=$(az deployment group show --resource-group $RG_WEBAPP_NAME --name main --query properties.outputs)
@@ -329,6 +358,7 @@ function parse_output_variables() {
     export AML_SUBSCRIPTION_ID=$SUBSCRIPTION
     export AML_RESOURCE_GROUP=$RG_WEBAPP_NAME
     export AML_WORKSPACE_NAME=$ML_NAME
+
      # Azure Storage File Share
     export ACCOUNT_NAME=$STORAGE_ACCOUNT_NAME
     export SHARE_NAME=$STORAGE_ACCOUNT_NAME
@@ -348,11 +378,26 @@ function parse_output_variables() {
     export AI_SEARCH_RESOURCE=$(echo $output_variables | jq -r '.aiSearch.value')        
     export COG_SEARCH_ADMIN_KEY=$(az search admin-key show --service-name $AI_SEARCH_RESOURCE --resource-group $RG_WEBAPP_NAME --query primaryKey --output tsv)
     export COG_SEARCH_ENDPOINT="https://$AI_SEARCH_RESOURCE.search.windows.net"
-    export COG_VEC_SEARCH_API_VERSION="2023-12-01-preview"
+    export COG_VEC_SEARCH_API_VERSION="2023-11-01-preview"
     export COG_SEARCH_ADMIN_KEY_PROD=$COG_SEARCH_ADMIN_KEY
     export COG_SEARCH_ENDPOINT_PROD="https://$AI_SEARCH_RESOURCE.search.windows.net"
-     
+    export COG_SERV_ENDPOINT=$COG_SEARCH_ENDPOINT_PROD
+    export COG_SERV_KEY=$COG_SEARCH_ADMIN_KEY
+    export COG_SERV_LOCATION=$aiSearchRegion
 
+    #OpenAI settings:
+
+    deployment_name="openai" #the template already adds the location to the name
+    aoai_resource_name="${PREFIX}${deployment_name}${location}${UNIQUE_ID}"     
+    output_variables=$(MSYS_NO_PATHCONV=1 az deployment group show --resource-group $RG_WEBAPP_NAME --name $bicepDeploymentName --query properties.outputs)
+    # if output_variables is empty, we assume that the resource does not exist
+    if [ -z "$output_variables" ]; then
+        echo -e "${YELLOW}OpenAI resource was not deployed using the deployment script we cannot update the web app settings.${RESET}"
+        UPDATE_OPEN_AI_SETTINGS="false"
+    else
+        echo -e "${GREEN}OpenAI resource exists we can adjust the web app settings.${RESET}"
+        UPDATE_OPEN_AI_SETTINGS="true"
+    fi
 
     echo "WEB_APP_NAME: $WEB_APP_NAME"
     echo "WEB_APP_NAME MAIN: $WEB_APP_NAME_MAIN"
@@ -615,6 +660,45 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
         fi
         # Get the output variables from the main deployment , this contains the names of the resources that were created
         parse_output_variables        
+        
+        spName="sp-research-copilot-$UNIQUE_ID"
+        # Check if the service principal already exists
+        existingSp=$(az ad sp list --display-name "$spName" --query "[].appId" --output tsv)
+        if [ -z "$existingSp" ]; then
+            output=$(az ad sp create-for-rbac --name "$spName" --query "{appId: appId, password: password, tenant: tenant}" --output json)                
+            appId=$(echo $output | jq -r .appId)
+            spPassword=$(echo $output | jq -r .password)
+            tenantId=$(echo $output | jq -r .tenant)                                                
+        else
+            echo -e "${YELLOW}Service principal $spName already exists.${RESET}"
+            echo "existingSp: $existingSp"
+
+            tenantId=$(az ad sp show --id $existingSp --query "appOwnerOrganizationId" --output tsv)                        
+            appId=$existingSp
+            #we reset the password:
+            spPassword=$(az ad sp credential reset --id $appId --query "password" --output tsv)
+        fi
+        #we assign the role to the service principal to rg
+        #az role assignment create --assignee $appId --role Contributor --scope $ML_ID
+        az role assignment create --assignee $appId --role Contributor --scope $RG_WEBAPP_NAME
+
+        #check if error
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}Role assigned to the service principal successfully.${RESET}"
+        else
+            echo -e "${RED}Error assigning role to the service principal.${RESET}"
+        fi
+
+        export AML_PASSWORD=$spPassword
+        export AML_TENANT_ID=$tenantId
+        export AML_SERVICE_PRINCIPAL_ID=$appId  
+
+        # Output the service principal ID, password, and tenant ID
+        echo "spName: $spName"
+        echo "AML_SERVICE_PRINCIPAL_ID: $appId"
+        echo "AML_PASSWORD: $spPassword"
+        echo "AML_TENANT_ID: $tenantId"        
+        
         #open ai deployments
         #supported locations for vision as of Feb 2024
         SUPPORTED_LOCATIONS=("swedencentral" "australiaeast" "westus" "switzerlandnorth")
@@ -660,7 +744,8 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
                         aoaiResourceName=$aoai_resource_name \
                         openAiSkuName="$openAiSkuName" \
                     --mode Incremental || echo -e "${RED}An error occurred, but the script will continue, check the deployment log in azure portal for more details.${RESET}"
-                # Check the exit status of the deployment        
+                # Check the exit status of the deployment   
+                
                 output_variables=$(MSYS_NO_PATHCONV=1 az deployment group show --resource-group $RG_WEBAPP_NAME --name $bicepDeploymentName --query properties.outputs)
 
                 aoaiResourceId=$(echo $output_variables | jq -r '.aoaiResourceId.value')                        
@@ -713,6 +798,9 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             done
     fi
     parse_output_variables
+
+    
+    read -p "pause after file creation filename: " BASE_FILENAME
 
     echo -e "${YELLOW} Enable Azure trusted services in the acr${RESET}"    
     az acr update --name $ACR_NAME --allow-trusted-services true  > /dev/null
@@ -871,12 +959,12 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             # build the docker locally
             if [[ "$BUILD_CHAINLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the chainlit app docke r locally...${RESET}"
-                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI .
+                #docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI .
             fi
 
             if [[ "$BUILD_STREAMLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the streamlit app docker locally...${RESET}"
-                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN .
+                #docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN .
             fi
 
         else
@@ -978,74 +1066,129 @@ else
 
 fi   
 
+#exporting the original web app settings to files.
+export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
+export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
+
+WEBSITES_ENABLE_APP_SERVICE_STORAGE="true"
 PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils"
-AML_PASSWORD=""
 #SCM_BASIC_AUTHENTICATION_ENABLED
-read -r -d '' app_settings << EOM
-{    
-    "AML_TENANT_ID": "",
-    "AML_SERVICE_PRINCIPAL_ID": "",    
-    "AML_PASSWORD": "$AML_PASSWORD",
-    "INITIAL_INDEX": "rag-data",
-    "AML_SUBSCRIPTION_ID": "$AML_SUBSCRIPTION_ID",
-    "AML_RESOURCE_GROUP": "$AML_RESOURCE_GROUP",
-    "AML_WORKSPACE_NAME": "$AML_WORKSPACE_NAME",
-    "AZURE_FILE_SHARE_ACCOUNT": "$AZURE_FILE_SHARE_ACCOUNT",
-    "AZURE_FILE_SHARE_NAME": "$AZURE_FILE_SHARE_NAME",
-    "AZURE_FILE_SHARE_KEY": "$AZURE_FILE_SHARE_KEY",
-    "PYTHONPATH": "$PYTHONPATH",    
-    "COSMOS_URI": "$COSMOS_URI",
-    "COSMOS_KEY": "$COSMOS_KEY",
-    "COSMOS_DB_NAME": "$COSMOS_DB_NAME",
-    "COSMOS_CONTAINER_NAME": "$COSMOS_CONTAINER_NAME",
-    "COSMOS_CATEGORYID": "$COSMOS_CATEGORYID",    
-    "COSMOS_LOG_CONTAINER": "$COSMOS_LOG_CONTAINER",    
-    "ROOT_PATH_INGESTION": "$ROOT_PATH_INGESTION",
-    "PROMPTS_PATH": "$PROMPTS_PATH",
-    "HOST": "0.0.0.0",
-    "LISTEN_PORT": 8000,
-    "DI_ENDPOINT": "$DI_ENDPOINT",
-    "DI_KEY": "$DI_KEY",
-    "DI_API_VERSION": "$DI_API_VERSION",
-    "AZURE_OPENAI_RESOURCE": "$AZURE_OPENAI_RESOURCE",
-    "AZURE_OPENAI_KEY": "$AZURE_OPENAI_KEY",
-    "AZURE_OPENAI_MODEL": "$AZURE_OPENAI_MODEL",
-    "AZURE_OPENAI_RESOURCE_1": "$AZURE_OPENAI_RESOURCE_1",
-    "AZURE_OPENAI_KEY_1": "$AZURE_OPENAI_KEY_1",
-    "AZURE_OPENAI_RESOURCE_2": "$AZURE_OPENAI_RESOURCE_2",
-    "AZURE_OPENAI_KEY_2": "$AZURE_OPENAI_KEY_2",
-    "AZURE_OPENAI_RESOURCE_3": "$AZURE_OPENAI_RESOURCE_3",
-    "AZURE_OPENAI_KEY_3": "$AZURE_OPENAI_KEY_3",
-    "AZURE_OPENAI_RESOURCE_4": "$AZURE_OPENAI_RESOURCE_4",
-    "AZURE_OPENAI_KEY_4": "$AZURE_OPENAI_KEY_4",
-    "AZURE_OPENAI_EMBEDDING_MODEL": "$AZURE_OPENAI_EMBEDDING_MODEL",
-    "AZURE_OPENAI_MODEL_VISION": "$AZURE_OPENAI_MODEL_VISION",
-    "AZURE_OPENAI_API_VERSION": "$AZURE_OPENAI_API_VERSION",
-    "AZURE_OPENAI_TEMPERATURE": "$AZURE_OPENAI_TEMPERATURE",
-    "AZURE_OPENAI_TOP_P": "$AZURE_OPENAI_TOP_P",
-    "AZURE_OPENAI_MAX_TOKENS": "$AZURE_OPENAI_MAX_TOKENS",
-    "AZURE_OPENAI_STOP_SEQUENCE": "$AZURE_OPENAI_STOP_SEQUENCE",
-    "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE": "$AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE",
-    "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY": "$AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY",
-    "AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION": "$AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION",
-    "COG_SERV_ENDPOINT": "$COG_SERV_ENDPOINT",
-    "COG_SERV_KEY": "$COG_SERV_KEY",
-    "COG_SERV_LOCATION": "$COG_SERV_LOCATION",
-    "AZURE_VISION_ENDPOINT": "$AZURE_VISION_ENDPOINT",
-    "AZURE_VISION_KEY": "$AZURE_VISION_KEY",
-    "AZURE_OPENAI_ASSISTANTSAPI_ENDPOINT": "$AZURE_OPENAI_ASSISTANTSAPI_ENDPOINT",
-    "AZURE_OPENAI_ASSISTANTSAPI_KEY": "$AZURE_OPENAI_ASSISTANTSAPI_KEY",
-    "OPENAI_API_KEY": "$OPENAI_API_KEY",
-    "COG_SEARCH_ENDPOINT": "$COG_SEARCH_ENDPOINT",
-    "COG_SEARCH_ADMIN_KEY": "$COG_SEARCH_ADMIN_KEY",
-    "COG_VEC_SEARCH_API_VERSION": "$COG_VEC_SEARCH_API_VERSION",
-    "COG_SEARCH_ENDPOINT_PROD": "$COG_SEARCH_ENDPOINT_PROD",
-    "COG_SEARCH_ADMIN_KEY_PROD": "$COG_SEARCH_ADMIN_KEY_PROD",
-    "BLOB_CONN_STR": "$BLOB_CONN_STR"
-}
+
+if [[ "$UPDATE_OPEN_AI_SETTINGS" = "true" ]]; then
+    read -r -d '' app_settings << EOM
+    {    
+        "PYTHONUNBUFFERED": "1",
+        "WEBSITES_ENABLE_APP_SERVICE_STORAGE": "$WEBSITES_ENABLE_APP_SERVICE_STORAGE",
+        "AML_PASSWORD": "$AML_PASSWORD",
+        "AML_TENANT_ID": "$AML_TENANT_ID",
+        "AML_SERVICE_PRINCIPAL_ID": "$AML_SERVICE_PRINCIPAL_ID",
+        "INITIAL_INDEX": "rag-data",
+        "AML_SUBSCRIPTION_ID": "$AML_SUBSCRIPTION_ID",
+        "AML_RESOURCE_GROUP": "$AML_RESOURCE_GROUP",
+        "AML_WORKSPACE_NAME": "$AML_WORKSPACE_NAME",
+        "AZURE_FILE_SHARE_ACCOUNT": "$AZURE_FILE_SHARE_ACCOUNT",
+        "AZURE_FILE_SHARE_NAME": "$AZURE_FILE_SHARE_NAME",
+        "AZURE_FILE_SHARE_KEY": "$AZURE_FILE_SHARE_KEY",
+        "PYTHONPATH": "$PYTHONPATH",    
+        "COSMOS_URI": "$COSMOS_URI",
+        "COSMOS_KEY": "$COSMOS_KEY",
+        "COSMOS_DB_NAME": "$COSMOS_DB_NAME",
+        "COSMOS_CONTAINER_NAME": "$COSMOS_CONTAINER_NAME",
+        "COSMOS_CATEGORYID": "$COSMOS_CATEGORYID",    
+        "COSMOS_LOG_CONTAINER": "$COSMOS_LOG_CONTAINER",    
+        "ROOT_PATH_INGESTION": "$ROOT_PATH_INGESTION",
+        "PROMPTS_PATH": "$PROMPTS_PATH",
+        "HOST": "0.0.0.0",
+        "LISTEN_PORT": 8000,
+        "DI_ENDPOINT": "$DI_ENDPOINT",
+        "DI_KEY": "$DI_KEY",
+        "DI_API_VERSION": "$DI_API_VERSION",
+        "AZURE_OPENAI_RESOURCE": "$AZURE_OPENAI_RESOURCE",
+        "AZURE_OPENAI_KEY": "$AZURE_OPENAI_KEY",
+        "AZURE_OPENAI_MODEL": "$AZURE_OPENAI_MODEL",
+        "AZURE_OPENAI_RESOURCE_1": "$AZURE_OPENAI_RESOURCE_1",
+        "AZURE_OPENAI_KEY_1": "$AZURE_OPENAI_KEY_1",
+        "AZURE_OPENAI_RESOURCE_2": "$AZURE_OPENAI_RESOURCE_2",
+        "AZURE_OPENAI_KEY_2": "$AZURE_OPENAI_KEY_2",
+        "AZURE_OPENAI_RESOURCE_3": "$AZURE_OPENAI_RESOURCE_3",
+        "AZURE_OPENAI_KEY_3": "$AZURE_OPENAI_KEY_3",
+        "AZURE_OPENAI_RESOURCE_4": "$AZURE_OPENAI_RESOURCE_4",
+        "AZURE_OPENAI_KEY_4": "$AZURE_OPENAI_KEY_4",
+        "AZURE_OPENAI_EMBEDDING_MODEL": "$AZURE_OPENAI_EMBEDDING_MODEL",
+        "AZURE_OPENAI_MODEL_VISION": "$AZURE_OPENAI_MODEL_VISION",
+        "AZURE_OPENAI_API_VERSION": "$AZURE_OPENAI_API_VERSION",
+        "AZURE_OPENAI_TEMPERATURE": "$AZURE_OPENAI_TEMPERATURE",
+        "AZURE_OPENAI_TOP_P": "$AZURE_OPENAI_TOP_P",
+        "AZURE_OPENAI_MAX_TOKENS": "$AZURE_OPENAI_MAX_TOKENS",
+        "AZURE_OPENAI_STOP_SEQUENCE": "$AZURE_OPENAI_STOP_SEQUENCE",
+        "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE": "$AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE",
+        "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY": "$AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY",
+        "AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION": "$AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION",
+        "COG_SERV_ENDPOINT": "$COG_SERV_ENDPOINT",
+        "COG_SERV_KEY": "$COG_SERV_KEY",
+        "COG_SERV_LOCATION": "$COG_SERV_LOCATION",
+        "AZURE_VISION_ENDPOINT": "$AZURE_VISION_ENDPOINT",
+        "AZURE_VISION_KEY": "$AZURE_VISION_KEY",
+        "AZURE_OPENAI_ASSISTANTSAPI_ENDPOINT": "$AZURE_OPENAI_ASSISTANTSAPI_ENDPOINT",
+        "AZURE_OPENAI_ASSISTANTSAPI_KEY": "$AZURE_OPENAI_ASSISTANTSAPI_KEY",
+        "OPENAI_API_KEY": "$OPENAI_API_KEY",
+        "COG_SEARCH_ENDPOINT": "$COG_SEARCH_ENDPOINT",
+        "COG_SEARCH_ADMIN_KEY": "$COG_SEARCH_ADMIN_KEY",
+        "COG_VEC_SEARCH_API_VERSION": "$COG_VEC_SEARCH_API_VERSION",
+        "COG_SEARCH_ENDPOINT_PROD": "$COG_SEARCH_ENDPOINT_PROD",
+        "COG_SEARCH_ADMIN_KEY_PROD": "$COG_SEARCH_ADMIN_KEY_PROD",
+        "BLOB_CONN_STR": "$BLOB_CONN_STR"
+    }
 EOM
+else
+    read -r -d '' app_settings << EOM
+    {    
+        "PYTHONUNBUFFERED": "1",
+        "WEBSITES_ENABLE_APP_SERVICE_STORAGE": "$WEBSITES_ENABLE_APP_SERVICE_STORAGE",
+        "AML_PASSWORD": "$AML_PASSWORD",
+        "AML_TENANT_ID": "$AML_TENANT_ID",
+        "AML_SERVICE_PRINCIPAL_ID": "$AML_SERVICE_PRINCIPAL_ID",
+        "INITIAL_INDEX": "rag-data",
+        "AML_SUBSCRIPTION_ID": "$AML_SUBSCRIPTION_ID",
+        "AML_RESOURCE_GROUP": "$AML_RESOURCE_GROUP",
+        "AML_WORKSPACE_NAME": "$AML_WORKSPACE_NAME",
+        "AZURE_FILE_SHARE_ACCOUNT": "$AZURE_FILE_SHARE_ACCOUNT",
+        "AZURE_FILE_SHARE_NAME": "$AZURE_FILE_SHARE_NAME",
+        "AZURE_FILE_SHARE_KEY": "$AZURE_FILE_SHARE_KEY",
+        "PYTHONPATH": "$PYTHONPATH",    
+        "COSMOS_URI": "$COSMOS_URI",
+        "COSMOS_KEY": "$COSMOS_KEY",
+        "COSMOS_DB_NAME": "$COSMOS_DB_NAME",
+        "COSMOS_CONTAINER_NAME": "$COSMOS_CONTAINER_NAME",
+        "COSMOS_CATEGORYID": "$COSMOS_CATEGORYID",    
+        "COSMOS_LOG_CONTAINER": "$COSMOS_LOG_CONTAINER",    
+        "ROOT_PATH_INGESTION": "$ROOT_PATH_INGESTION",
+        "PROMPTS_PATH": "$PROMPTS_PATH",
+        "HOST": "0.0.0.0",
+        "LISTEN_PORT": 8000,
+        "DI_ENDPOINT": "$DI_ENDPOINT",
+        "DI_KEY": "$DI_KEY",
+        "DI_API_VERSION": "$DI_API_VERSION",        
+        "COG_SERV_ENDPOINT": "$COG_SERV_ENDPOINT",
+        "COG_SERV_KEY": "$COG_SERV_KEY",
+        "COG_SERV_LOCATION": "$COG_SERV_LOCATION",
+        "AZURE_VISION_ENDPOINT": "$AZURE_VISION_ENDPOINT",
+        "AZURE_VISION_KEY": "$AZURE_VISION_KEY",        
+        "COG_SEARCH_ENDPOINT": "$COG_SEARCH_ENDPOINT",
+        "COG_SEARCH_ADMIN_KEY": "$COG_SEARCH_ADMIN_KEY",
+        "COG_VEC_SEARCH_API_VERSION": "$COG_VEC_SEARCH_API_VERSION",
+        "COG_SEARCH_ENDPOINT_PROD": "$COG_SEARCH_ENDPOINT_PROD",
+        "COG_SEARCH_ADMIN_KEY_PROD": "$COG_SEARCH_ADMIN_KEY_PROD",
+        "BLOB_CONN_STR": "$BLOB_CONN_STR"
+    }
+EOM
+fi
+
 
 if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
+    #make a pause in the code to make sure the user is aware of the changes
+    echo -e "${YELLOW}****The next steps will update the webapps settings in the selected subscription ${RESET}"
+    # read -rp "Press enter ..."
     
     if [[ "$BUILD_CHAINLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEB_APP_NAME? (y/n)" "$RED"; then    
@@ -1056,7 +1199,8 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
             fi
         fi
     fi
-
+    echo -e "${YELLOW}****The next steps will update the webapps settings in the selected subscription ${RESET}"
+    # read -rp "Press enter ..."
     if [[ "$BUILD_STREAMLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEB_APP_NAME_MAIN? (y/n)" "$RED"; then    
             settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
@@ -1080,5 +1224,3 @@ if [ "$WEBAPP_UPDATED" = "true" ]; then
 fi
 
 echo -e "${GREEN}Process Finished! happy testing!.${RESET}"
-
-
