@@ -36,17 +36,26 @@ if datastore_mount is not None:
     if ingestion_directory.startswith(ROOT_PATH_INGESTION): ingestion_directory = ingestion_directory[len(ROOT_PATH_INGESTION):]
     if download_directory.startswith(ROOT_PATH_INGESTION): download_directory = download_directory[len(ROOT_PATH_INGESTION):]
 
+    ingestion_directory = ingestion_directory.replace('\\', '/')
+    download_directory = download_directory.replace('\\', '/')
+
+    if ingestion_directory.startswith('/'): ingestion_directory = ingestion_directory[1:]
+    if download_directory.startswith('/'): download_directory = download_directory[1:]
+
     ingestion_directory = os.path.join(datastore_mount, ingestion_directory).replace('\\', '/')
     download_directory = os.path.join(datastore_mount, download_directory).replace('\\', '/')
 
-    ingestion_params_dict['ingestion_directory'] = ingestion_params_dict['ingestion_directory'].replace('\\', '/')
-    ingestion_params_dict['download_directory'] = ingestion_params_dict['download_directory'].replace('\\', '/')
+    # ingestion_params_dict['ingestion_directory'] = ingestion_params_dict['ingestion_directory'].replace('\\', '/')
+    # ingestion_params_dict['download_directory'] = ingestion_params_dict['download_directory'].replace('\\', '/')
+
+    ingestion_params_dict['ingestion_directory'] = f"../{ingestion_params_dict['index_name']}"
+    ingestion_params_dict['download_directory']  = f"../{ingestion_params_dict['index_name']}/downloads"
 
     os.environ['ROOT_PATH_INGESTION'] = datastore_mount
     ROOT_PATH_INGESTION = datastore_mount
 
     print(f"\n\nROOT_PATH_INGESTION is now {ROOT_PATH_INGESTION}")
-    print(f"Changing Current Working Directory in Python to {os.path.dirname(datastore_mount)}\n\n")
+    # print(f"Changing Current Working Directory in Python to {os.path.dirname(datastore_mount)}\n\n")
     os.chdir(os.path.join(datastore_mount, ingestion_params_dict["index_name"]))
 
 else:
@@ -101,7 +110,7 @@ def create_indexing_logs(index_name):
             for file in files:
                 if file.lower() in ingested_files: continue
                 extension = os.path.splitext(os.path.basename(file))[1].strip().lower()
-                if extension not in ['.pdf', '.docx', '.xlsx', '.doc', '.xls']: continue
+                if extension not in ['.pdf', '.docx', '.xlsx', '.doc', '.xls', '.csv']: continue
 
                 if os.path.exists(os.path.join(root, file + '.ingested')):
                     status = 'Ingested'
@@ -170,7 +179,7 @@ else:
                     continue
                 
                 extension = os.path.splitext(os.path.basename(file))[1].strip().lower()
-                if extension not in ['.pdf', '.docx', '.xlsx', '.doc', '.xls']: 
+                if extension not in ['.pdf', '.docx', '.xlsx', '.doc', '.xls', '.csv']: 
                     print(f"Extension not supporting: {file}. Skipping.")
                     continue
 

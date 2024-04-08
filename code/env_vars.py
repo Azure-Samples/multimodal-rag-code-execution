@@ -100,3 +100,11 @@ COSMOS_CATEGORYID = os.environ.get('COSMOS_CATEGORYID', '')
 
 
 INITIAL_INDEX = os.environ.get('INITIAL_INDEX', 'rag-data')
+
+
+BUILD_ID = os.getenv('BUILD_ID', '0.0.0')
+
+AML_TENANT_ID = os.environ.get('AML_TENANT_ID', '')
+AML_SERVICE_PRINCIPAL_ID = os.environ.get('AML_SERVICE_PRINCIPAL_ID', '')
+AML_PASSWORD = os.environ.get('AML_PASSWORD', '')
+AML_VMSIZE = os.environ.get('AML_VMSIZE', 'Standard_DS3_v2')

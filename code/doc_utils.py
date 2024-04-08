@@ -645,6 +645,10 @@ def get_token_count(text, model = "gpt-4"):
     return len(enc.encode(text))
 
 
+def limit_token_count(text, limit = 128000, model = "gpt-4"):
+    enc = get_encoder(model)
+    return enc.decode(enc.encode(text)[:limit])
+
 
 def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
@@ -1011,6 +1015,15 @@ def get_excel_sheet_names(file_path):
     return sheet_names
 
 
+
+def read_csv_to_dataframe(file_path):
+    # Read a CSV file into a DataFrame
+    df = pd.read_csv(file_path)
+
+    return {"sheet1": df}
+
+
+
 def read_excel_to_dataframes(file_path):
     xls = pd.ExcelFile(file_path, engine='openpyxl')
     dfs = {}
@@ -1351,7 +1364,14 @@ def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
 
     table_count = 0
     
-    dataframes = read_excel_to_dataframes(doc_path)
+    if ingestion_pipeline_dict['extension'] == '.csv':
+        dataframes= read_csv_to_dataframe(doc_path)
+    elif ingestion_pipeline_dict['extension'] == '.xlsx':
+        dataframes = read_excel_to_dataframes(doc_path)
+    else:
+        dataframes = {}
+        logc("WARNING", f"Could not read the file {doc_path} as it is not a CSV or XLSX file.")
+
 
     for sheet_name, df in dataframes.items():
         # chunks, header, summary = chunk_df_as_markdown_table(df, model_info, n_tokens = n_tokens, overlap = overlap)
@@ -1412,7 +1432,244 @@ def semantic_chunk_text_file(file_path, buffer_size=1, breakpoint_percentile_thr
 
 
 
-def create_doc_chunks(ingestion_pipeline_dict):
+def create_text_doc_chunks_with_sentence_chunking(ingestion_pipeline_dict):
+
+    chunks = ingestion_pipeline_dict.get('chunks', [])
+    chunk_index = len(chunks)
+
+    text_directory = ingestion_pipeline_dict['text_directory']
+    n_tokens = ingestion_pipeline_dict['chunk_size']
+    overlap = ingestion_pipeline_dict['chunk_overlap']
+
+    text_files = []
+
+    try:
+        text_chunks = sentence_chunk_text_file(ingestion_pipeline_dict['full_text_file'],
+                                               chunk_size=n_tokens,
+                                               chunk_overlap=overlap
+                                            )
+    except:
+        text_chunks = []
+        logc("Warning", f"Could not perform Sentence Chunking of file {ingestion_pipeline_dict['full_text_file']}")
+
+    
+    for index, tc in enumerate(text_chunks):
+        text_filename = os.path.join(text_directory, f"chunk_{index}.txt")
+        write_to_file(tc, text_filename, 'w')
+        chunks.append({
+            'chunk_number':chunk_index+1, 
+            'text_file': text_filename,
+            'full_chunk_text':'',
+            'images': [],
+            'tables': [],
+            'image_py': [],
+            'image_codeblock': [],
+            'image_markdown': [],
+            'image_mm': [],
+            'image_text': [],
+            'table_text': [],
+            'table_py': [],
+            'table_codeblock': [],
+            'table_markdown': [],
+            'type': 'text'
+        })
+
+        text_files.append(text_filename)
+        chunk_index += 1
+
+    ingestion_pipeline_dict['chunks'] = chunks
+
+    ingestion_pipeline_dict['text_files'] = text_files
+
+    return ingestion_pipeline_dict
+
+
+
+
+def create_image_doc_chunks(ingestion_pipeline_dict):
+
+    chunks = ingestion_pipeline_dict.get('chunks', [])
+    chunk_index = len(chunks)
+
+    images_directory = ingestion_pipeline_dict['images_directory'] 
+    images = ingestion_pipeline_dict['image_files']
+    image_text_files = []
+
+
+    for index, tc in enumerate(images):   
+        chunks.append({
+            'chunk_number':chunk_index+1, 
+            'text_file': '',
+            'full_chunk_text':'',
+            'chunk_image_path': tc,
+            'images': [tc],
+            'tables': [],
+            'image_py': [],
+            'image_codeblock': [],
+            'image_markdown': [],
+            'image_mm': [],
+            'image_text': [],            
+            'table_text': [],
+            'table_py': [],
+            'table_codeblock': [],
+            'table_markdown': [],        
+            'post_process_image_with_context': False, 
+            'type': 'image'
+        })
+
+        chunk_index += 1
+
+    ingestion_pipeline_dict['chunks'] = chunks
+
+    return ingestion_pipeline_dict
+
+
+
+def create_table_doc_chunks_markdown(ingestion_pipeline_dict):
+
+    chunks = ingestion_pipeline_dict.get('chunks', [])
+    chunk_index = len(chunks)
+
+    tables_directory = ingestion_pipeline_dict['tables_directory']
+    tables_dfs = ingestion_pipeline_dict['tables_py'] 
+    tables_md = ingestion_pipeline_dict['tables_md'] 
+    tables = ingestion_pipeline_dict['table_files'] 
+
+    model_info = ingestion_pipeline_dict['models'][0]
+    n_tokens = ingestion_pipeline_dict['chunk_size']
+    overlap = ingestion_pipeline_dict['chunk_overlap']
+
+    text_files = []
+    table_text_files = []
+
+
+    for index, tc in enumerate(tables):
+        md_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.md")
+        py_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.py")
+        table_text_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.txt")
+
+        md_table = read_asset_file(md_filename)[0]
+        table_text = read_asset_file(table_text_filename)[0]
+
+        if get_token_count(md_table) > 2 * n_tokens:
+            ## First Backup the original table
+            md_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.md.backup")
+            table_text_filename = os.path.join(tables_directory, f"chunk_{index}_table_0.txt.backup")
+            write_to_file(md_table, md_filename, 'w')
+            write_to_file(table_text, table_text_filename, 'w')
+            
+            ## Table too big needs to be broken into chunks
+            md_chunks, header, summary = chunk_markdown_table(md_table, model_info, n_tokens = n_tokens, overlap = overlap)
+
+            for md_index, md_chunk in enumerate(md_chunks):
+                md_filename = os.path.join(tables_directory, f"chunk_{index}_table_{md_index}.md")
+                table_text_filename = os.path.join(tables_directory, f"chunk_{index}_table_{md_index}.txt")
+                table_text_files.append(table_text_filename)
+
+                text_contents = f"Table Summary:\n{summary}\n\nTable:\n{md_chunk}"
+                write_to_file(md_chunk, md_filename, 'w')
+                write_to_file(text_contents, table_text_filename, 'w')
+
+                chunks.append({
+                    'chunk_number':chunk_index+1, 
+                    'text_file': table_text_filename,
+                    'full_chunk_text':'',
+                    'images': [],
+                    'tables': [],
+                    'image_py': [],
+                    'image_codeblock': [],
+                    'image_markdown': [],
+                    'image_mm': [],
+                    'image_text': [],
+                    'table_text': [table_text_filename],
+                    'table_py': [py_filename],
+                    'table_codeblock': [],
+                    'table_markdown': [md_filename],    
+                    'type': 'table'    
+                })
+
+                chunk_index += 1
+        else:        
+            table_text_files.append(table_text_filename)
+
+            chunks.append({
+                'chunk_number':chunk_index+1, 
+                'text_file': table_text_filename,
+                'full_chunk_text':'',
+                'images': [],
+                'tables': [],
+                'image_py': [],
+                'image_codeblock': [],
+                'image_markdown': [],
+                'image_mm': [],
+                'image_text': [],
+                'table_text': [table_text_filename],
+                'table_py': [py_filename],
+                'table_codeblock': [],
+                'table_markdown': [md_filename],    
+                'type': 'table'    
+            })
+
+            chunk_index += 1
+
+
+    ingestion_pipeline_dict['chunks'] = chunks
+    ingestion_pipeline_dict['table_text_files'] = table_text_files
+
+
+    return ingestion_pipeline_dict
+
+
+
+def extract_table_number(filename, verbose=False):
+    match = re.search(r"chunk_\d+_table_(\d+).png", filename)
+    if match:
+        table_number = match.group(1)
+        if verbose: print(f"Extracted table number: {table_number}")
+    else:
+        table_number = '0'
+
+    return table_number
+
+
+
+def create_table_doc_chunks_with_table_images(ingestion_pipeline_dict):
+
+    chunks = ingestion_pipeline_dict.get('chunks', [])
+    chunk_index = len(chunks)
+    tables_folder = ingestion_pipeline_dict['tables_directory']
+    tables = ingestion_pipeline_dict['table_images'] 
+
+    for index, tc in enumerate(tables):
+        chunks.append({
+            'chunk_number':chunk_index+1, 
+            'text_file': '',
+            'full_chunk_text':'',
+            'images': [],
+            'tables': [tc],
+            'chunk_image_path': tc,
+            'image_py': [],
+            'image_codeblock': [],
+            'image_markdown': [],
+            'chunk_table_number': extract_table_number(tc),
+            'image_mm': [],
+            'image_text': [],
+            'table_text': [],
+            'table_py': [],
+            'table_codeblock': [],
+            'table_markdown': [],    
+            'type': 'table'    
+        })
+
+        chunk_index += 1
+
+    ingestion_pipeline_dict['chunks'] = chunks
+
+    return ingestion_pipeline_dict
+
+
+
+def create_doc_chunks_with_doc_int_markdown(ingestion_pipeline_dict):
 
     chunks = []
 
@@ -1580,6 +1837,7 @@ def extract_doc_using_doc_int(ingestion_pipeline_dict):
     doc_path = ingestion_pipeline_dict['document_path'] 
     images_folder = ingestion_pipeline_dict['images_directory'] 
     tables_folder = ingestion_pipeline_dict['tables_directory']
+    table_extraction_mode = ingestion_pipeline_dict.get('extract_docint_tables_mode', "Markdown")
 
     document_intelligence_client = DocumentIntelligenceClient(endpoint=DI_ENDPOINT, credential=AzureKeyCredential(DI_KEY))
 
@@ -1590,32 +1848,60 @@ def extract_doc_using_doc_int(ingestion_pipeline_dict):
     result: AnalyzeResult = poller.result()
     
     content = result['content']
-    tables = extract_markdown_table(content)
+    
 
     tables_txt = []
     tables_dfs = []
     tables_md = []
     table_count = 0
+    table_bounds = []
 
-    for table in tables:
+    tables = []
+
+    if table_extraction_mode == "Markdown":
+        tables = extract_markdown_table(content)
+        for table in tables:
+            try:
+                table = table[0]
+                table_path_md = os.path.join(tables_folder, f'chunk_{table_count}_table_0.md')
+                table_path = os.path.join(tables_folder, f'chunk_{table_count}_table_0.txt')
+                table_path_py = os.path.join(tables_folder, f'chunk_{table_count}_table_0.py')
+
+                write_to_file(table, table_path_md, 'w')
+                write_to_file(table, table_path, 'w')
+                df = extract_markdown_table_as_df(table)
+                py_script = f"df_{generate_uuid_from_string(str(df.to_dict())).replace('-', '_')} = pd.DataFrame.from_dict({df.to_dict()})"
+                write_to_file(py_script, table_path_py, 'w')
+
+                tables_dfs.append(table_path_py)
+                tables_md.append(table_path_md)
+                tables_txt.append(table_path)
+                table_count += 1
+            except Exception as e:
+                logc("Error extracting tables", f"Error extracting tables from text '{table[:50]}'. Error: {e}")
+
+    elif table_extraction_mode == "JustExtract":
+        if 'tables' in result: table_bounds = result['tables']
+        pages_trkr = {}
+        tbl_number = 0
+
         try:
-            table = table[0]
-            table_path_md = os.path.join(tables_folder, f'chunk_{table_count}_table_0.md')
-            table_path = os.path.join(tables_folder, f'chunk_{table_count}_table_0.txt')
-            table_path_py = os.path.join(tables_folder, f'chunk_{table_count}_table_0.py')
-
-            write_to_file(table, table_path_md, 'w')
-            write_to_file(table, table_path, 'w')
-            df = extract_markdown_table_as_df(table)
-            py_script = f"df_{generate_uuid_from_string(str(df.to_dict())).replace('-', '_')} = pd.DataFrame.from_dict({df.to_dict()})"
-            write_to_file(py_script, table_path_py, 'w')
-
-            tables_dfs.append(table_path_py)
-            tables_md.append(table_path_md)
-            tables_txt.append(table_path)
-            table_count += 1
+            for bounding in table_bounds:
+                page_number = bounding['boundingRegions'][0]['pageNumber']
+                polygon = bounding['boundingRegions'][0]['polygon']
+                if page_number not in pages_trkr: 
+                    pages_trkr[page_number] = 1
+                    tbl_number = 0
+                png_file = os.path.join(ingestion_pipeline_dict['chunks_as_images_directory'], f'chunk_{page_number}.png')
+                target_filename = os.path.join(tables_folder, f'chunk_{page_number}_table_{tbl_number}.png')
+                tbl_number+= 1
+                extract_figure(png_file, polygon, target_filename)
+                tables.append(target_filename)
         except Exception as e:
-            logc("Error extracting tables", f"Error extracting tables from text '{table[:50]}'. Error: {e}")
+            print(f"Error extracting image: {e}")
+    
+    else:
+        logc("WARNING", f"Table extraction mode {table_extraction_mode} not supported. Please use 'Markdown' or 'JustExtract'.")
 
 
     images = []
@@ -1643,6 +1929,7 @@ def extract_doc_using_doc_int(ingestion_pipeline_dict):
     ingestion_pipeline_dict['full_text'] = result['content']
     write_to_file(result['content'], ingestion_pipeline_dict['full_text_file'], 'w')
 
+    ingestion_pipeline_dict['table_images'] = tables
     ingestion_pipeline_dict['table_files'] = tables_txt
     ingestion_pipeline_dict['tables_py'] = tables_dfs
     ingestion_pipeline_dict['tables_md'] = tables_md
@@ -1862,6 +2149,7 @@ def pdf_extract_high_res_chunk_images(ingestion_pipeline_dict):
     chunks_as_images_directory = ingestion_pipeline_dict['chunks_as_images_directory']
 
     for chunk_dict in ingestion_pipeline_dict['chunks']:
+        # print(chunk_dict)
         chunk = chunk_dict['chunk']
         chunk_number = chunk_dict['chunk_number']
 
@@ -2110,7 +2398,7 @@ def pdf_extract_text(ingestion_pipeline_dict):
 
 def extract_table_from_image(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     #### 2 DETECT AND SAVE TABLES
-    table_number = 0
+    table_number = chunk_dict.get('chunk_table_number', 0)
     chunk_number = chunk_dict['chunk_number']
     image_path = chunk_dict['chunk_image_path']
     tables_directory = ingestion_pipeline_dict['tables_directory']
@@ -2275,7 +2563,7 @@ def post_process_chunk_images(ingestion_pipeline_dict, chunk_dict, model_info = 
 
             # write_to_file(f'\n\n\n#### START OF DESCRIPTION OF IMAGE {index}\n' + remove_code(text) + '\n#### END OF DESCRIPTION OF IMAGE\n\n', chunk_text_file, mode='a')
             write_to_file(remove_code(text), text_filename, 'w')
-            write_to_file(f'\n\n\n#### START OF DESCRIPTION OF IMAGE {index}\n' + remove_code(text) + '\n#### END OF DESCRIPTION OF IMAGE\n\n', master_text_file, mode='a')
+            write_to_file(f'\n\n\n#### START OF DESCRIPTION OF IMAGE {index}\n' + remove_code(text) + f'\n#### END OF DESCRIPTION OF IMAGE {index}\n\n', master_text_file, mode='a')
             # write_to_file(remove_code(text) + '\n\n', master_text_file, mode='a')
 
             time.sleep(2)
@@ -2417,7 +2705,7 @@ def post_process_chunk_table(ingestion_pipeline_dict, chunk_dict, model_info = N
             table_markdown_filenames.append(markdown_filename)
 
             # write_to_file(f'\n\n\n#### START OF DESCRIPTION OF TABLE {index}\n' + remove_code(text) + '\n#### END OF DESCRIPTION OF TABLE \n\n', chunk_text_file, mode='a')
-            write_to_file(f'\n\n\n#### START OF DESCRIPTION OF TABLE {index}\n' + remove_code(text) + '\n#### END OF DESCRIPTION OF TABLE \n\n', master_text_file, mode='a')
+            write_to_file(f'\n\n\n#### START OF DESCRIPTION OF TABLE {index}\n' + remove_code(text) + f'\n#### END OF DESCRIPTION OF TABLE {index}\n\n', master_text_file, mode='a')
             # write_to_file(remove_code(text) + '\n\n', master_text_file, mode='a')
 
             
@@ -2509,8 +2797,9 @@ def get_ingested_document_png_table_images(directory):
 def create_ingestion_pipeline_dict(ingestion_params_dict): 
 
     doc_path = ingestion_params_dict['doc_path'] 
-    ingestion_directory = ingestion_params_dict['ingestion_directory']
     index_name = ingestion_params_dict['index_name']
+    
+    ingestion_directory = ingestion_params_dict.get('ingestion_directory', None)
     num_threads = ingestion_params_dict.get('num_threads', len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None]))
     password = ingestion_params_dict.get('password', None)
     models = ingestion_params_dict.get('models', gpt4_models)
@@ -2573,7 +2862,11 @@ def create_ingestion_pipeline_dict(ingestion_params_dict):
 
     print("PDF Path: ", document_path)
     master_py_filename = os.path.join(doc_proc_directory, base_name + '.py')
-    full_text_filename = os.path.join(doc_proc_directory, base_name + '.txt')
+
+    if extension != '.txt':
+        full_text_filename = os.path.join(doc_proc_directory, base_name + '.txt')
+    else:
+        full_text_filename = os.path.join(doc_proc_directory, base_name + '.txt.txt')
 
     master_py_filename = master_py_filename.replace(' ', '_')
     full_text_filename = full_text_filename.replace(' ', '_')
@@ -2604,6 +2897,8 @@ def create_ingestion_pipeline_dict(ingestion_params_dict):
         'document_processing_directory': doc_proc_directory,
         'document_ingestion_directory': ingestion_directory,
         'document_downloads_directory': download_directory,
+        'ingestion_directory': ingestion_directory,
+        'download_directory': download_directory,
         'document_path': document_path,
         'master_py_file': master_py_filename,
         'full_text_file': full_text_filename,
@@ -2634,6 +2929,10 @@ def create_ingestion_pipeline_dict(ingestion_params_dict):
         'chunk_size': int(chunk_size),
         'chunk_overlap': int(chunk_overlap),
     }
+
+    for v, k in ingestion_params_dict.items():
+        if v not in ingestion_pipeline_dict:
+            ingestion_pipeline_dict[v] = k
 
     return ingestion_pipeline_dict
 
@@ -3135,6 +3434,9 @@ Do not generate any other text other than the comma-separated tag list. Output *
 
 """
 
+
+
+
 def generate_tag_list(text, model = AZURE_OPENAI_MODEL, client = oai_client):
     try:
         messages = [{"role":"system", "content":optimize_embeddings_prompt.format(text=text)}]
@@ -3143,6 +3445,49 @@ def generate_tag_list(text, model = AZURE_OPENAI_MODEL, client = oai_client):
     except Exception as e:
         logc("Error generating tag list: ", e)
         return text
+
+
+
+document_wide_tags = """You are document processing assistant, and you are helpful in processing and identifying large documents. 
+
+Text:
+## START OF TEXT
+{text}
+## END OF TEXT
+
+The above Text was extracted from a processed document. From the above Text, you **MUST** extract the following:
+
+    1. Extract the most important tags in a comma-separated format, and generate an accurate list of tags for any entities, such as unique names, product IDs, product numbers, company names, etc.. that could uniquely identify this processed document.
+    2. Extract the most important topics from the text (what is the text talking about), and generate tags for these topics. 
+    3. Extract any relationships that you think are important, such as company - product relationship, or person - geography relationship, or any relationship that seems important, and formulate those relationships as tags in the following format 'ENTITY_1 RELATIONSHIP ENTITY_2', for example: 'XBOX belongs to Microsoft' or 'Paris is located in France' or 'iPhone is created by Apple', etc... 
+    4. Extract any important geographies and places, and generate them as tags.
+    5. **SUPER IMPORTANT**: You **MUST** extract only the most essential and most important from the Text. 
+
+Do not generate any other text other than the comma-separated tag list. Output **ONLY** the list of tags in a comma-separated string. Limit the number of tags to reasonable number depending on the size of the text. If the text is small, then 10 tags should be enough. If the text is large, then do not exceed 30 tags.
+
+
+"""
+
+
+
+def generate_document_wide_tags(ingestion_pipeline_dict):
+    doc_proc_directory = ingestion_pipeline_dict['document_processing_directory']
+    basename = ingestion_pipeline_dict['basename']
+    full_text_file = ingestion_pipeline_dict['full_text_file']
+    full_text = read_asset_file(full_text_file)[0]
+
+    tags_text_file = os.path.join(doc_proc_directory, f"{basename}.tags.txt")
+    text = limit_token_count(full_text)
+
+    prompt = document_wide_tags.format(text=text)
+    tags = ask_LLM(prompt)
+
+    write_to_file(tags, tags_text_file, 'w')
+    ingestion_pipeline_dict['document_wide_tags'] = tags
+
+    return ingestion_pipeline_dict
+
+
 
 
 def add_asset_to_vec_store(assets, index, asset_file, document_path, document_id, vector_type = "AISearch"):
@@ -3155,9 +3500,11 @@ def add_asset_to_vec_store(assets, index, asset_file, document_path, document_id
     mermaid_code = ""
     tags = ""
     doc_proc_directory = assets['document_processing_directory']
+    basename = assets['basename']
     original_document_filename = assets['original_document_filename']
     index_name = assets['index_name']
 
+    tags_text_file = os.path.join(doc_proc_directory, f"{basename}.tags.txt")
 
     # asset_file = os.path.abspath(asset_file)
     # document_path = os.path.abspath(document_path)
@@ -3188,10 +3535,16 @@ def add_asset_to_vec_store(assets, index, asset_file, document_path, document_id
         python_code = check_replace_extension(asset_file, '.py')
         markdown = check_replace_extension(asset_file, '.md')
         
+    tags = ''
+
+    if os.path.exists(tags_text_file):
+        logc("Document-Wide Tags Added")
+        tags += read_asset_file(tags_text_file)[0]
 
     tags_file = check_replace_extension(asset_file, '.tags.txt')
     if (tags_file != "") and (os.path.exists(tags_file)):
-        tags, status = read_asset_file(tags_file)
+        logc("Chunk-specific Tags Added")
+        tags += ', ' + read_asset_file(tags_file)[0]
 
 
     # file_id = str(uuid.uuid4())

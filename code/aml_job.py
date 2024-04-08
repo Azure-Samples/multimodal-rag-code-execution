@@ -43,25 +43,22 @@ class AmlJob():
             service_principal_password=svc_pr_password)
 
         try:
-            # self.ws = Workspace.from_config()
             self.ws = Workspace(
-                subscription_id=subscription_id,
-                resource_group=resource_group,
-                workspace_name=workspace_name,
-                auth=svc_pr
-            )
-            print(f'Accessing workspace using config.json.')
-        except:
-            try:
-                self.ws = Workspace(
                     subscription_id=subscription_id,
                     resource_group=resource_group,
                     workspace_name=workspace_name,
                     auth=svc_pr
                 )
-                print(f'Accessing workspace {workspace_name} using environment variables.')
+            print(f'Accessing workspace {workspace_name} using environment variables.')
+            
+        except Exception as e:
+            print(f"Could not access AML Workspace", str(e))
+            try:
+                self.ws = Workspace.from_config()
+                print(f'Accessing workspace using config.json.')
+                
             except Exception as e:
-                print(f"Could not access AML Workspace", str(e))
+                print(f"Could not create AML Workspace", str(e))
 
         self.cpu_cluster = None
         self.env = None
@@ -121,7 +118,7 @@ class AmlJob():
             print(f'Found existing cluster {self.cpu_cluster_name}, use it.')
 
         except ComputeTargetException:
-            compute_config = AmlCompute.provisioning_configuration( vm_size=os.environ.get("AML_VMSIZE", "STANDARD_D2_V2"),
+            compute_config = AmlCompute.provisioning_configuration( vm_size=os.environ.get("AML_VMSIZE", 'Standard_DS3_v2'),
                                                                     max_nodes=3, 
                                                                     idle_seconds_before_scaledown=2400)
             self.cpu_cluster = ComputeTarget.create(self.ws, self.cpu_cluster_name, compute_config)

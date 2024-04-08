@@ -2,6 +2,8 @@
 import streamlit as st
 import os
 
+print("Current working directory:", os.path.abspath(os.getcwd()))
+
 if "page_config" not in st.session_state:
 
     st.set_page_config(

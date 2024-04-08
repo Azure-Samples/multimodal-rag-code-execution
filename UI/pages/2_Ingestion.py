@@ -51,7 +51,7 @@ retry = 0
 
 st.title("Document(s) ingestion")
 col1, col2 = st.columns(2)
-pdf_extraction = col1.selectbox("PDF extraction:", ["GPT 4 Vision", "Document Intelligence"] )
+pdf_extraction = col1.selectbox("PDF extraction:", ["Hybrid", "GPT 4 Vision", "Document Intelligence"] )
 
 try:
     from docx import Document
@@ -113,7 +113,7 @@ files_status = st.empty()
 st.markdown("""---""")
 
 # Placeholder for log entries
-st.write("### Status Log")
+st.write("### Status Log - 0.0.3")
 
 log_placeholder = st.empty()
 
@@ -240,6 +240,8 @@ if start_ingestion:
                 pdf_extraction_option = 'gpt-4-vision'
             elif pdf_extraction == "Document Intelligence":
                 pdf_extraction_option = 'document-intelligence'
+            elif pdf_extraction == "Hybrid":
+                pdf_extraction_option = 'hybrid'                
             else:
                 pdf_extraction_option = 'document-intelligence'
 
@@ -276,8 +278,20 @@ if start_ingestion:
 
 
             if job_execution == "Azure Machine Learning":
+                print("Current working directory:", os.path.abspath(os.getcwd()))
+                print("ROOT_PATH_INGESTION:", ROOT_PATH_INGESTION)
+
+                st.write(f"Current working directory: {os.path.abspath(os.getcwd())}")
+                st.write(f"ROOT_PATH_INGESTION: {ROOT_PATH_INGESTION}")
+
+                st.write(f"\n\nCWD Files: {os.listdir(os.getcwd())}")
+                st.write(f"ROOT_PATH_INGESTION Files: {os.listdir(ROOT_PATH_INGESTION)}")
+                st.write(f"Root Path Files: {os.listdir('./')}\n\n")
+                
+
+
                 job = AmlJob()
-                job.submit_ingestion_job(ingestion_params_dict, script = 'ingest_doc.py', source_directory='../code')
+                job.submit_ingestion_job(ingestion_params_dict, script = 'ingest_doc.py', source_directory='./code')
             
             elif job_execution == "Subprocess (Local Testing)":
                 subprocess.Popen(["python", "../code/utils/ingest_doc.py", 

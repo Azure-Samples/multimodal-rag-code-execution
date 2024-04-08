@@ -187,3 +187,5 @@ test/
 deployment_output/
 blk_v3.zip
 push_local.ps1
+dbg*/
+test*/

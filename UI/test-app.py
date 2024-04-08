@@ -195,6 +195,7 @@ async def update_task_list():
 
     # Add tasks to the task list
     # task_ingestion_directory = cl.Task(title=f"Ingestion Directory: {ingestion_directory}", status=cl.TaskStatus.DONE)
+    task_build_id = cl.Task(title=f"Build ID: {BUILD_ID}", status=cl.TaskStatus.DONE)
     task_index_name = cl.Task(title=f"Index Name: {index_name}", status=cl.TaskStatus.DONE)
     task_password = cl.Task(title=f"PDF Password: {password}", status=cl.TaskStatus.DONE)
     task_approx_tag_limit = cl.Task(title=f"Search Tags Limit: {approx_tag_limit}", status=cl.TaskStatus.DONE)
@@ -208,6 +209,7 @@ async def update_task_list():
 
     # Add tasks to the task list
     # await task_list.add_task(task_ingestion_directory)
+    await task_list.add_task(task_build_id)
     await task_list.add_task(task_index_name)
     await task_list.add_task(task_password)
     await task_list.add_task(task_pdf_extraction_mode)

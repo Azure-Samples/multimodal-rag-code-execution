@@ -19,33 +19,23 @@ class Processor():
         os.rename(doc_path, doc_path.replace(" ", "_"))
         ingestion_params_dict['doc_path'] = doc_path
 
-        self.doc_path = ingestion_params_dict['doc_path'] 
-        self.ingestion_directory = ingestion_params_dict['ingestion_directory']
-        self.download_directory = ingestion_params_dict.get('download_directory', os.path.join(self.ingestion_directory, 'downloads'))
-        os.makedirs(self.download_directory, exist_ok=True)
-        self.index_name = ingestion_params_dict['index_name']
-        self.num_threads = ingestion_params_dict.get('num_threads', len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None]))
-        self.password = ingestion_params_dict.get('password', None)
-        self.models = ingestion_params_dict.get('models', gpt4_models)
-        self.vision_models = ingestion_params_dict.get('models', gpt4_models)
-
-
-        self.valid_processing_stages = ['pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'harvest_code', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
-
+        self.doc_path = ingestion_params_dict['doc_path']
         self.base_name = os.path.splitext(os.path.basename(self.doc_path))[0].strip().replace(" ", "_")
         self.extension = os.path.splitext(os.path.basename(self.doc_path))[1].strip()
 
         if self.extension == '.pdf':
             self.processing_mode = processing_mode_pdf
-            if self.processing_mode not in ['gpt-4-vision', 'PyMuPDF', 'document-intelligence']:
+            if self.processing_mode not in ['hybrid', 'gpt-4-vision', 'PyMuPDF', 'document-intelligence']:
                 logc(f"Processing Mode Not Supported {self.processing_mode}. Defaulting to 'gpt-4-vision'")
                 self.processing_mode = 'gpt-4-vision'
+
         elif self.extension == '.docx':
             self.processing_mode = processing_mode_docx
             if self.processing_mode not in ['py-docx', 'document-intelligence']:
                 logc(f"Processing Mode Not Supported {self.processing_mode}. Defaulting to 'document-intelligence'")
                 self.processing_mode = 'document-intelligence'
-        elif self.extension == '.xlsx':
+
+        elif (self.extension == '.xlsx') or (self.extension == '.csv'):
             self.processing_mode = processing_mode_xlsx
             if self.processing_mode not in ['openpyxl']:
                 logc(f"Processing Mode Not Supported {self.processing_mode}. Defaulting to 'openpyxl'")
@@ -56,17 +46,18 @@ class Processor():
 
         ingestion_params_dict['processing_mode'] = self.processing_mode
 
-        logc("### INGESTING A NEW DOCUMENT")
-        logc("doc_path:", self.doc_path)
-        logc("ingestion_directory:", self.ingestion_directory)
-        logc("index_name:", self.index_name)
-        logc("delete_existing_output_dir:", delete_existing_output_dir)
-        logc("num_threads:", self.num_threads)
-        logc("processing mode", self.processing_mode)
-        logc("---")
-        logc("<br><br>")
 
         self.ingestion_pipeline_dict = create_ingestion_pipeline_dict(ingestion_params_dict)
+
+        self.doc_path = self.ingestion_pipeline_dict['doc_path'] 
+        self.ingestion_directory = self.ingestion_pipeline_dict['ingestion_directory']
+        self.download_directory = self.ingestion_pipeline_dict.get('download_directory', os.path.join(self.ingestion_directory, 'downloads'))
+        os.makedirs(self.download_directory, exist_ok=True)
+        self.index_name = self.ingestion_pipeline_dict['index_name']
+        self.num_threads = self.ingestion_pipeline_dict.get('num_threads', len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None]))
+        self.password = self.ingestion_pipeline_dict.get('password', None)
+        self.models = self.ingestion_pipeline_dict.get('models', gpt4_models)
+        self.vision_models = self.ingestion_pipeline_dict.get('models', gpt4_models)
 
         doc_proc_directory = self.ingestion_pipeline_dict['document_processing_directory'] 
         self.doc_proc_directory = self.ingestion_pipeline_dict['document_processing_directory'] 
@@ -92,6 +83,19 @@ class Processor():
         else:
             self.processing_plan = processing_plan
             # self.resume_processing()
+        
+        logc("### INGESTING A NEW DOCUMENT")
+        logc("doc_path:", self.doc_path)
+        logc("ingestion_directory:", self.ingestion_directory)
+        logc("index_name:", self.index_name)
+        logc("delete_existing_output_dir:", delete_existing_output_dir)
+        logc("num_threads:", self.num_threads)
+        logc("processing mode", self.processing_mode)
+        logc("---")
+        logc("<br><br>")
+
+
+
 
 
     def develop_processing_plan(self):
@@ -216,10 +220,19 @@ class PdfProcessor(Processor):
             self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'harvest_code', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
 
         elif self.processing_mode == 'document-intelligence':
-            self.ingestion_pipeline_dict['extract_text_mode'] = "PDF"
-            self.ingestion_pipeline_dict['extract_images_mode'] = "PDF"
+            self.ingestion_pipeline_dict['extract_text_mode'] = "PDF" ## this setting is ignored with doc-int
+            self.ingestion_pipeline_dict['extract_images_mode'] = "PDF" ## this setting is ignored with doc-int
             self.ingestion_pipeline_dict['extract_text_from_images'] = False
-            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks', 'harvest_code', 'post_process_images']
+            self.ingestion_pipeline_dict['extract_docint_tables_mode'] = "Markdown"
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'harvest_code', 'post_process_images']
+
+        elif self.processing_mode == 'hybrid': #chunk_dict['tables']
+            self.ingestion_pipeline_dict['extract_text_mode'] = "PDF" ## this setting is ignored with doc-int
+            self.ingestion_pipeline_dict['extract_images_mode'] = "PDF" ## this setting is ignored with doc-int
+            self.ingestion_pipeline_dict['extract_docint_tables_mode'] = "JustExtract"
+            self.ingestion_pipeline_dict['extract_text_from_images'] = True
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_text_doc_chunks_with_sentence_chunking', 'create_image_doc_chunks', 'create_table_doc_chunks_with_table_images', 'harvest_code', 'post_process_images', 'post_process_tables', 'generate_document_wide_tags']
+
 
 
     def execute_processing_plan(self, verbose=False):
@@ -240,13 +253,13 @@ class DocxProcessor(Processor):
     def develop_processing_plan(self):
 
         if self.processing_mode == 'py-docx':
-            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks', 'post_process_images']
+            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images']
 
         elif self.processing_mode == 'document-intelligence':
-            self.processing_plan = ['extract_doc_using_doc_int', 'create_doc_chunks', 'harvest_code', 'post_process_images']
+            self.processing_plan = ['extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'harvest_code', 'post_process_images']
         else:
             logc("Processing Mode Not Supported - defaulting to 'py-docx'")
-            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks', 'harvest_code', 'post_process_images']
+            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks_with_doc_int_markdown', 'harvest_code', 'post_process_images']
             
             
 
@@ -255,7 +268,7 @@ class DocxProcessor(Processor):
 class XlsxProcessor(Processor):
 
     def develop_processing_plan(self):
-        self.processing_plan = ['extract_xlsx_using_openpyxl', 'create_doc_chunks']
+        self.processing_plan = ['extract_xlsx_using_openpyxl', 'create_doc_chunks_with_doc_int_markdown']
 
 
 
@@ -274,7 +287,7 @@ def ingest_doc_using_processors(ingestion_params_dict):
     elif extension == '.docx':
         processor = DocxProcessor(ingestion_params_dict)
 
-    elif extension == '.xlsx':
+    elif (extension == '.xlsx') or (extension == '.csv'):
         processor = XlsxProcessor(ingestion_params_dict)
 
     else:
