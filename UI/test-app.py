@@ -306,6 +306,7 @@ async def main(message: cl.Message):
     message_content = message.content.strip().lower()
 
     if conversations.get(cl.user_session.get("id")) is None:
+        print("########################## INITIALIZING HISTORY")
         conversations[cl.user_session.get("id")] = []
     
 
@@ -395,7 +396,7 @@ async def main(message: cl.Message):
                 except:
                     pass
                 
-        elif cmd == 'code_interpreter':
+        elif cmd == 'ci':
             res = await cl.AskUserMessage(content="What is the code interpreter?", timeout=1000).send()
             if res:
                 code_interpreter = res['output'].strip()
@@ -524,7 +525,9 @@ async def main(message: cl.Message):
 
 
 
-async def app_search(query: str):        
+async def app_search(query: str):   
+    print("Conversation History", conversations[cl.user_session.get("id")])     
+
     final_answer, references, output_excel, search_results, files = await cl.make_async(search)(
         query, 
         top=top_ns[cl.user_session.get("id")], 
@@ -542,6 +545,12 @@ async def app_search(query: str):
         verbose = False)
 
     final_elements = []
+
+    conversations[cl.user_session.get("id")].append({"role": "user", "content": query})
+    conversations[cl.user_session.get("id")].append({"role": "assistant", "content": final_answer})
+    print("Conversation History1", conversations[cl.user_session.get("id")])
+    conversations[cl.user_session.get("id")] = conversations[cl.user_session.get("id")][-6:]
+    print("Conversation History2", conversations[cl.user_session.get("id")])
 
     for f in files:
         if f['type'] == 'assistant_image':

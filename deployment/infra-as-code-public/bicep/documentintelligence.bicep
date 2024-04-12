@@ -7,8 +7,16 @@ param documentIntelligence string = 'di'
 @description('A unique identifier that will be appended to resource names')
 param uniqueid string
 
+
+// TODO Agustin
+// Public preview version 2024-02-29-preview is currently only available in the following Azure regions:
+// East US
+// West US2
+// West Europe
+
 @description('The location in which all resources should be deployed.')
-param location string
+param location string = 'eastus'
+
 
 // existing resource name params 
 var vardocumentIntelligence = '${namePrefix}${documentIntelligence}${uniqueid}'

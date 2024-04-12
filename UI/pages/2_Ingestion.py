@@ -113,7 +113,7 @@ files_status = st.empty()
 st.markdown("""---""")
 
 # Placeholder for log entries
-st.write("### Status Log - 0.0.3")
+st.write("### Status Log")
 
 log_placeholder = st.empty()
 
