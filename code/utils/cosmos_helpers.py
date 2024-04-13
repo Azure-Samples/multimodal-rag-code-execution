@@ -63,6 +63,7 @@ class SCCosmosClient():
         try:
             return self.container.read_item(item=doc_id, partition_key=partition_key)
         except Exception as e:
+            print(f"Cosmos Read Document Exception: {e}")
             return None
        
 

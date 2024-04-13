@@ -2,16 +2,20 @@ import argparse
 import os
 import sys
 import json
+import time
 sys.path.append("./")
 from doc_utils import ingest_doc
 from processor import *
 import doc_utils
+
+from utils.ingestion_cosmos_helper import *
 
 #Cosmos will be used to store the indexing process
 import utils.cosmos_helpers as cs
 LOG_CONTAINER_NAME = os.getenv("COSMOS_LOG_CONTAINER")
 
 cosmos = cs.SCCosmosClient(container_name=LOG_CONTAINER_NAME)
+ic = IngestionCosmosHelper()
 
 # Create an argument parser
 parser = argparse.ArgumentParser(description='Ingest documents.')
@@ -82,9 +86,9 @@ processing_logs = []
 def append_log_message(message, text=None):
     # Append new message to the session state list of log entries
     processing_logs.append(message + f": {text}" if text else "")
+
     # Display all log entries from the session state
     #store those logs in the cosmos DB index object
-
     try:
         document = cosmos.read_document(index_name,index_name)
     except:
@@ -97,55 +101,7 @@ def append_log_message(message, text=None):
 doc_utils.log_ui_func_hook = append_log_message
 
 def create_indexing_logs(index_name):
-    files_object = []
-
-    existing_process_object = cosmos.read_document(index_name, index_name)
-    print(f"Existing log object: {existing_process_object}")
-    
-    if existing_process_object is not None:
-        ingested_files = [ x['file_name'] for x in existing_process_object['files_uploaded']]
-        print(f"Ingested files: {ingested_files}")
-        for root, dirs, files in os.walk(download_directory):
-            print(f"Found the following files: {files} in the downloads dir {download_directory}")
-            for file in files:
-                if file.lower() in ingested_files: continue
-                extension = os.path.splitext(os.path.basename(file))[1].strip().lower()
-                if extension not in ['.pdf', '.docx', '.xlsx', '.doc', '.xls', '.csv']: continue
-
-                if os.path.exists(os.path.join(root, file + '.ingested')):
-                    status = 'Ingested'
-                else:
-                    status = 'Not ingested'
-
-                files_object.append({
-                    "file_name": file.lower(),
-                    "status": status
-                })
-
-        existing_process_object['files_uploaded'].extend(files_object)
-        cosmos.upsert_document(existing_process_object, category_id=index_name)
-        return existing_process_object
-
-    for root, dirs, files in os.walk(download_directory):
-        for file in files:
-            files_object.append({
-                "file_name": file.lower(),
-                "status": 'Not ingested'
-            })
-
-    progress_object = {
-        "id": index_name, #using the index name as the id
-        "indexId": index_name,
-        'categoryId': index_name,
-        "files_uploaded": files_object,
-        "log_entries": [],
-    }
-    try:
-        document = cosmos.create_document(progress_object)
-        return document
-    except Exception as e:
-        print(f"Failed to create the document for index {index_name} with Exception {e}")
-        return None
+    return ic.update_cosmos_with_download_files(index_name, download_directory)
 
 
 indexing_document = create_indexing_logs(index_name) 
@@ -158,9 +114,9 @@ else:
     for root, dirs, files in os.walk(download_directory):
             print(f"Found the following files: {files} in the downloads dir {download_directory}")
             for file in files:
-                # Check if the file is a PDF
-                # if file.lower().endswith('.pdf'):
                 print(f"Looking at file: {file}")
+
+                file_index = next((index for index, f in enumerate(indexing_document['files_uploaded']) if f['file_name'] == file.lower()), None)
 
                 ingested = False
                 for uf in indexing_document["files_uploaded"]:
@@ -180,35 +136,36 @@ else:
                 
                 extension = os.path.splitext(os.path.basename(file))[1].strip().lower()
                 if extension not in ['.pdf', '.docx', '.xlsx', '.doc', '.xls', '.csv']: 
-                    print(f"Extension not supporting: {file}. Skipping.")
+                    print(f"Extension not supported: {file}. Skipping.")
                     continue
 
                 if os.path.exists(os.path.join(root, file + '.ingested')): 
+                    indexing_document['files_uploaded'][file_index]['status'] = 'Ingested'
+                    cosmos.upsert_document(indexing_document, category_id=index_name)
                     print(f"Ingested file flag found for: {file}. Skipping.")
                     continue
 
-                # try:
-                file_index = next((index for index, f in enumerate(indexing_document['files_uploaded']) if f['file_name'] == file.lower()), None)
-                indexing_document['files_uploaded'][file_index]['status'] = 'Ingesting...'
-                cosmos.upsert_document(indexing_document, category_id=index_name)
-                file_path = os.path.join(root, file)
+                try:
+                
+                    indexing_document['files_uploaded'][file_index]['status'] = 'Ingesting...'
+                    cosmos.upsert_document(indexing_document, category_id=index_name)
 
-                ingestion_params_dict['doc_path'] = file_path
+                    # Call ingest_doc on the file
+                    file_path = os.path.join(root, file)
+                    ingestion_params_dict['doc_path'] = file_path
 
-                # Call ingest_doc on the file
-                ingest_doc_using_processors(ingestion_params_dict)
+                    ingest_doc_using_processors(ingestion_params_dict)
+                    # time.sleep(2)
 
-                indexing_document['files_uploaded'][file_index]['status'] = 'Ingested'
-                cosmos.upsert_document(indexing_document, category_id=index_name)
+                    indexing_document['files_uploaded'][file_index]['status'] = 'Ingested'
+                    cosmos.upsert_document(indexing_document, category_id=index_name)
 
-                # except Exception as e:
-                #     #delete the indexing_document from Cosmos DB
-                #     indexing_document['files_uploaded'][file_index]['status'] = 'Failed'
-                #     indexing_document['files_uploaded'][file_index]['error'] = f'{e}'
-                #     cosmos.upsert_document(indexing_document, category_id=index_name)
-                #     print(f"Failed to ingest the file {file} with exception: {e}")
+                except Exception as e:
+                    indexing_document['files_uploaded'][file_index]['status'] = 'Failed'
+                    indexing_document['files_uploaded'][file_index]['error'] = f'{e}'
+                    cosmos.upsert_document(indexing_document, category_id=index_name)
+                    print(f"Failed to ingest the file {file} with exception: {e}")
 
-    # cosmos.delete_document(index_name, index_name)
 
 
 

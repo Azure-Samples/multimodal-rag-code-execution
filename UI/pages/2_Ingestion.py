@@ -15,6 +15,8 @@ from aml_job import *
 from doc_utils import *
 
 
+
+from utils.ingestion_cosmos_helper import *
 import utils.cosmos_helpers as cs
 
 ROOT_PATH_INGESTION = os.getenv("ROOT_PATH_INGESTION")
@@ -45,8 +47,23 @@ if "num_threads" not in st.session_state:
     st.session_state.num_threads = 1
 
 
-#Main UI
 
+
+if "process" not in st.session_state:
+    st.session_state.process = None
+
+if "job_status" not in st.session_state:
+    st.session_state.job_status = ''
+
+if "warning" not in st.session_state:
+    st.session_state.warning = st.empty()
+
+
+
+#Main UI
+ic = IngestionCosmosHelper()
+
+aml_job = None
 retry = 0
 
 st.title("Document(s) ingestion")
@@ -65,6 +82,7 @@ chunk_size = int(col1.text_input("Chunk Size:", '512'))
 chunk_overlap = int(col1.text_input("Chunk Overlap:", '128'))
 
 index_name = col2.text_input("Index name:", st.session_state.get('index_name', 'rag-data'))
+index_name = index_name.strip()
 
 available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
 
@@ -84,8 +102,10 @@ st.write("## Ingestion")
 col1 , col2 = st.columns([1, 1])
 delete_ingestion_folder = col1.toggle("Delete ingestion folder")
 
+ingest_col, clear_col, spinner_col = col1.columns([1, 1, 1])
 
-start_ingestion = col1.button("Start ingestion")
+start_ingestion = ingest_col.button("Start Ingestion")
+clear_ingestion = clear_col.button("Clear Ingesting")
 
 download_directory =""
 ingestion_directory = ""
@@ -97,14 +117,21 @@ os.makedirs(download_directory, exist_ok=True)
 col2.write(f":blue[Download directory:] :green[{download_directory}]")
 col2.write(f":blue[Ingestion directory:] :green[{ingestion_directory}]")
 col2.write(f":blue[Index name:] :green[{index_name}]")
+# col2.text(f":blue[Job Status:] :green[{st.session_state.job_status}]")
 
+
+## COPY UPLOADED FILES TO THE DOWNLOAD DIRECTORY AND RENAME THEM
 for uploaded_file in uploaded_files :
+    print("Uploaded Files -- before processing", uploaded_files)
     #Use the file here. For example, you can read it:
     if uploaded_file.name.replace(" ", "_") in st.session_state.files_ingested: continue
     with open(os.path.join(download_directory, uploaded_file.name), "wb") as f:
         f.write(uploaded_file.getvalue())
     os.rename(os.path.join(download_directory, uploaded_file.name), os.path.join(download_directory, uploaded_file.name.replace(" ", "_")))      
     st.session_state.files_ingested[uploaded_file.name.replace(" ", "_")] = "Not ingested"
+    print("st.session_state.files_ingested", st.session_state.files_ingested)
+
+ic.update_cosmos_with_download_files(index_name, download_directory)
 
 
 bar_progress = st.progress(0, text="Please click on ingestion to start the process")
@@ -119,21 +146,26 @@ log_placeholder = st.empty()
 
 
 #check the Azure Cognitive index for the number of documents indexed
-def check_index_status(index_name):
+def check_index_status(index_name, download_directory):
     index = CogSearchRestAPI(index_name)
     if index.get_index() is not None:
+        # doc_count_in_vecstore = cogrequest.get_stats()['documentCount']
+
         documents = index.get_documents()
         #aggregate the documents by the pdf_path
         documents.sort(key=lambda x: x['filename'])
         grouped_documents = {k: list(v) for k, v in groupby(documents, key=lambda x: x['filename'])}
         for filename, docs in grouped_documents.items():
             append_log_message(f":blue[Filename:] {filename} Index as :blue[Number of documents:] {len(docs)}")  
+
+
        
 
 def append_log_message(message, text=None):
     # Append new message to the session state list of log entries
     st.session_state.log_entries.append(message)
     log_placeholder.markdown('  \n'.join(st.session_state.log_entries))
+
 
 def update_file_status():
     files_status_messages = []
@@ -150,21 +182,79 @@ def update_file_status():
 
 def check_if_indexing_in_progress():
     try:
-        #f there is a document with that name, means indexing is still happening
-        document = cosmos.read_document(index_name, index_name)
-        if document is not None:
-            file_status = [ x['status'] for x in document['files_uploaded']]
+        if "aml_job" not in st.session_state:
+            try:
+                st.session_state.aml_job = AmlJob()
+            except:
+                st.session_state.aml_job = None
 
-            if 'Ingesting...' in file_status:
-                st.session_state.warning = st.sidebar.warning("Indexing in progress. Please wait for the current process to complete.")
-                st.session_state.indexing = True  
-            else:
-                st.session_state.indexing = False                
-        else:
-            st.session_state.indexing = False        
-       
+        st.session_state.indexing, document = ic.check_if_indexing_in_progress(index_name)
+        # print("Document", document, "Indexing State", st.session_state.indexing)
+
+        if document is not None:
+            job_id = document['job_id']
+            job_status = document.get('job_status', '')
+            print("\n\nJob ID Found in Cosmos", job_id, "\n\n")
+
+            if (job_id != '') and (job_status == 'running'):
+                try:    
+                    status = st.session_state.aml_job.check_job_status_using_run_id(job_id)
+                    print(f"Checking Run_ID: {job_id}, status {status}")
+
+                    if status not in ["Completed", "Failed", "Canceled"]:
+                        st.session_state.job_status = f"AML Job is: {status}"
+                        st.session_state.warning = st.sidebar.info(f"AML Job is: {status}", icon="ℹ️")
+                    else:
+                        st.session_state.indexing = False
+                        update_file_list_UI()
+                        ic.update_aml_job_status(index_name, "not_running")
+
+                except Exception as e:
+                    print(f"Error getting AML job status: {e}")
+
     except Exception as e:
         st.session_state.warning = st.sidebar.warning(f"Error getting log document: {e}")
+
+
+
+
+
+
+def check_job_status():
+    with st.spinner("Please wait ..."):
+        print("AML Job", st.session_state.aml_job.run is not None)
+        
+        if st.session_state.aml_job.run is not None:
+            status = st.session_state.aml_job.run.get_status()
+            print(f"Status of AML Job {status}")
+            print("AML Job Run ID", st.session_state.aml_job.run.id)
+            st.session_state.warning.empty()
+            st.session_state.job_status = f"AML Job is: {status}"
+            st.session_state.warning = st.sidebar.info(f"AML Job is: {status}", icon="ℹ️")
+
+            if  status in ["Completed", "Failed", "Canceled"]:
+                st.session_state.indexing = False
+                st.session_state.aml_job.run = None
+                check_if_indexing_in_progress()
+                update_file_list_UI()
+                ic.update_aml_job_status(index_name, "not_running")
+
+        if st.session_state.process is not None:
+            status = st.session_state.process.poll()
+            st.session_state.warning.empty()
+            print(f"Status of Subprocess {status}")
+
+            if status is not None:
+                st.session_state.job_status = f"Python Subprocess is: Completed"
+                st.session_state.warning = st.sidebar.info(f"Python Subprocess is: Completed", icon="ℹ️")
+                st.session_state.indexing = False
+                st.session_state.process = None
+                check_if_indexing_in_progress()
+                update_file_list_UI()
+            else:
+                st.session_state.job_status = f"Python Subprocess is: Running"
+                st.session_state.warning = st.sidebar.info(f"Python Subprocess is: Running", icon="ℹ️")
+
 
 
 def update_file_list_UI(do_sleep = False):
@@ -177,12 +267,14 @@ def update_file_list_UI(do_sleep = False):
             st.sidebar.error("There was an issue with the indexing process, please check the logs")
             st.session_state.indexing = False
     else:
+        # print("Updating file_list_UI", st.session_state.files_ingested )
         st.session_state.files_ingested = {}
         processed_files = 0
         processing_files = 0
         total_files = 0
         files = document['files_uploaded']
         logs = document['log_entries']
+        
         for file in files:
             total_files += 1
             if file['status'] == 'Ingested':
@@ -201,19 +293,32 @@ def update_file_list_UI(do_sleep = False):
         if (processed_files == total_files) and (total_files > 0):
             st.session_state.indexing = False
             bar_progress.progress(100, text="Ingestion complete")
-            check_index_status(index_name)
+            # check_index_status(index_name, download_directory)
             append_log_message("Ingestion complete.")
+            check_job_status()
             try:
                 st.session_state.warning.empty()
             except:
                 pass
         else:
-            if do_sleep: time.sleep(5)
+            if do_sleep: 
+                check_job_status()
+                print("Sleeping 5 seconds")
+                time.sleep(5)
+
 
 
 if index_name:
     check_if_indexing_in_progress()
     update_file_list_UI()
+
+
+
+if clear_ingestion: 
+    ic.clear_indexing_in_progress(index_name)
+    check_if_indexing_in_progress()
+    update_file_list_UI()
+
 
 if start_ingestion:
     
@@ -277,28 +382,37 @@ if start_ingestion:
             }
 
 
-            if job_execution == "Azure Machine Learning":
-                print("Current working directory:", os.path.abspath(os.getcwd()))
-                print("ROOT_PATH_INGESTION:", ROOT_PATH_INGESTION)
+            try:
+                if job_execution == "Azure Machine Learning":
+                    print("Current working directory:", os.path.abspath(os.getcwd()))
+                    print("ROOT_PATH_INGESTION:", ROOT_PATH_INGESTION)
 
-                st.write(f"Current working directory: {os.path.abspath(os.getcwd())}")
-                st.write(f"ROOT_PATH_INGESTION: {ROOT_PATH_INGESTION}")
+                    st.write(f"Current working directory: {os.path.abspath(os.getcwd())}")
+                    st.write(f"ROOT_PATH_INGESTION: {ROOT_PATH_INGESTION}")
 
-                st.write(f"\n\nCWD Files: {os.listdir(os.getcwd())}")
-                st.write(f"ROOT_PATH_INGESTION Files: {os.listdir(ROOT_PATH_INGESTION)}")
-                st.write(f"Root Path Files: {os.listdir('./')}\n\n")
+                    st.write(f"\n\nCWD Files: {os.listdir(os.getcwd())}")
+                    st.write(f"ROOT_PATH_INGESTION Files: {os.listdir(ROOT_PATH_INGESTION)}")
+                    st.write(f"Root Path Files: {os.listdir('./')}\n\n")
+                    
+                    # aml_job = AmlJob()
+                    st.session_state.aml_job.submit_ingestion_job(ingestion_params_dict, script = 'ingest_doc.py', source_directory='./code')
+
+                    ic.update_aml_job_id(index_name, st.session_state.aml_job.run.id, status = "running")
                 
+                elif job_execution == "Subprocess (Local Testing)":
+                    process = subprocess.Popen(["python", "../code/ingest_doc.py", 
+                                    "--ingestion_params_dict", json.dumps(ingestion_params_dict),
+                                    ])
 
+                    st.session_state.process = process
+                else:
+                    st.session_state.warning = st.sidebar.warning("This Job Execution mode is not supported yet.")
 
-                job = AmlJob()
-                job.submit_ingestion_job(ingestion_params_dict, script = 'ingest_doc.py', source_directory='./code')
-            
-            elif job_execution == "Subprocess (Local Testing)":
-                subprocess.Popen(["python", "../code/utils/ingest_doc.py", 
-                                "--ingestion_params_dict", json.dumps(ingestion_params_dict),
-                                ])
-            else:
-                st.session_state.warning = st.sidebar.warning("This Job Execution mode is not supported yet.")
+            except Exception as e:
+                st.session_state.warning = st.sidebar.error(f"Error starting ingestion job: {e}")
+                st.session_state.indexing = False
+                append_log_message("Error starting ingestion job", e)
+                print("Error starting ingestion job", e)
 
     
 

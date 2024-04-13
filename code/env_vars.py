@@ -94,9 +94,10 @@ AZURE_FILE_SHARE_KEY=os.environ.get('AZURE_FILE_SHARE_KEY', '')
 #COSMOS DB
 COSMOS_URI = os.environ.get('COSMOS_URI', '')
 COSMOS_KEY = os.environ.get('COSMOS_KEY', '')
-COSMOS_DB_NAME = os.environ.get('COSMOS_DB_NAME', '')
-COSMOS_CONTAINER_NAME = os.environ.get('COSMOS_CONTAINER_NAME', '')
-COSMOS_CATEGORYID = os.environ.get('COSMOS_CATEGORYID', '')
+COSMOS_DB_NAME = os.environ.get('COSMOS_DB_NAME', 'mmdoc')
+COSMOS_CONTAINER_NAME = os.environ.get('COSMOS_CONTAINER_NAME', 'prompts')
+COSMOS_CATEGORYID = os.environ.get('COSMOS_CATEGORYID', 'prompts')
+COSMOS_LOG_CONTAINER = os.environ.get('COSMOS_LOG_CONTAINER', 'logs')
 
 
 INITIAL_INDEX = os.environ.get('INITIAL_INDEX', 'rag-data')
