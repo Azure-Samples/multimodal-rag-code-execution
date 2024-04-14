@@ -68,7 +68,7 @@ os.chdir(cwd)
 
 ######################  TEST INSTALLATION  ######################
 ## pip install chainlit
-## chainlit run test-app.py -w --port 8050
+## chainlit run chat.py -w --port 8050
 ######################  TEST INSTALLATION  ######################
 
 

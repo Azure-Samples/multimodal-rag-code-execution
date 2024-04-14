@@ -39,7 +39,7 @@ def log_message(message, level):
 
 ######################  TEST INSTALLATION  ######################
 ## pip install chainlit
-## chainlit run test-app.py -w --port 8050
+## chainlit run chat.py -w --port 8050
 ######################  TEST INSTALLATION  ######################
 
 

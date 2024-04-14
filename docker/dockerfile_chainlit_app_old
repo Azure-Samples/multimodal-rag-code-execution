@@ -52,6 +52,6 @@ USER appuser
 EXPOSE 8000
 
 # Use sh -c to ensure commands are run properly
-# CMD ["sh", "-c", "python -m chainlit run ./ui/test-app.py"]
+# CMD ["sh", "-c", "python -m chainlit run ./ui/chat.py"]
 # Or if your application can be started directly without the shell, you can use:
-CMD ["chainlit", "run", "./ui/test-app.py", "--port=8000"]
+CMD ["chainlit", "run", "./ui/chat.py", "--port=8000"]

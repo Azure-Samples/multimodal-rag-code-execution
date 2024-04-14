@@ -402,28 +402,50 @@ Code Interpreters Available in this Solution:
 <br/>
 <br/>
 
-# Running the Chainlit Web App
 
-To run the web app locally, please execute in your conda environment the following:
+# Web Apps
+
+There are two web apps that are implemented as part of this solution. The Streamlit web app and the Chainlit web app.
+
+1. The Streamlit web app includes the following: 
+    * The web app can ingest documents, which will create an ingestion job either using Azure Machine Learning (recommended) or using a Python sub-process on the web app itself (for local testing only). 
+    * The second part of the Streamlit app is Generation. The "Prompt Management" view will enable the user to build complex prompts with sub-sections, save them to Cosmos, and use the solution to generate output based on these prompts
+1. The Chainlit web app is used to chat with the ingested documents, and has advanced functionality, such as an audit trail for the search, and references section for the answer with multimodal support (images and tables can be viewed).
+
+<br/>
+
+## Running the Chainlit Web App
+
+The Chainlit web app is the main web app to chat with your data. To run the web app locally, please execute in your conda environment the following:
 ```bash
 # cd into the app folder
-cd app
+cd ui
 
 # run the chainlit app
-chainlit run test-app.py
+chainlit run chat.py
 ```
 <br/>
 
 
-### Guide to use the Chainlit Web App
+
+## Running the Streamlit Web App
+
+The Streamlit web app is the main web app to ingest your documents and to build prompts for Generation. To run the web app locally, please execute in your conda environment the following:
+```bash
+# cd into the app folder
+cd ui
+
+# run the chainlit app
+streamlit run main.py
+```
+<br/>
+
+
+### Guide to configure the Chainlit and Streamlit Web Apps
 
 1. Configure properly your `.env` file. Refer to the `.env.sample` file included in this solution.
-1. Use `cmd index` to set the index name and the ingestion directory.
-1. Use `cmd upload` to upload the documents you need ingestion. As of today, this solution works **ONLY** with PDF files.
-1. If the document(s) is/are large, then you can try multi-threading, by using `cmd threads`. This will use multiple Azure OpenAI resources in multiple regions to speed up the ingestion ofthe document(s).
-1. Use `cmd ingest` to start the ingestion process. Please wait until the process is complete and confirmation that the document has been ingested is printed.
-1. Try different settings. For example, if this is a clean digital PDF (e.g. MS Word document saved as PDF), then for `text_processing` and `image_detection`, it is ok to leave their values as `PDF`. However, if this is a PDF of a Powerpoint presentation with lots of vector graphics in it, it's recommended that both of these settings are set to `GPT`, along with setting `OCR` to `True`.
-1. Then type any query in the input field which will search the field. Choose your Code Interpreter, either `Taskweaver` or `AssistantsAPI`.
+1. In the Chainlit web app, use `cmd index` to set the index name.
+
 
 
 
@@ -435,16 +457,19 @@ The below outlines the primary commands and options available in the testing too
 
 | **Command**           | **Usage**                                                                                       |
 |:--------------------- |:------------------------------------------------------------------------------------------------|
-| **cmd index**         | Type `cmd index` to change the name of the AI Search index. This will also change the root dir of the Ingestion directory.  |
+| **cmd index**         | Type `cmd index` to change the name of the AI Search index.                                     |
 | **cmd password**      | Type `cmd password` to change the PDF password (if PDFs are password-protected).                |
-| **cmd text_processing** | Type `cmd text_processing` to change the text post-processing mode. Allowed values are `PDF` or `GPT`.   |
-| **cmd image_detection** | Type `cmd image_detection` to change the images detection and extraction mode.  Allowed values are `PDF` or `GPT`.   |
-| **cmd OCR**           | Type `cmd OCR` to enable or disable text extraction from images. Allowed values `True` or `False`.     |
-| **cmd threads**       | Type `cmd threads` to change the number of threads. Allows for multi-threading during ingestion. Make sure that `AZURE_OPENAI_RESOURCE_x` and `AZURE_OPENAI_KEY_x` are properly configured in your `.env` file.     |
+| **cmd tag_limit**     | Type `cmd tag_limit` to change the upper limits of the generated tags per query for the search.   |
+| **cmd topN**          | Type `cmd topN` to change how many top N results to fetch while executing the search.   |
+| **cmd pdf_mode**      | Type `cmd pdf_mode` to change the PDF extraction mode. Allowed values are 'gpt-4-vision' or 'document-intelligence'.   |
+| **cmd docx_mode**     | Type `cmd docx_mode` to change the docx extraction mode. Allowed values are 'document-intelligence' or 'py-docx'.   |
+| **cmd threads**       | Type `cmd threads` to change the number of threads. Allows for multi-threading during ingestion. Make sure that AZURE_OPENAI_RESOURCE_x and AZURE_OPENAI_KEY_x are properly configured in your .env file.     |
 | **cmd delete_dir**    | Type `cmd delete_dir` to enable or disable deleting existing output directory if ingestion is restarted.                  |
-| **cmd code_interpreter**    | Type `cmd delete_dir` to change the used Code Interpreter. Allowed values are `NoComputationTextOnly`, `Taskweaver`, `AssistantsAPI`, or `LocalPythonExec`.                  |
+| **cmd ci**            | Type `cmd delete_dir` to change the used Code Interpreter. Allowed values are "NoComputationTextOnly", "Taskweaver", "AssistantsAPI", or "LocalPythonExec".                  |
 | **cmd upload**        | Type `cmd upload` to upload document files for ingestion.                                        |
 | **cmd ingest**        | Type `cmd ingest` to start the ingestion process of the uploaded files.                         |
+| **cmd prompts**       | Type `cmd prompts` to display all available generation prompts.                                |
+| **cmd gen**           | Type `cmd gen` to generate from pre-existing prompts.                                             |
 | **Query**             | Type your query in plain English and wait for the response.                                     |
 
 

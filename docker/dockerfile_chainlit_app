@@ -33,4 +33,4 @@ EXPOSE 8000
 WORKDIR /app/ui
 
 # do not change the arguments
-CMD ["chainlit", "run", "./test-app.py",  "--port=8000"]
+CMD ["chainlit", "run", "./chat.py",  "--port=8000"]

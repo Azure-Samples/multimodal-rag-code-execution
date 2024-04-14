@@ -49,6 +49,40 @@ Multimodal Document Analysis with RAG and Code Execution: using Text, Images and
 1. Analyze traffic and city planning documents 
 
 <br/>
+<br/>
+
+# Solution Features
+
+The following are technical features implemented as part of this solution:
+
+1. Supported file formats are PDFs, MS Word documents, MS Excel sheets, and csv files. 
+1. Ingestion of multimodal documents including images and tables
+1. Ingestion jobs run on Azure Machine Learning for reliable long-duration execution and monitoring
+1. Full deployment script that will create the solution components on Azure and build the docker images for the web apps
+1. Hybrid search with AI Search using vector and keyword search, and semantic re-ranker
+1. Extraction of chunk-level tags and whole-document-level chunks to optimize keyword search
+1. Whole document summaries used as part of the final search prompt to give extra context 
+1. Code Execution with the OpenAI Assistants API Code Interpreter
+1. Tag-based Search for optimizing really long user query, e.g. Generation Prompts
+1. Modular and easy-to-use interface with Processors for customizable processing pipelines
+1. Smart chunking of Markdown tables with repeatable header and table summary in every chunk
+1. Dynamic semantic chunking with approximate fixed size chunks (soon)
+
+
+<br/>
+
+## Solution Architecture
+
+The below is the logical architecture of this solution. The GraphDB is not yet added to the solution, but the integration is currently in development: 
+
+<br />
+<p align="center">
+<img src="images/arch.png" width="800" />
+</p>
+<br/>
+
+<br/>
+
 
 
 ## Important Findings
@@ -83,39 +117,102 @@ Please start with the Tutorial notebooks [here](tutorials/). These notebooks ill
 <br/>
 
 
-# Running the Chainlit Web App
+# How to Use this Solution
 
-To run the web app locally, please execute in your conda environment the following:
+There are two web apps that are implemented as part of this solution. The Streamlit web app and the Chainlit web app.
+
+1. The Streamlit web app includes the following: 
+    * The web app can ingest documents, which will create an ingestion job either using Azure Machine Learning (recommended) or using a Python sub-process on the web app itself (for local testing only). 
+    * The second part of the Streamlit app is Generation. The "Prompt Management" view will enable the user to build complex prompts with sub-sections, save them to Cosmos, and use the solution to generate output based on these prompts
+1. The Chainlit web app is used to chat with the ingested documents, and has advanced functionality, such as an audit trail for the search, and references section for the answer with multimodal support (images and tables can be viewed).
+
+<br/>
+
+
+## Prepare the local Conda Environment
+
+The Conda environment can be installed by running the following commands from the **project root folder**. Please follow the below commands to create a **new** conda environment. The Python version can be >= 3.10 (but was thoroughly tested on 3.10):
+
 ```bash
-# cd into the app folder
-cd app
+# create the conda environment
+conda create -n mmdoc python=3.10
+
+# activate the conda environment
+conda activate mmdoc
+
+# install the project requirements
+pip install -r requirements.txt
+```
+
+## Prepare the .env File 
+
+Configure properly your `.env` file. Refer to the `.env.sample` file included in this solution. All non-optional values must be filled in, in order for this solution to function properly.
+
+The .env file is used for:
+
+1. Local Development if needed
+1. The deployment script will read values from the `.env` file and will population the Configuration Variables for both web apps. 
+
+<br/>
+
+
+## Running the Chainlit Web App
+
+The Chainlit web app is the main web app to chat with your data. To run the web app locally, please execute in your conda environment the following:
+
+```bash
+# cd into the ui folder
+cd ui
 
 # run the chainlit app
-chainlit run test-app.py
+chainlit run chat.py
 ```
 <br/>
 
 
-### Guide to use the Chainlit Web App
+
+## Running the Streamlit Web App
+
+The Streamlit web app is the main web app to ingest your documents and to build prompts for Generation. To run the web app locally, please execute in your conda environment the following:
+
+```bash
+# cd into the ui folder
+cd ui
+
+# run the chainlit app
+streamlit run main.py
+```
+<br/>
+
+
+### Guide to configure the Chainlit and Streamlit Web Apps
 
 1. Configure properly your `.env` file. Refer to the `.env.sample` file included in this solution.
-1. Use `cmd index` to set the index name and the ingestion directory.
-1. Use `cmd upload` to upload the documents you need ingestion. As of today, this solution works **ONLY** with PDF files.
-1. If the document(s) is/are large, then you can try multi-threading, by using `cmd threads`. This will use multiple Azure OpenAI resources in multiple regions to speed up the ingestion ofthe document(s).
-1. Use `cmd ingest` to start the ingestion process. Please wait until the process is complete and confirmation that the document has been ingested is printed.
-1. Try different settings. For example, if this is a clean digital PDF (e.g. MS Word document saved as PDF), then for `text_processing` and `image_detection`, it is ok to leave their values as `PDF`. However, if this is a PDF of a Powerpoint presentation with lots of vector graphics in it, it's recommended that both of these settings are set to `GPT`, along with setting `OCR` to `True`.
-1. Then type any query in the input field which will search the field. Choose your Code Interpreter, either `Taskweaver` or `AssistantsAPI`.
-
+1. In the Chainlit web app, use `cmd index` to set the index name.
 
 
 <br/>
+<br/>
 
+
+## Deploying on Azure
+
+We are currently building an ARM template for a one-click deployment. In the meantime, please use the below script to deploy on the Azure cloud. Please make sure to fill in your `.env` file properly **before** running the deployment script. The below script has to run in a `Git Bash` shell, and will not run in Powershell bash:
+
+```bash
+# cd into the deployment folder
+cd deployment
+
+# run the chainlit app
+./deploy_public.sh
+```
+<br/>
 <br/>
 
 ## Code Interpreters
 
 Code Interpreters Available in this Solution:
-1. Assistants API: It is the default code interpreter. OpenAI AssistantsAPI is supported for now. The Azure version will soon follow when it's released.
+1. Assistants API: OpenAI AssistantsAPI is the default out-of-the-box code interpreter for this solution running on Azure.
 1. Taskweaver: is optional to install and use, and is fully supported
 
 
