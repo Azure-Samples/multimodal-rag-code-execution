@@ -11,6 +11,10 @@ from azureml.core.authentication import ServicePrincipalAuthentication
 from env_vars import *
 
 
+## AML Cheat Sheet
+# https://azure.github.io/azureml-cheatsheets/docs/cheatsheets/python/v1/cheatsheet
+
+
 
 class AmlJob():
 
@@ -161,3 +165,17 @@ class AmlJob():
 
         self.run = self.exp.submit(self.config)
         print(self.run)
+
+
+
+    def check_job_status_using_run_id(self, run_id):
+        run = self.ws.get_run(run_id)
+        status = run.get_status()
+        print(f"AML Run status: {status}")
+
+        if status not in ["Completed", "Failed", "Canceled"]:
+            self.run = run
+        else:
+            self.run = None
+
+        return status
