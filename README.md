@@ -224,7 +224,7 @@ Please edit the `push.ps1` script, and fill in the right values for the Azure Co
 cd deployment
 
 # run the docker images update script
-./push.ps1
+push.ps1
 ```
  
 <br />
