@@ -217,7 +217,7 @@ cd deployment
 
 For rapid development iterations and for testing on the cloud, the `push.ps1` script can be used to build only the docker images and push them to the Azure Container Registry, without creating or changing any other component in the resource group or in the architecture. The docker images will have then to be **manually** assigned to the web app, by going to the web app page in the Azure Portal, and then navigate to `Deployment > Deployment Center` on the left-hand side, and then go to `Settings` on the right-hand side, then to the `Tag` dropdown and choose the correct docker image. 
 
-Please edit the `push.ps1` script, and fill in the right values for the Azure Container Registry endpoint, username and password, for the Resource Group name, and Subscription ID. Then, to run the script, follow the below instrcutions in a `Powershell`: 
+Please edit the `push.ps1` script, and fill in the right values for the Azure Container Registry endpoint, username and password, for the Resource Group name, and Subscription ID. Then, to run the script, follow the below instrcutions in a `Powershell`. It is important that Docker Desktop version is installed and running at that point locally: 
 
 ```bash
 # cd into the deployment folder
