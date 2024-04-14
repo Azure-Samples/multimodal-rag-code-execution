@@ -1,6 +1,20 @@
 
 #!/bin/bash
-#gh auth login
+
+# Get the current date and time
+current_date_time=$(date '+%Y-%m-%d_%H-%M-%S')
+
+# Create a unique logfile name
+logfile="deployment_output/logs/logfile_$current_date_time.txt"
+
+# Create the directory if it doesn't exist
+mkdir -p deployment_output/logs
+
+# Redirect stdout and stderr to the logfile and also print to the terminal
+exec > >(tee "$logfile") 2>&1
+
+
+#az cli version tested 2.59.0
 # chmod +x deploy.sh
 export MSYS_NO_PATHCONV=1
 # export BUILD_DOCKER_LOCALLY="false"
@@ -29,13 +43,19 @@ BLUE='\033[0;34m'
 #           ./deploy_public.sh build_streamlit=false force_build_on_cloud=true
 #           ./deploy_public.sh update_settings_only=true this will only update the webapp settings without building the containers and no infra deployment.
 #           ./deploy_public.sh force_build_on_cloud=true this will force the build on acr in the cloud.
+#            azure_resources_file file name that contains the Output variables from the deployment. This is used to get the variables from a custom deployment.
+#./deploy_public.sh login_to_azure=false force_build_on_cloud=true azure_resources_file=azure_resources_file_example.json
 
-UPDATE_WEBAPP_SETTINGS="true" #by default we  update the webapp settings
-DEPLOY_INFRA="false" #by default we do not deploy the infra
-BUILD_CHAINLIT="true"
-BUILD_STREAMLIT="true"
-FORCE_BUILD_ON_CLOUD="false"
-UPDATE_SETTINGS_ONLY="false"
+export GET_VARIABLES_FROM_LIVE_RG="false" #by default we get the variables from the deployment in the resource group
+export UPDATE_WEBAPP_SETTINGS="true" #by default we  update the webapp settings
+export DEPLOY_INFRA="false" #by default we do not deploy the infra
+export BUILD_CHAINLIT="true"
+export BUILD_STREAMLIT="true"
+export FORCE_BUILD_ON_CLOUD="false"
+export UPDATE_SETTINGS_ONLY="false"
+export LOGIN_TO_AZURE="true"
+export WEBAPP_SETTINGS_SAVED="false"
+export AZURE_RESOURCES_FILE=""
 
 for arg in "$@"
 do
@@ -43,22 +63,34 @@ do
         force_redeploy=true)
             echo -e "${YELLOW}You are running the script forcing to re-deploy Infrastructure.${RESET}"
             read -rp "Press enter to re-deploy or CTRL+C to cancel..."
-            FORCE_DEPLOY="true"
+            export FORCE_DEPLOY="true"
             ;;
         update_webapp_settings=false)
-            UPDATE_WEBAPP_SETTINGS="false"
+            export UPDATE_WEBAPP_SETTINGS="false"
             ;;
         build_chainlit=false)
-            BUILD_CHAINLIT="false"
+            export BUILD_CHAINLIT="false"
             ;;
         build_streamlit=false)
-            BUILD_STREAMLIT="false"
+            export BUILD_STREAMLIT="false"
             ;;
         force_build_on_cloud=true)
-            FORCE_BUILD_ON_CLOUD="true"
+            export FORCE_BUILD_ON_CLOUD="true"
             ;;
         update_settings_only=true)
-            UPDATE_SETTINGS_ONLY="true"
+            export UPDATE_SETTINGS_ONLY="true"
+            ;;
+        get_variables_from_live_rg=true)
+            export GET_VARIABLES_FROM_LIVE_RG="true"
+            ;;
+        login_to_azure=false)
+            export LOGIN_TO_AZURE="false"
+            ;;
+        azure_resources_file=*)
+            AZURE_RESOURCES_FILE="${arg#*=}"
+            if [[ -n $AZURE_RESOURCES_FILE ]]; then
+                export AZURE_RESOURCES_FILE
+            fi
             ;;
         *)
             echo -e "${RED} Unknown argument: $arg ${RESET}"
@@ -70,6 +102,39 @@ done
 #you can nadd your subscription and resource group name here or relay in your .env file (must be bash compatible)
 SUBSCRIPTION="<add your subscription>"
 RG_WEBAPP_NAME="<add your new resource group>"
+
+
+#!/bin/bash
+
+# Get the current Azure CLI version
+current_version=$(az version --output json | python -c "import sys, json; print(json.load(sys.stdin)['azure-cli'][:6])")
+
+# Function to compare versions
+version_gt() { test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; }
+
+# Check if the current version is lower than 2.59.0
+if version_gt "2.59.0" "$current_version"; then
+    echo -e "${RED}Your Azure CLI version is $current_version, which is older than 2.59.0. ${RESET}"
+    read -p "Do you want to upgrade to the latest version? (y/n) " -n 1 -r
+    echo    # Move to a new line
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        az upgrade
+    else
+        echo "Upgrade cancelled."
+        exit 1
+    fi
+else
+    echo -e "${GREEN}Your Azure CLI version is $current_version and is up to date.${RESET}"
+fi
+
+
+
+# if net session > /dev/null 2>&1; then
+#     echo -e "${GREEN}The script is running with administrator privileges.${RESET}"
+# else
+#     echo -e "${RED}The script is not running with administrator privileges. Cancelling... ${RESET}"
+#     exit 1
+# fi
 
 # Load variables from .env file in the parent directory
 if [ -f ../.env ]
@@ -130,12 +195,18 @@ echo -e "\n${CYAN}----------------------------------------"
 echo -e "🚀 Detected Parameters:"
 echo -e "----------------------------------------${RESET}"
 printf "${GREEN}%-30s %-30s${RESET}\n" "Parameter" "Value"
+echo -e "----------------------------------------${RESET}"
 printf "${GREEN}%-30s %-30s${RESET}\n" "force_redeploy" "$DEPLOY_INFRA"
 printf "${GREEN}%-30s %-30s${RESET}\n" "update_webapp_settings" "$UPDATE_WEBAPP_SETTINGS"
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_chainlit" "$BUILD_CHAINLIT"
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_streamlit" "$BUILD_STREAMLIT"
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_on_cloud" "$FORCE_BUILD_ON_CLOUD"
 printf "${GREEN}%-30s %-30s${RESET}\n" "update_settings_only" "$UPDATE_SETTINGS_ONLY"
+printf "${GREEN}%-30s %-30s${RESET}\n" "get_variables_from_live_rg" "$GET_VARIABLES_FROM_LIVE_RG"
+printf "${GREEN}%-30s %-30s${RESET}\n" "login_to_azure" "$LOGIN_TO_AZURE"
+printf "${GREEN}%-30s %-30s${RESET}\n" "azure_resources_file" "$AZURE_RESOURCES_FILE"
+
+
 echo -e "${CYAN}----------------------------------------${RESET}\n"
 
 # Check if Chocolatey is installed
@@ -274,13 +345,17 @@ function export_app_settings() {
         mkdir -p "deployment_output/web_app_settings"
     fi
     # Get the app settings and save them to the file
-    az webapp config appsettings list --name $APP_NAME --resource-group $RG_NAME > $FILENAME
+    echo -e "${YELLOW}Getting app settings...${RESET}"
+    echo -e "Webapp name:$APP_NAME"
+    echo -e "Webapp name:$RG_NAME"
+    az webapp config appsettings list --name $APP_NAME --resource-group $RG_NAME > $FILENAME    
+    
     if [[ $? -ne 0 ]]; then
-        echo "Failed to get app settings"
-        exit 1
+        echo -e "${RED}Failed to get app settings${RESET}"
+        # exit 1
     fi
 
-    echo "App settings have been saved to $FILENAME"
+    echo -e "${GREEN}App settings have been saved to $FILENAME${RESET}"
     #read -p "pause..."
     sleep 2
 }
@@ -291,7 +366,7 @@ enableDdosProtection='false'
 aiSearchRegion='eastus'
 azure_unique_name=$(generate_azure_compatible_name)
 
-SKIP_LOGIN_TO_AZURE="false"
+LOGIN_TO_AZURE="false"
 USE_DEFAULT_NAMES="true"
 CONFIRMATION="false"  #if set to true it will ask for confirmations.
 ROOT_PATH_INGESTION="/data/data"
@@ -320,9 +395,243 @@ WEB_APP_NAME_MAIN="rescopilot"
 ACR_NAME="" #this will be reasigned later in the script
 
 
+
+#if new argument to control the source of output variables
+
+
+
+
+function populate_output_variables() {    
+    
+    # we check the output_variables, if empty we get the variables from the live deployment as most likely this is a custom deployment.
+    #IF AZURE_RESOURCES_FILE IS NOT EMPTY
+    if [ -n "$AZURE_RESOURCES_FILE" ]; then
+        echo -e "${GREEN}Getting the output variables from the Azure Resources file...${RESET}"
+        export output_variables=$(cat $AZURE_RESOURCES_FILE)
+        #CHECK IF THE OUTPUT VARIABLES ARE EMPTY
+        if [ -z "$output_variables" ]; then
+            echo -e "${RED}Output variables are empty,  this is a custom deployment.${RESET}"
+            #we force the script to get the variables from the live deployment azure reousrce group.
+            GET_VARIABLES_FROM_LIVE_RG="true"
+        else    
+            echo -e "${GREEN}Output variables have been loaded from the Azure Resources file.${RESET}"
+        fi                
+    fi
+
+    export output_variables=$(az deployment group show --resource-group $RG_WEBAPP_NAME --name main --query properties.outputs)    
+    if [ -z "$output_variables" ]; then
+        echo -e "${RED}Output variables are empty,  this is a custom deployment.${RESET}"
+        #we force the script to get the variables from the live deployment azure reousrce group.
+        GET_VARIABLES_FROM_LIVE_RG="true"
+    else    
+        echo -e "${GREEN}Output variables are not empty, this is a standard deployment.${RESET}"
+    fi
+
+    if [[ "$GET_VARIABLES_FROM_LIVE_RG" = "true" ]]; then
+        # getting the values from the live deployment required for customers that did custom deployment:
+        # Query services and build the JSON string        
+        # web apps----------------------------------------------------------------------------------:        
+        # export resourceGroupName="$RG_WEBAPP_NAME"
+        resourceGroupName="$RG_WEBAPP_NAME"        
+        az configure --defaults group=$resourceGroupName        
+        targetDockerRepo_chainlit="research-copilot-chainlit"
+        targetDockerRepo_streamlit="research-copilot-streamlit"
+        # Define the resource group
+        
+
+        # List all web apps in the resource group and get their names
+        # Fetch the names of all web apps in the specified resource group and store them in an array
+        webAppNames=($(az webapp list --resource-group "$resourceGroupName" --query "[].name" -o tsv))
+        
+        # Assuming the array has exactly two entries
+        firstAppName="${webAppNames[0]}"
+        secondAppName="${webAppNames[1]}"     
+                
+        webAppNameChainlit=$firstAppName
+        webAppNameStreamlit=$secondAppName                
+                 
+        # Get the App Service Plan name--------------------------------------------------------------:     
+        searchServices=$(az resource list --resource-group "$resourceGroupName" --query "[?kind=='linux'].{name: name, id: id}" -o json)
+        
+        # If an Azure Search service is found, store the service name
+        if [ -n "$searchServices" ]; then
+            appServiceName=$(echo "$searchServices" | jq -r '.[0].name')
+        fi                
+        
+        # Getting the Acr: --------------------------------------------------------------                
+        # Fetch all ACR names as JSON
+        acrNamesJson=$(az acr list --resource-group "$resourceGroupName" --query '[].name' -o json)
+
+        # Extract the first and second ACR name from the JSON output
+        firstAcrName=$(echo $acrNamesJson | jq -r '.[0]')
+        secondAcrName=$(echo $acrNamesJson | jq -r '.[1]')
+
+        # Print the first ACR name
+        
+        repos1=$(az acr repository list --name "$firstAcrName" -o tsv)
+        
+
+        # Check if the repository list contains "research-copilot-chainlit"
+        if [[ "$repos1" == *"research-copilot-chainlit"* ]]; then
+            containerRegistry=$firstAcrName
+        else
+            # Check the second ACR for the specific repository
+            containerRegistry=$secondAcrName
+        fi        
+                
+        # Getting the storage account: --------------------------------------------------------------                         
+        # Fetch all storage account names as JSON
+        storageAccountsJson=$(az storage account list --query "[].name" -o json)
+
+        # Extract the first and second storage account names from the JSON output
+        firstStorageAccount=$(echo $storageAccountsJson | jq -r '.[0]')
+        secondStorageAccount=$(echo $storageAccountsJson | jq -r '.[1]')
+
+        # Function to check for data directory in a storage account
+        function check_for_data_directory {
+            local accountName=$1                        
+            # Get the storage account key
+            storageKey=$(az storage account keys list --account-name $accountName --query "[0].value" -o tsv)
+
+            # Get the list of file shares in the storage account
+            fileSharesJson=$(az storage share list --account-name $accountName --account-key $storageKey --query "[].name" -o json)
+
+            # Convert file shares JSON to array
+            fileShares=($(echo $fileSharesJson | jq -r '.[]'))
+
+            # Check each file share for the 'data' directory
+            for fileShare in "${fileShares[@]}"; do
+                directoriesJson=$(az storage directory list --share-name $fileShare --account-name $accountName --account-key $storageKey --query "[].name" -o json)
+                if echo $directoriesJson | jq -r '.[]' | grep -q "^data$"; then
+                    echo "$accountName has a file share '$fileShare' with a 'data' directory."
+                    return 0
+                fi
+            done
+            return 1
+        }
+
+        # Check the first storage account
+        if check_for_data_directory $firstStorageAccount; then
+            storageAccountWithData=$firstStorageAccount
+        else
+            # If not found in the first, check the second storage account
+            if check_for_data_directory $secondStorageAccount; then
+                storageAccountWithData=$secondStorageAccount
+            fi
+        fi                
+        
+        # Now you can use $storageAccountWithData in your script
+        storageAccountName=$storageAccountWithData        
+        #cosmosdb ---------------------------------------------------------------------------
+        # Get the list of Cosmos DB accounts in the resource group
+        cosmosDbAccounts=$(az cosmosdb list --resource-group $resourceGroupName --query "[].name" -o tsv)
+
+        # If a Cosmos DB account is found, store the Cosmos DB account name
+        if [ -n "$cosmosDbAccounts" ]; then
+            cosmosDbName=$(echo $cosmosDbAccounts | head -n1)
+        fi        
+        
+        # getting the ai search-------------------------------------
+        # Get the list of Azure Search services in the resource group
+        # searchServices=$(az search service list --resource-group $resourceGroupName --query "[].name" -o tsv)
+        searchServices=$(az resource list --resource-group "$resourceGroupName" --query "[?type=='Microsoft.Search/searchServices'].{name: name, id: id}" -o json)
+        
+        # If an Azure Search service is found, store the service name
+        if [ -n "$searchServices" ]; then
+            searchServiceName=$(echo "$searchServices" | jq -r '.[0].name')
+        fi
+
+        # Now you can use $searchServiceName in your script        
+        
+        #computer vision -----------------------------------------------------------------------                
+        visionResources=$(az resource list --resource-group "$resourceGroupName" --query "[?kind=='ComputerVision'].{name: name, id: id}" -o json)
+
+        # Filter the resources by the resource type for Computer Vision        
+        # If a Computer Vision resource is found, store the resource name
+        if [ -n "$visionResources" ]; then            
+            visionResourceName=$(echo "$visionResources" | jq -r '.[0].name')
+        fi
+
+        # documment intelligence: --------------------------------------------------------------                        
+               
+        # Fetch Document Intelligence resources as JSON
+        documentIntelligenceResourcesJson=$(az resource list --resource-group "$resourceGroupName" --query "[?kind=='FormRecognizer'].{name: name, id: id}" -o json)
+
+        # Check if any Document Intelligence resources are found
+        if [[ $(echo "$documentIntelligenceResourcesJson" | jq length) -gt 0 ]]; then
+            # Extract the name and ID of the first Document Intelligence resource
+            documentIntelligenceName=$(echo "$documentIntelligenceResourcesJson" | jq -r '.[0].name')
+            documentIntelligenceId=$(echo "$documentIntelligenceResourcesJson" | jq -r '.[0].id')
+
+            # Output the name and ID        
+        else
+            echo "No Document Intelligence resources found in the resource group: $resourceGroupName"
+        fi
+                
+        # machine learning ws--------------------------------------------------------------------
+        # Get the list of Machine Learning workspaces in the resource group
+
+        # Fetch Machine Learning workspaces as JSON        
+        mlWorkspacesJson=$(az resource list --resource-group "$resourceGroupName" --query "[?type=='Microsoft.MachineLearningServices/workspaces'].{name: name, id: id}" -o json)        
+        # Check if any Machine Learning workspaces are found
+        if [[ $(echo "$mlWorkspacesJson" | jq length) -gt 0 ]]; then
+            # Extract the name and ID of the first Machine Learning workspace
+            mlWorkspaceName=$(echo "$mlWorkspacesJson" | jq -r '.[0].name')
+            mlWorkspaceId=$(echo "$mlWorkspacesJson" | jq -r '.[0].id')
+
+            # Output the name and ID            
+        else
+            echo "No Machine Learning workspaces found in the resource group: $resourceGroupName"
+        fi
+
+        # Now you can use $mlWorkspaceName and $mlWorkspaceId in your script
+        
+        if [ -z "$UNIQUE_ID" ]; then
+            uniqueId="k6rxhsic3me36"
+        fi                
+
+        # Create a JSON string with the output variables
+        export output_variables=$(jq -n \
+                            --arg webAppNameChainlit "$webAppNameChainlit" \
+                            --arg webAppNameStreamlit "$webAppNameStreamlit" \
+                            --arg appServiceName "$appServiceName" \
+                            --arg storageAccountName "$storageAccountName" \
+                            --arg cosmosDbName "$cosmosDbName" \
+                            --arg aiSearch "$searchServiceName" \
+                            --arg uniqueId "$uniqueId" \
+                            --arg machineLearningName "$mlWorkspaceName" \
+                            --arg machineLearningId "$mlWorkspaceId" \
+                            --arg documentIntelligenceName "$documentIntelligenceName" \
+                            --arg documentIntelligenceId "$documentIntelligenceId" \
+                            --arg accountsVisionResTstName "$visionResourceName" \
+                            --arg containerRegistry "$containerRegistry" \
+                            '{
+                                webAppNameChainlit: {type: "String", value: $webAppNameChainlit},
+                                webAppNameStreamlit: {type: "String", value: $webAppNameStreamlit},
+                                appServiceName: {type: "String", value: $appServiceName},
+                                storageAccount: {type: "String", value: $storageAccountName},
+                                cosmosDbName: {type: "String", value: $cosmosDbName},
+                                aiSearch: {type: "String", value: $aiSearch},
+                                uniqueId: {type: "String", value: $uniqueId},
+                                machineLearningName: {type: "String", value: $machineLearningName},
+                                machineLearningId: {type: "String", value: $machineLearningId},
+                                documentIntelligenceName: {type: "String", value: $documentIntelligenceName},
+                                documentIntelligenceId: {type: "String", value: $documentIntelligenceId},
+                                accountsVisionResTstName: {type: "String", value: $accountsVisionResTstName},
+                                containerRegistry: {type: "String", value: $containerRegistry}
+                            }')
+    echo "$output_variables"        
+    
+    fi                    
+}
+
 function parse_output_variables() {
     export MSYS_NO_PATHCONV=1
-    output_variables=$(az deployment group show --resource-group $RG_WEBAPP_NAME --name main --query properties.outputs)
+    # output_variables=$(az deployment group show --resource-group $RG_WEBAPP_NAME --name main --query properties.outputs)
+    populate_output_variables
+    echo "Output Variables: $output_variables"
+    #press enter to contineyu
+    #read -rp "pause..."    
 
     # Parse the output variables and load them into bash variables
     export WEB_APP_NAME=$(echo $output_variables | jq -r '.webAppNameChainlit.value')
@@ -337,7 +646,7 @@ function parse_output_variables() {
     export COSMOS_DB=$(echo $output_variables | jq -r '.cosmosDbName.value')        
     export COSMOS_DB_NAME="$COSMOS_DB"
     export COSMOS_URI="https://$COSMOS_DB_NAME.documents.azure.com:443/"    
-    export COSMOS_KEY==$(az cosmosdb keys list --name $COSMOS_DB_NAME --resource-group $RG_WEBAPP_NAME --query primaryMasterKey --output tsv)
+    export COSMOS_KEY=$(az cosmosdb keys list --name $COSMOS_DB_NAME --resource-group $RG_WEBAPP_NAME --query primaryMasterKey --output tsv)
     export COSMOS_CONTAINER_NAME="prompts"
     export COSMOS_CATEGORYID="prompts"
     export COSMOS_LOG_CONTAINER="logs" 
@@ -387,14 +696,46 @@ function parse_output_variables() {
     export COG_SERV_LOCATION=$aiSearchRegion
 
     #OpenAI settings:
-
     deployment_name="openai" #the template already adds the location to the name
-    aoai_resource_name="${PREFIX}${deployment_name}${location}${UNIQUE_ID}"     
-    output_variables=$(MSYS_NO_PATHCONV=1 az deployment group show --resource-group $RG_WEBAPP_NAME --name $bicepDeploymentName --query properties.outputs)
-    # if output_variables is empty, we assume that the resource does not exist
-    if [ -z "$output_variables" ]; then
-        echo -e "${YELLOW}OpenAI resource was not deployed using the deployment script we cannot update the web app settings.${RESET}"
-        UPDATE_OPEN_AI_SETTINGS="false"
+    aoai_resource_name="${PREFIX}${deployment_name}${location}${UNIQUE_ID}"            
+    bicepDeploymentName=$aoai_resource_name
+    output_variables_openai=$(MSYS_NO_PATHCONV=1 az deployment group show --resource-group $RG_WEBAPP_NAME --name $bicepDeploymentName --query properties.outputs)
+    # if output_variables is empty, we assume that the deployment is custom, thus we  look for open ai resource inside the rg
+    if [ -z "$output_variables_openai" ]; then        
+        echo -e "${RED}Output variables are empty for Open AI,  this is a custom deployment.${RESET}"
+        #trying to get it directly from the rg
+        openAiResources=$(az resource list --resource-group "$resourceGroupName" --query "[?kind=='OpenAI'].{name: name, id: id}" -o json)
+        if [ -n "$openAiResources" ] && [ "$openAiResources" != "[]" ]; then
+            echo -e "${GREEN}OpenAI resource exist in the RG adjusting the web app settings.${RESET}"
+            UPDATE_OPEN_AI_SETTINGS="true"    
+
+            openAiResourceName=$(echo "$openAiResources" | jq -r '.[0].name')
+            aoai_temp_key=$(az cognitiveservices account keys list --name $openAiResourceName --resource-group $resourceGroupName --query key1 --output tsv)        
+            AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE=$openAiResourceName
+            AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY=$aoai_temp_key
+            AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION="2023-12-01-preview"    
+
+            AZURE_OPENAI_RESOURCE=$openAiResourceName
+            AZURE_OPENAI_KEY=$aoai_temp_key
+
+            AZURE_OPENAI_RESOURCE_1=$openAiResourceName
+            AZURE_OPENAI_KEY_1=$aoai_temp_key
+
+            AZURE_OPENAI_MODEL=gpt-4
+            AZURE_OPENAI_EMBEDDING_MODEL=text-embedding-ada-002
+            AZURE_OPENAI_MODEL_VISION=gpt4v
+
+            AZURE_OPENAI_API_VERSION="2024-02-15-preview"
+            AZURE_OPENAI_VISION_API_VERSION="2023-12-01-preview"
+            AZURE_OPENAI_TEMPERATURE=0
+            AZURE_OPENAI_TOP_P=1.0
+            AZURE_OPENAI_MAX_TOKENS=1000
+            AZURE_OPENAI_STOP_SEQUENCE=                      
+        else
+            echo -e "${RED}No OpenAI resources found in the resource group: $resourceGroupName this must be a custom deployment ${RESET}"            
+            UPDATE_OPEN_AI_SETTINGS="false"
+        fi
+
     else
         echo -e "${GREEN}OpenAI resource exists we can adjust the web app settings.${RESET}"
         UPDATE_OPEN_AI_SETTINGS="true"
@@ -434,7 +775,7 @@ function parse_output_variables() {
     echo "COG_SEARCH_ADMIN_KEY_PROD: $COG_SEARCH_ADMIN_KEY_PROD"
     echo "COG_SEARCH_ENDPOINT_PROD: $COG_SEARCH_ENDPOINT_PROD"
 
-    # read -p "Press enter to continue..." -r
+    # read -rp "press enter to continue..."
 }
 
 confirm() {
@@ -466,7 +807,7 @@ az provider register --namespace Microsoft.Search #making sure that the search s
 
 
 # Log in to Azure
-if [[ "$SKIP_LOGIN_TO_AZURE" != "true" ]]; then
+if [[ "$LOGIN_TO_AZURE" = "true" ]]; then
     echo "Loging in to Azure..."
     az login > /dev/null
 fi
@@ -666,6 +1007,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
         # Check if the service principal already exists
         existingSp=$(az ad sp list --display-name "$spName" --query "[].appId" --output tsv)
         if [ -z "$existingSp" ]; then
+            echo -e "${YELLOW}Creating a new service principal...${RESET}"
             output=$(az ad sp create-for-rbac --name "$spName" --query "{appId: appId, password: password, tenant: tenant}" --output json)                
             appId=$(echo $output | jq -r .appId)
             spPassword=$(echo $output | jq -r .password)
@@ -751,9 +1093,9 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
                     --mode Incremental || echo -e "${RED}An error occurred, but the script will continue, check the deployment log in azure portal for more details.${RESET}"
                 # Check the exit status of the deployment   
                 
-                output_variables=$(MSYS_NO_PATHCONV=1 az deployment group show --resource-group $RG_WEBAPP_NAME --name $bicepDeploymentName --query properties.outputs)
+                output_variables_openai=$(MSYS_NO_PATHCONV=1 az deployment group show --resource-group $RG_WEBAPP_NAME --name $bicepDeploymentName --query properties.outputs)
 
-                aoaiResourceId=$(echo $output_variables | jq -r '.aoaiResourceId.value')                        
+                aoaiResourceId=$(echo $output_variables_openai | jq -r '.aoaiResourceId.value')                        
                 echo -e "${GREEN}OpenAI resource $aoai_resource_name created successfully.${RESET}"                           
                 echo -e "${YELLOW} The opean ai resource id is: $aoaiResourceId ${RESET}"
 
@@ -925,7 +1267,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             exit 1
         fi
     }
-    #exporting the original web app settings to files.
+    #exporting the original web app settings to files. This is needed to restore the settings after the deployment if something goes wrong
     if [[ "$DEPLOY_INFRA" = "false" ]]; then
         export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
         export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
@@ -1068,20 +1410,23 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             WEBAPP_UPDATED="False"
         fi       
     fi 
+    
+    export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
+    export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
 else
     # the script is run with update settings only flag
     # we get the output variables from the main deployment
     echo -e "${GREEN}****You are running the script with update_settings_only=true.${RESET}"	    
     #parse_output_variables || echo -e "${RED}Error parsing the output variables from the main deployment.${RESET}"
     parse_output_variables || echo -e "${RED}Error parsing the output variables from the main deployment.${RESET}"
-    #exporting the original web app settings to files.
+    #exporting the original web app settings to files.    
     export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
     export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
 fi   
 
 
 WEBSITES_ENABLE_APP_SERVICE_STORAGE="true"
-PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils:/home/app/code:/home/app/code/utils"
+PYTHONPATH="/home/appuser/app/code:/home/appuser/app/code/utils:./code:../code:./code/utils:../code/utils:/home/app/code:/home/app/code/utils:../../code:../../code/utils"
 #SCM_BASIC_AUTHENTICATION_ENABLED
 
 AML_VMSIZE="STANDARD_D2_V2"
@@ -1233,12 +1578,12 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     fi
 fi
 
-if [[ "$DEPLOY_INFRA" = "false" ]] && [[ "$FORCE_DEPLOY" = "false" ]]; then
-    # if deply infra means that this is the first time we are deploying the infra, so we need to export the settings to the files after changing the settings
-    #  and not before because they will be empty or default.
-    export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
-    export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
-fi
+# if [[ "$DEPLOY_INFRA" = "false" ]] && [[ "$FORCE_DEPLOY" = "false" ]]; then
+#     # if deply infra means that this is the first time we are deploying the infra, so we need to export the settings to the files after changing the settings
+#     #  and not before because they will be empty or default.
+#     export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
+#     export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
+# fi
 
 if [ "$WEBAPP_UPDATED" = "true" ]; then
     echo -e "${YELLOW}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
@@ -1247,8 +1592,7 @@ if [ "$WEBAPP_UPDATED" = "true" ]; then
     echo -e "${YELLOW}!!!!!!!!IMPORTANT:          Make sure  web apps are pointing to this new build:$BUILD_ID      .${RESET}"       
     echo -e "${YELLOW}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
     echo -e "${YELLOW}!!!!!!!!IMPORTANT: THE IMAGE(s) are LARGE, IT TAKES AROUND 5-7 MINUTES TO LOAD IN THE WEB APP.${RESET}"       
-    echo -e "${YELLOW}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"           
-    
+    echo -e "${YELLOW}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"               
 fi
 
 echo -e "${GREEN}Process Finished! happy testing!.${RESET}"
