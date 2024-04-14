@@ -130,6 +130,14 @@ class CogSearchRestAPI(CogSearchHttpRequest):
 
         super().__init__(api_key, search_service_name, index_name, api_version)
         
+        if AZURE_OPENAI_EMBEDDING_MODEL == 'text-embedding-ada-002':
+            dimensions = 1536
+        elif AZURE_OPENAI_EMBEDDING_MODEL == 'text-embedding-3-large':
+            dimensions = 3072
+        elif AZURE_OPENAI_EMBEDDING_MODEL == 'text-embedding-3-small':
+            dimensions = 1536
+        else:
+            dimensions = 1536
 
         if fields is None:
             self.fields = [
@@ -146,10 +154,9 @@ class CogSearchRestAPI(CogSearchHttpRequest):
                     {"name": "python_code", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
                     {"name": "markdown", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
                     {"name": "mermaid", "type": "Edm.String", "searchable": True, "filterable": True, "retrievable": True, "sortable": True},
-                    {"name": "vector", "type": "Collection(Edm.Single)", "searchable": True,"retrievable": True, "dimensions": 1536,"vectorSearchProfile": "my-vector-profile"},
+                    {"name": "vector", "type": "Collection(Edm.Single)", "searchable": True,"retrievable": True, "dimensions": dimensions,"vectorSearchProfile": "my-vector-profile"},
                     {"name": "tags", "type": "Edm.String","searchable": True, "filterable": False, "retrievable": True, "sortable": False, "facetable": False},
                     {"name": "text", "type": "Edm.String","searchable": True, "filterable": False, "retrievable": True, "sortable": False, "facetable": False},
-                    
             ]
         else:
             self.fields = fields

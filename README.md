@@ -66,6 +66,7 @@ The following are technical features implemented as part of this solution:
 1. Tag-based Search for optimizing really long user query, e.g. Generation Prompts
 1. Modular and easy-to-use interface with Processors for customizable processing pipelines
 1. Smart chunking of Markdown tables with repeatable header and table summary in every chunk
+1. Support for the two new embedding models `text-embedding-3-small` and `text-embedding-3-large`, as well as for `text-embedding-ada-002`
 1. Dynamic semantic chunking with approximate fixed size chunks (soon)
 
 
@@ -203,10 +204,36 @@ We are currently building an ARM template for a one-click deployment. In the mea
 # cd into the deployment folder
 cd deployment
 
-# run the chainlit app
+# run the deployment script
 ./deploy_public.sh
 ```
+
+
+
 <br/>
+<br/>
+
+### Local Development for Azure Cloud
+
+For rapid development iterations and for testing on the cloud, the `push.ps1` script can be used to build only the docker images and push them to the Azure Container Registry, without creating or changing any other component in the resource group or in the architecture. The docker images will have then to be **manually** assigned to the web app, by going to the web app page in the Azure Portal, and then navigate to `Deployment > Deployment Center` on the left-hand side, and then go to `Settings` on the right-hand side, then to the `Tag` dropdown and choose the correct docker image. 
+
+Please edit the `push.ps1` script, and fill in the right values for the Azure Container Registry endpoint, username and password, for the Resource Group name, and Subscription ID. Then, to run the script, follow the below instrcutions in a `Powershell`: 
+
+```bash
+# cd into the deployment folder
+cd deployment
+
+# run the docker images update script
+./push.ps1
+```
+ 
+<br />
+<p align="center">
+<img src="images/pushacr.png" width="800" />
+</p>
+<br/>
+
+
 <br/>
 
 ## Code Interpreters
