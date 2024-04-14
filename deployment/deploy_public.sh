@@ -2,16 +2,16 @@
 #!/bin/bash
 
 # Get the current date and time
-current_date_time=$(date '+%Y-%m-%d_%H-%M-%S')
+# current_date_time=$(date '+%Y-%m-%d_%H-%M-%S')
 
-# Create a unique logfile name
-logfile="deployment_output/logs/logfile_$current_date_time.txt"
+# # Create a unique logfile name
+# logfile="deployment_output/logs/logfile_$current_date_time.txt"
 
-# Create the directory if it doesn't exist
-mkdir -p deployment_output/logs
+# # Create the directory if it doesn't exist
+# mkdir -p deployment_output/logs
 
-# Redirect stdout and stderr to the logfile and also print to the terminal
-exec > >(tee "$logfile") 2>&1
+# # Redirect stdout and stderr to the logfile and also print to the terminal
+# exec > >(tee "$logfile") 2>&1
 
 
 #az cli version tested 2.59.0
@@ -372,7 +372,7 @@ CONFIRMATION="false"  #if set to true it will ask for confirmations.
 ROOT_PATH_INGESTION="/data/data"
 PROMPTS_PATH="prompts" #path to save the prompts in the shared file share in the web app.
 INGESTED_DATA_NAME="Ingested_data" #path to save the ingested data in the shared file share in the web app.
-
+infra_deployed="false" #to check if the infra has been deployed or not.
 
 IMAGES_PUSHED="false" #this is used later in the script, this value now has no effect, it will be reasigned later in the script
 DEPLOY_OPEN_AI="true" #false will not deploy the open ai resource
@@ -395,8 +395,47 @@ WEB_APP_NAME_MAIN="rescopilot"
 ACR_NAME="" #this will be reasigned later in the script
 
 
+create_service_principal_and_assign_role() {
+    spName="sp-research-copilot-$UNIQUE_ID"
+    # Check if the service principal already exists
+    existingSp=$(az ad sp list --display-name "$spName" --query "[].appId" --output tsv)
+    if [ -z "$existingSp" ]; then
+        echo -e "${YELLOW}Creating a new service principal...${RESET}"
+        output=$(az ad sp create-for-rbac --name "$spName" --query "{appId: appId, password: password, tenant: tenant}" --output json)                
+        appId=$(echo $output | jq -r .appId)
+        spPassword=$(echo $output | jq -r .password)
+        tenantId=$(echo $output | jq -r .tenant)               
+    else
+        echo -e "${YELLOW}Service principal $spName already exists.${RESET}"
+        echo "existingSp: $existingSp"
 
-#if new argument to control the source of output variables
+        tenantId=$(az ad sp show --id $existingSp --query "appOwnerOrganizationId" --output tsv)                        
+        appId=$existingSp
+        #we reset the password:
+        spPassword=$(az ad sp credential reset --id $appId --query "password" --output tsv)
+    fi
+    #we assign the role to the service principal to rg
+    az role assignment create --role "Contributor" --assignee "$appId"  --scope "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG_WEBAPP_NAME/providers/Microsoft.MachineLearningServices/workspaces/$ML_NAME"                                          
+    az role assignment create --assignee $appId --role Contributor --scope $RG_WEBAPP_NAME
+    az role assignment create --assignee $appId --role "Azure Machine Learning Compute Operator" --scope $RG_WEBAPP_NAME
+
+    #check if error
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Role assigned to the service principal successfully.${RESET}"
+    else
+        echo -e "${RED}Error assigning role to the service principal.${RESET}"
+    fi
+    export AML_PASSWORD=$spPassword
+    export AML_TENANT_ID=$tenantId
+    export AML_SERVICE_PRINCIPAL_ID=$appId  
+
+    # Output the service principal ID, password, and tenant ID
+    echo "spName: $spName"
+    echo "AML_SERVICE_PRINCIPAL_ID: $appId"
+    echo "AML_PASSWORD: $spPassword"
+    echo "AML_TENANT_ID: $tenantId"        
+        
+}
 
 
 
@@ -994,58 +1033,22 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             # Check the exit status of the deployment
             if [ $? -eq 0 ]; then
                 echo -e "${GREEN}Deployment was successful/RG already existed. Continuing with the script...${RESET}"    
+                export infra_deployed="true"
                 # ... continue with the script ...
             else    
                 echo -e "${RED}Deployment failed. Exiting the script.${RED}"    
+                export infra_deployed="false"
                 exit 1
             fi
         fi
         # Get the output variables from the main deployment , this contains the names of the resources that were created
         parse_output_variables        
         
-        spName="sp-research-copilot-$UNIQUE_ID"
-        # Check if the service principal already exists
-        existingSp=$(az ad sp list --display-name "$spName" --query "[].appId" --output tsv)
-        if [ -z "$existingSp" ]; then
-            echo -e "${YELLOW}Creating a new service principal...${RESET}"
-            output=$(az ad sp create-for-rbac --name "$spName" --query "{appId: appId, password: password, tenant: tenant}" --output json)                
-            appId=$(echo $output | jq -r .appId)
-            spPassword=$(echo $output | jq -r .password)
-            tenantId=$(echo $output | jq -r .tenant)   
+        if [ "$infra_deployed" = "false" ]; then
+            #we need to make sure sp is also created when we are just updating the app
+            create_service_principal_and_assign_role
+        fi                
 
-            az role assignment create --role "Contributor" --assignee "$appId"  --scope "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG_WEBAPP_NAME/providers/Microsoft.MachineLearningServices/workspaces/$ML_NAME"                                          
-        else
-            echo -e "${YELLOW}Service principal $spName already exists.${RESET}"
-            echo "existingSp: $existingSp"
-
-            tenantId=$(az ad sp show --id $existingSp --query "appOwnerOrganizationId" --output tsv)                        
-            appId=$existingSp
-            #we reset the password:
-            spPassword=$(az ad sp credential reset --id $appId --query "password" --output tsv)
-        fi
-        #we assign the role to the service principal to rg
-        #az role assignment create --assignee $appId --role Contributor --scope $ML_ID
-        # az role assignment create --assignee $appId --role Contributor --scope $RG_WEBAPP_NAME
-        az role assignment create --assignee $appId --role Contributor --scope $RG_WEBAPP_NAME
-        az role assignment create --assignee $appId --role "Azure Machine Learning Compute Operator" --scope $RG_WEBAPP_NAME
-
-        #check if error
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}Role assigned to the service principal successfully.${RESET}"
-        else
-            echo -e "${RED}Error assigning role to the service principal.${RESET}"
-        fi
-
-        export AML_PASSWORD=$spPassword
-        export AML_TENANT_ID=$tenantId
-        export AML_SERVICE_PRINCIPAL_ID=$appId  
-
-        # Output the service principal ID, password, and tenant ID
-        echo "spName: $spName"
-        echo "AML_SERVICE_PRINCIPAL_ID: $appId"
-        echo "AML_PASSWORD: $spPassword"
-        echo "AML_TENANT_ID: $tenantId"        
-        
         #open ai deployments
         #supported locations for vision as of Feb 2024
         SUPPORTED_LOCATIONS=("swedencentral" "australiaeast" "westus" "switzerlandnorth")
@@ -1145,7 +1148,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             done
     fi
     parse_output_variables
-
+    create_service_principal_and_assign_role
     
     
 
@@ -1310,15 +1313,16 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
         if [[ "$running_on_azure_cloud_shell" = "false" ]]; then
             # build the docker locally
             if [[ "$BUILD_CHAINLIT" = "true" ]]; then
-                echo -e "${GREEN}Building the chainlit app docke r locally...${RESET}"
-                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI .
+                echo -e "${GREEN}Building the chainlit app docker locally...${RESET}"
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI . 
             fi
 
             if [[ "$BUILD_STREAMLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the streamlit app docker locally...${RESET}"
-                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN .
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN . 
             fi
-
+            #echo -e "${GREEN}Waiting for the docker build(s) to complete...${RESET}"
+            #wait
         else
             # build the docker using Azure Container Registry
             if [[ "$BUILD_CHAINLIT" = "true" ]]; then
@@ -1361,6 +1365,8 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
                 docker push $DOCKER_CUSTOM_IMAGE_NAME_MAIN
                 IMAGES_PUSHED="true"
             fi
+            #echo -e "${GREEN}Waiting for the docker push(es) to complete...${RESET}"
+            #wait 
         fi
     else
         IMAGES_PUSHED="true"
