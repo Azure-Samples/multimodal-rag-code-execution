@@ -87,8 +87,8 @@ index_name = index_name.strip()
 available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
 
 
-# number_threads = col2.slider("Number of threads:", 1, 7, st.session_state.num_threads)
-number_threads = col2.text_input("Number of threads:", available_models, disabled=True)
+number_threads = col2.slider("Number of threads:", 1, available_models, available_models)
+# number_threads = col2.text_input("Number of threads:", available_models, disabled=True)
 pdf_password = col2.text_input("PDF password:")
 job_execution = col2.selectbox("Job Execution:", ["Azure Machine Learning", "Subprocess (Local Testing)"] )
 uploaded_files = col2.file_uploader("Choose a file(s) :file_folder:", accept_multiple_files=True)
@@ -119,15 +119,32 @@ col2.write(f":blue[Ingestion directory:] :green[{ingestion_directory}]")
 col2.write(f":blue[Index name:] :green[{index_name}]")
 # col2.text(f":blue[Job Status:] :green[{st.session_state.job_status}]")
 
+existing_file_names = []
+try:
+    files = os.listdir(download_directory)
+    existing_file_names = [file for file in files if os.path.isfile(os.path.join(download_directory, file))]
+except Exception as e:
+    print(f"Not able to get list of current files in the Downloads directory.\nException:\n{str(e)}")
+
 
 ## COPY UPLOADED FILES TO THE DOWNLOAD DIRECTORY AND RENAME THEM
 for uploaded_file in uploaded_files :
     print("Uploaded Files -- before processing", uploaded_files)
     #Use the file here. For example, you can read it:
     if uploaded_file.name.replace(" ", "_") in st.session_state.files_ingested: continue
-    with open(os.path.join(download_directory, uploaded_file.name), "wb") as f:
-        f.write(uploaded_file.getvalue())
-    os.rename(os.path.join(download_directory, uploaded_file.name), os.path.join(download_directory, uploaded_file.name.replace(" ", "_")))      
+
+    new_name = os.path.join(download_directory, uploaded_file.name.replace(" ", "_"))
+    old_name = os.path.join(download_directory, uploaded_file.name)
+
+    if not os.path.exists(new_name):
+        with open(os.path.join(download_directory, uploaded_file.name), "wb") as f:
+            f.write(uploaded_file.getvalue())
+
+        try:
+            os.rename(old_name, new_name)      
+        except Exception as e:
+            logc(f"Error renaming file to {new_name}. Most likely a problem with permissions accessing the downloads folder {download_directory}.\nException:\n{e}")
+
     st.session_state.files_ingested[uploaded_file.name.replace(" ", "_")] = "Not ingested"
     print("st.session_state.files_ingested", st.session_state.files_ingested)
 
@@ -222,7 +239,7 @@ def check_if_indexing_in_progress():
 
 def check_job_status():
     with st.spinner("Please wait ..."):
-        print("AML Job", st.session_state.aml_job.run is not None)
+        # print("AML Job", st.session_state.aml_job.run is not None)
         
         if st.session_state.aml_job.run is not None:
             status = st.session_state.aml_job.run.get_status()
@@ -254,6 +271,12 @@ def check_job_status():
             else:
                 st.session_state.job_status = f"Python Subprocess is: Running"
                 st.session_state.warning = st.sidebar.info(f"Python Subprocess is: Running", icon="ℹ️")
+
+        if st.session_state.aml_job.run is None:
+            st.session_state.indexing = False
+            check_if_indexing_in_progress()
+            update_file_list_UI()
+            ic.update_aml_job_status(index_name, "not_running")
 
 
 

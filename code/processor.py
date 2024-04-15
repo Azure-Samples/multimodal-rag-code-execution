@@ -255,13 +255,13 @@ class DocxProcessor(Processor):
     def develop_processing_plan(self):
 
         if self.processing_mode == 'py-docx':
-            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images']
+            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
 
         elif self.processing_mode == 'document-intelligence':
-            self.processing_plan = ['extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'harvest_code', 'post_process_images']
+            self.processing_plan = ['extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'harvest_code', 'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
         else:
             logc("Processing Mode Not Supported - defaulting to 'py-docx'")
-            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks_with_doc_int_markdown', 'harvest_code', 'post_process_images']
+            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks_with_doc_int_markdown', 'harvest_code', 'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
             
             
 
@@ -270,7 +270,7 @@ class DocxProcessor(Processor):
 class XlsxProcessor(Processor):
 
     def develop_processing_plan(self):
-        self.processing_plan = ['extract_xlsx_using_openpyxl', 'create_doc_chunks_with_doc_int_markdown']
+        self.processing_plan = ['extract_xlsx_using_openpyxl', 'create_doc_chunks_with_doc_int_markdown', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
 
 
 
