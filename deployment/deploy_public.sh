@@ -306,6 +306,13 @@ echo -e "${RED}*  Unfortunately this needs to be done manually.                 
 echo -e "${RED}*  If you never created a cognitive service...                                   *${RESET}"
 echo -e "${RED}*  Go to portal and create any cognitive service and accept the usage condition. *${RESET}"
 echo -e "${RED}*********************************IMPORTANT!***************************************${RESET}"
+echo
+echo
+echo -e "${RED}*********************************IMPORTANT!***************************************${RESET}"
+echo -e "${RED}*  (April 2024) Document Intelligence Public preview version 2024-02-29-preview  *${RESET}" 
+echo -e "${RED}*  is currently only available    in the following Azure regions:                *${RESET}"
+echo -e "${RED}*  east us, West Us2 and west europe. West europe is the selected region         *${RESET}"
+echo -e "${RED}*********************************IMPORTANT!***************************************${RESET}"
 
 generate_azure_compatible_name() {
     # Generate a random 6-character string that starts with a letter
@@ -413,7 +420,7 @@ create_service_principal_and_assign_role() {
         appId=$existingSp
         #we reset the password:
         # spPassword=$(az ad sp credential reset --id $appId --query "password" --output tsv)
-        spPassword=""
+        spPassword="Empty"
     fi
     #we assign the role to the service principal to rg
     az role assignment create --role "Contributor" --assignee "$appId"  --scope "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG_WEBAPP_NAME/providers/Microsoft.MachineLearningServices/workspaces/$ML_NAME"                                          

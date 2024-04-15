@@ -7,6 +7,8 @@ param aiSearchRegion string ='eastus'
 @description('The location in which all resources should be deployed.')
 param location string = resourceGroup().location
 
+var di_location = 'westeurope'
+
 @description('A prefix that will be prepended to resource names')
 param namePrefix string = 'dev'
 
@@ -100,7 +102,7 @@ module documentInteligence 'documentintelligence.bicep' =  {
     namePrefix:namePrefix
     documentIntelligence: 'doc-int'
     uniqueid:  uniqueid
-    location: location
+    location: di_location
   }
 }
 
