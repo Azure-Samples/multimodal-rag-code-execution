@@ -412,12 +412,13 @@ create_service_principal_and_assign_role() {
         tenantId=$(az ad sp show --id $existingSp --query "appOwnerOrganizationId" --output tsv)                        
         appId=$existingSp
         #we reset the password:
-        spPassword=$(az ad sp credential reset --id $appId --query "password" --output tsv)
+        # spPassword=$(az ad sp credential reset --id $appId --query "password" --output tsv)
+        spPassword=""
     fi
     #we assign the role to the service principal to rg
     az role assignment create --role "Contributor" --assignee "$appId"  --scope "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG_WEBAPP_NAME/providers/Microsoft.MachineLearningServices/workspaces/$ML_NAME"                                          
-    az role assignment create --assignee $appId --role Contributor --scope $RG_WEBAPP_NAME
-    az role assignment create --assignee $appId --role "Azure Machine Learning Compute Operator" --scope $RG_WEBAPP_NAME
+    az role assignment create --assignee $appId --role "Contributor" --scope "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG_WEBAPP_NAME"
+    
 
     #check if error
     if [ $? -eq 0 ]; then
