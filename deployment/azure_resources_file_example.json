@@ -1,0 +1,54 @@
+{
+    "accountsVisionResTstName": {
+      "type": "String",
+      "value": "computer vision resource name"
+    },
+    "aiSearch": {
+      "type": "String",
+      "value": "aiSearch"
+    },
+    "appServiceName": {
+      "type": "String",
+      "value": "appServiceName plan name"
+    },
+    "containerRegistry": {
+      "type": "String",
+      "value": "containerRegistry"
+    },
+    "cosmosDbName": {
+      "type": "String",
+      "value": "cosmosDbName"
+    },
+    "documentIntelligenceId": {
+      "type": "String",
+      "value": "documentIntelligenceId"
+    },
+    "documentIntelligenceName": {
+      "type": "String",
+      "value": "documentIntelligenceName"
+    },
+    "machineLearningId": {
+      "type": "String",
+      "value": "machineLearningId"
+    },
+    "machineLearningName": {
+      "type": "String",
+      "value": "machineLearningName workspance name"
+    },
+    "storageAccount": {
+      "type": "String",
+      "value": "storageAccount name"
+    },
+    "uniqueId": {
+      "type": "String",
+      "value": "jooxp5puty2t4"
+    },
+    "webAppNameChainlit": {
+      "type": "String",
+      "value": "webAppNameChainlit name"
+    },
+    "webAppNameStreamlit": {
+      "type": "String",
+      "value": "webAppNameStreamlit name"
+    }
+  }
