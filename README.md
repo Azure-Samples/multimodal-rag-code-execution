@@ -67,7 +67,12 @@ The following are technical features implemented as part of this solution:
 1. Modular and easy-to-use interface with Processors for customizable processing pipelines
 1. Smart chunking of Markdown tables with repeatable header and table summary in every chunk
 1. Support for the two new embedding models `text-embedding-3-small` and `text-embedding-3-large`, as well as for `text-embedding-ada-002`
+
+
+## In-the-Works Upcoming Features
+
 1. Dynamic semantic chunking with approximate fixed size chunks (soon)
+1. Graph DB support for enhanced data retrieval. The Graph DB will complement, and not replace, the AI Search resource.
 
 
 <br/>
