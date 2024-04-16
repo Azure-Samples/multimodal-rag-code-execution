@@ -219,21 +219,21 @@ class PdfProcessor(Processor):
             self.ingestion_pipeline_dict['extract_text_mode'] = "GPT"
             self.ingestion_pipeline_dict['extract_images_mode'] = "GPT"
             self.ingestion_pipeline_dict['extract_text_from_images'] = True
-            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'harvest_code', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
 
         elif self.processing_mode == 'document-intelligence':
             self.ingestion_pipeline_dict['extract_text_mode'] = "PDF" ## this setting is ignored with doc-int
             self.ingestion_pipeline_dict['extract_images_mode'] = "PDF" ## this setting is ignored with doc-int
             self.ingestion_pipeline_dict['extract_text_from_images'] = False
             self.ingestion_pipeline_dict['extract_docint_tables_mode'] = "Markdown"
-            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'harvest_code', 'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
 
         elif self.processing_mode == 'hybrid': 
             self.ingestion_pipeline_dict['extract_text_mode'] = "PDF" ## this setting is ignored with doc-int
             self.ingestion_pipeline_dict['extract_images_mode'] = "PDF" ## this setting is ignored with doc-int
             self.ingestion_pipeline_dict['extract_docint_tables_mode'] = "JustExtract"
             self.ingestion_pipeline_dict['extract_text_from_images'] = True
-            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_text_doc_chunks_with_sentence_chunking', 'generate_analysis_for_text', 'create_image_doc_chunks', 'create_table_doc_chunks_with_table_images', 'harvest_code', 'post_process_images', 'post_process_tables', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_text_doc_chunks_with_sentence_chunking', 'generate_analysis_for_text', 'create_image_doc_chunks', 'create_table_doc_chunks_with_table_images', 'post_process_images', 'post_process_tables', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
 
 
 
