@@ -1447,10 +1447,13 @@ AML_VMSIZE="STANDARD_D2_V2"
 
 # if [[ "$UPDATE_OPEN_AI_SETTINGS" = "true" ]]; then
 # IF WE JUST RE-DEPLOYED THE INFRA WE NEED TO UPDATE THE SETTINGS INCLUDING THE OPEN AI SETTINGS SO THAT THEY EXIST IN THE ENV SETTINGS
-$AML_CLUSTER_NAME="mm-doc-cpu-cluster"
+AML_CLUSTER_NAME="mm-doc-cpu-cluster"
+TENACITY_STOP_AFTER_DELAY="300"
+
 if [[ "$UPDATE_OPEN_AI_SETTINGS" = "true" ]] || [[ "$DEPLOY_INFRA" = "true" ]]; then
     read -r -d '' app_settings << EOM
     {    
+        "TENACITY_STOP_AFTER_DELAY": "$TENACITY_STOP_AFTER_DELAY",
         "AML_CLUSTER_NAME": "$AML_CLUSTER_NAME",
         "AML_VMSIZE": "$AML_VMSIZE",
         "BUILD_ID": "$BUILD_ID",
@@ -1520,6 +1523,7 @@ EOM
 else
     read -r -d '' app_settings << EOM
     {    
+        "TENACITY_STOP_AFTER_DELAY": "$TENACITY_STOP_AFTER_DELAY",
         "AML_CLUSTER_NAME": "$AML_CLUSTER_NAME",
         "AML_VMSIZE": "$AML_VMSIZE",
         "BUILD_ID": "$BUILD_ID",

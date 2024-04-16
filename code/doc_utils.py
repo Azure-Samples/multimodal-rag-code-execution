@@ -55,6 +55,7 @@ from tenacity import (
     retry,
     stop_after_attempt,
     wait_random_exponential,
+    stop_after_delay,
     after_log
 )
 from inspect import getsourcefile
@@ -237,8 +238,8 @@ def show_json(obj):
     display(json.loads(obj.model_dump_json()))
 
 
-
-@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(12), after=after_log(logger, logging.ERROR))             
+# os.environ.get("TENACITY_STOP_AFTER_DELAY", 300)
+@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(os.environ.get("TENACITY_STOP_AFTER_DELAY", 300)), after=after_log(logger, logging.ERROR))             
 def get_chat_completion(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
     print(f"\n{bc.OKBLUE}Calling OpenAI APIs:{bc.OKGREEN} {len(messages)} messages - {AZURE_OPENAI_MODEL} - {oai_client}\n{bc.ENDC}")
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages)
