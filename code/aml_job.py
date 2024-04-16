@@ -27,7 +27,7 @@ class AmlJob():
                 account_key = AZURE_FILE_SHARE_KEY,
         ):
 
-        self.cpu_cluster_name = "mm-doc-cpu-cluster"
+        self.cpu_cluster_name = os.environ.get("AML_CLUSTER_NAME", 'mm-doc-cpu-cluster')
         self.file_share_datastore_name='research_copilot_datastore'
         self.experiments_name = 'research_copilot_experiments'
         self.env_name = 'research_copilot_env'
