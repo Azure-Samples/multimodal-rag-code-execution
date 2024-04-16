@@ -1369,6 +1369,7 @@ def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
     doc_path = ingestion_pipeline_dict['document_path'] 
     images_folder = ingestion_pipeline_dict['images_directory'] 
     tables_folder = ingestion_pipeline_dict['tables_directory']
+    full_text_file = ingestion_pipeline_dict['full_text_file']
 
 
     tables = []
@@ -1385,6 +1386,7 @@ def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
         dataframes = {}
         logc("WARNING", f"Could not read the file {doc_path} as it is not a CSV or XLSX file.")
 
+    full_text = ''
 
     for sheet_name, df in dataframes.items():
         # chunks, header, summary = chunk_df_as_markdown_table(df, model_info, n_tokens = n_tokens, overlap = overlap)
@@ -1394,6 +1396,10 @@ def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
         tables_md.append(table_path_md)
         tables.append(table_path)
         table_count += 1
+
+        full_text += read_asset_file(table_path_md)[0] +'\n\n\n'
+
+    write_to_file(full_text, full_text_file, 'w')
 
     ingestion_pipeline_dict['tables_py'] = tables_dfs
     ingestion_pipeline_dict['tables_md'] = tables_md
@@ -1712,7 +1718,7 @@ def create_doc_chunks_with_doc_int_markdown(ingestion_pipeline_dict):
                                             )
     except:
         text_chunks = []
-        logc("Warning", f"Could not perform Semantic Chunking of file {ingestion_pipeline_dict['full_text_file']}")
+        logc("Warning Only", f"Could not perform Semantic Chunking of file {ingestion_pipeline_dict['full_text_file']}")
 
     chunk_index = 0
 
@@ -2484,7 +2490,8 @@ def generate_analysis_for_text(ingestion_pipeline_dict):
     analysis_files = []
 
     ingestion_pipeline_dict_ret = copy.deepcopy(ingestion_pipeline_dict)
-    ingestion_pipeline_dict_ret['chunks'] = [rd for rd in ingestion_pipeline_dict_ret['chunks'] if (rd['text_file'] != '') and (rd['type'] == 'text')]
+    # ingestion_pipeline_dict_ret['chunks'] = [rd for rd in ingestion_pipeline_dict_ret['chunks'] if (rd['text_file'] != '') and (rd['type'] == 'text')]
+    ingestion_pipeline_dict_ret['chunks'] = [rd for rd in ingestion_pipeline_dict_ret['chunks'] if (rd['text_file'] != '')]
 
     analysis_filenames, _ = execute_multithreaded_funcs(generate_analsysis_with_GPT4, ingestion_pipeline_dict_ret)
     analysis_files.extend(analysis_filenames)
