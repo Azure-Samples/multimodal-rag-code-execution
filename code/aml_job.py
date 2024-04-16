@@ -37,7 +37,8 @@ class AmlJob():
         self.account_key = account_key
         self.subscription_id = subscription_id
         self.resource_group = resource_group
-        self.workspace_name = workspace_name        
+        self.workspace_name = workspace_name
+        self.run = None        
 
         svc_pr_password = os.environ.get("AML_PASSWORD")
 

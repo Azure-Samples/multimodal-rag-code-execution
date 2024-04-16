@@ -240,13 +240,13 @@ def show_json(obj):
 
 @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(12), after=after_log(logger, logging.ERROR))             
 def get_chat_completion(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
-    # print(f"\n{bc.OKBLUE}Calling OpenAI APIs:{bc.OKGREEN} {len(messages)} messages - {AZURE_OPENAI_MODEL} - {oai_client}\n{bc.ENDC}")
+    print(f"\n{bc.OKBLUE}Calling OpenAI APIs:{bc.OKGREEN} {len(messages)} messages - {AZURE_OPENAI_MODEL} - {oai_client}\n{bc.ENDC}")
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages)
 
 
 @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(12), after=after_log(logger, logging.ERROR))         
 def get_chat_completion_with_json(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
-    # print(f"\n{bc.OKBLUE}Calling OpenAI APIs:{bc.OKGREEN} {len(messages)} messages\n{bc.ENDC}")
+    print(f"\n{bc.OKBLUE}Calling OpenAI APIs:{bc.OKGREEN} {len(messages)} messages\n{bc.ENDC}")
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages, response_format={ "type": "json_object" })
 
 
@@ -1252,7 +1252,7 @@ addtnl_gpt4_models = [
 
 gpt4_models = gpt4_models_init + addtnl_gpt4_models
 
-
+gpt4_models = [m for m in gpt4_models if (m['AZURE_OPENAI_RESOURCE'] is not None) and (m['AZURE_OPENAI_RESOURCE'] != '')]
 
 
 markdown_extract_header_and_summarize_prompt = """
@@ -1917,13 +1917,14 @@ def extract_doc_using_doc_int(ingestion_pipeline_dict):
 
                 logc("Extracting Image Table with Bounds", target_filename)
         except Exception as e:
-            print(f"Error extracting image: {e}")
+            print(f"extract_doc_using_doc_int::Error extracting table: {e}")
     
     else:
         logc("WARNING", f"Table extraction mode {table_extraction_mode} not supported. Please use 'Markdown' or 'JustExtract'.")
 
 
     images = []
+    img_nums = {}
 
     ### WARNING: DOC INT DOES EXTRACT FIGURES FOR MS WORD DOCX 
     if (ingestion_pipeline_dict['extension'] == '.docx') or (ingestion_pipeline_dict['extension'] == '.doc'):
@@ -1935,17 +1936,20 @@ def extract_doc_using_doc_int(ingestion_pipeline_dict):
     try:
         for bounding in image_bounds:
             page_number = bounding['boundingRegions'][0]['pageNumber']
+            img_number = img_nums.get(page_number, 0)
+            img_nums[page_number] = img_number
+
             polygons = [x['polygon'] for x in bounding['boundingRegions']]
-            img_number = bounding['elements'][0].replace('/paragraphs/', '')
             png_file = os.path.join(ingestion_pipeline_dict['chunks_as_images_directory'], f'chunk_{page_number}.png')
             target_filename = os.path.join(images_folder, f'chunk_{page_number}_image_{img_number}.png')
+            img_nums[page_number] += 1
             extract_figure(png_file, polygons, target_filename)
             images.append(target_filename)
 
             logc("Extracting Image with Bounds", target_filename)
 
     except Exception as e:
-        print(f"Error extracting image: {e}")
+        logc(f"extract_doc_using_doc_int::Error extracting image: {e}")
 
 
     ingestion_pipeline_dict['full_text'] = result['content']

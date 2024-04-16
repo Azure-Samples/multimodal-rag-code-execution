@@ -52,17 +52,23 @@ def log_message(message, level):
 
 
 
+### FIXING THE CURRENT WORKING DIRECTORY
+
 print("ROOT_PATH_INGESTION:", ROOT_PATH_INGESTION)
 print("Current working directory:", os.path.abspath(os.getcwd()))
-p = "../denizbank\\P-KRD-İŞB.001_KOBİ_BANKACILIĞI_KREDİLERİ.docx\\text\\chunk_82.txt".replace("\\", "/")
-print("Full path", os.path.join(ROOT_PATH_INGESTION, 'openai_faq'))
+print("Full path", os.path.abspath(ROOT_PATH_INGESTION))
 
-cwd = os.path.join(ROOT_PATH_INGESTION, INITIAL_INDEX)
+try: 
+    init_index_name = INITIAL_INDEX
+except:
+    init_index_name = 'rag-data'
 
-print("Changing to Current Directory", os.makedirs(cwd, exist_ok=True)
-)
+cwd = os.path.join(ROOT_PATH_INGESTION, init_index_name)
+print("Changing to NEW Current Directory", cwd)
 os.makedirs(cwd, exist_ok=True)
 os.chdir(cwd)
+
+print("Current working directory:", os.path.abspath(os.getcwd()))
 
 
 
@@ -77,9 +83,9 @@ os.chdir(cwd)
 # init_ingestion_directory = init_ingestion_directory + '/'+ init_index_name
 # init_ingestion_directory=ROOT_PATH_INGESTION
 
-init_ingestion_directory = 'doc_ingestion_project_minions_v5'
-init_index_name = 'doc_ingestion_project_minions_v5'
 
+
+init_ingestion_directory = cwd
 
 print ("*******init_ingestion_directory:", init_ingestion_directory)
 # logging.basicConfig(level=logging.INFO)
@@ -112,17 +118,14 @@ init_code_interpreter = "AssistantsAPI"
 
 init_password = ''
 init_approx_tag_limit = '15'
-init_pdf_extraction_mode = 'gpt-4-vision'
+init_pdf_extraction_mode = 'hybrid'
 init_docx_extraction_modes = 'document-intelligence'
 init_number_of_threads = available_models
 init_delete_existing_output_directory = False
 init_top_n = 3
 
 
-try: 
-    init_index_name = INITIAL_INDEX
-except:
-    init_index_name = 'rag-data'
+
 
 init_ingestion_directory = init_index_name
 

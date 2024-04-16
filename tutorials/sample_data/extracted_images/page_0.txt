@@ -1,0 +1,53 @@
+The image contains several sections with charts and text, conveying information about the growth and investment in infrastructure, its performance in inflationary environments, and how clients are allocating capital in new market regimes.
+
+1. The top left chart titled "Industry infrastructure AUM^1" shows a bar graph with three bars representing the years 2017, 2022, and 2027. The bars indicate a growing trend in assets under management (AUM) for infrastructure, with values of 729 (2017), 1,190 (2022), and 2,541 (2027), and compound annual growth rates (CAGR) of 10% and 16% respectively.
+
+2. The top right chart titled "$75T global infrastructure funding need^2" is a stacked bar graph with four segments representing different infrastructure sectors: Energy, Telecom & digital, Transport, and Water. Each segment shows the cumulative infrastructure investment & needs from 2022 to 2040 in trillions of dollars, with the 'Investment' portion in solid color and the 'Needs' portion in a dashed pattern. The values are 23 for Energy, 7 for Telecom & digital, 40 for Transport, and 5 for Water.
+
+3. The middle section titled "Clients allocating more to infra in new market regime^3" contains a bar graph with six categories: Private Debt, Infrastructure, Private Equity, Hedge Funds, Venture Capital, and Real Estate. Each category has three bars representing the percentage of clients allocating 'More capital', 'Same amount of capital', and 'Less capital'. The percentages are as follows:
+   - Private Debt: 43%, 39%, 18%
+   - Infrastructure: 37%, 45%, 18%
+   - Private Equity: 28%, 57%, 15%
+   - Hedge Funds: 22%, 50%, 28%
+   - Venture Capital: 22%, 43%, 35%
+   - Real Estate: 18%, 52%, 30%
+
+4. The bottom section titled "Infrastructure fares well in inflationary environments^4" has two sets of bar graphs. The left set, "High growth / high inflation," shows the 20-year total returns (annualized) for different investment categories, with Infrastructure at 17%, Global Direct Infrastructure at 16%, Global Direct Real Estate at 15%, Global Equities at 0%, and Global Fixed Income at 0%. The right set, "Low growth / high inflation," shows the same investment categories with the following returns: Global Direct Infrastructure at 23%, Global Direct Real Estate at 8%, Global Equities at 2%, and Global Fixed Income at 8%.
+
+5. The image also contains a footer with the BlackRock logo, indicating that the information is likely sourced from or created by BlackRock.
+
+6. The purpose of the image is to inform the viewer about the significant growth potential in the infrastructure sector, the substantial funding needs for various infrastructure segments, how clients are adjusting their capital allocation in response to market changes, and the resilience of infrastructure investments in different inflationary scenarios.
+
+7. The image does not contain any natural imagery, organization charts, flowcharts, process charts, or tables that require Mermaid code or Markdown tables.
+
+8. The authors have included this image to provide a visual representation of data and trends related to infrastructure investment, which supports the narrative of infrastructure being a growing and important segment in private markets, especially considering the context of inflation and market changes.
+
+```markdown
+| Year | Industry infrastructure AUM (in trillions) | CAGR (%) |
+|------|--------------------------------------------|----------|
+| 2017 | 0.729                                      | 10       |
+| 2022 | 1.190                                      | -        |
+| 2027 | 2.541                                      | 16       |
+
+| Sector            | Investment (in trillions) | Needs (in trillions) |
+|-------------------|---------------------------|----------------------|
+| Energy            | 23                        | -                    |
+| Telecom & digital | 7                         | -                    |
+| Transport         | 40                        | -                    |
+| Water             | 5                         | -                    |
+
+| Investment Type        | More Capital (%) | Same Amount of Capital (%) | Less Capital (%) |
+|------------------------|------------------|----------------------------|------------------|
+| Private Debt           | 43               | 39                         | 18               |
+| Infrastructure         | 37               | 45                         | 18               |
+| Private Equity         | 28               | 57                         | 15               |
+| Hedge Funds            | 22               | 50                         | 28               |
+| Venture Capital        | 22               | 43                         | 35               |
+| Real Estate            | 18               | 52                         | 30               |
+
+| Environment Type       | Global Direct Infrastructure (%) | Global Direct Real Estate (%) | Global Equities (%) | Global Fixed Income (%) |
+|------------------------|----------------------------------|------------------------------|---------------------|-------------------------|
+| High growth / Inflation| 17                               | 16                           | 0                   | 0                       |
+| Low growth / Inflation | 23                               | 8                            | 2                   | 8                       |
+```
+
