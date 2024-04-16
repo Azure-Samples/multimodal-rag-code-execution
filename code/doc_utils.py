@@ -1155,7 +1155,8 @@ def table_df_cleanup_df(df):
 
 
 
-code_harvesting_from_text = """
+code_harvesting_from_text = """You are a helpful AI assistant that helps developers to generate code snippets from text. You have been given a text that contains text. You need to generatecode snippets from the text.
+
 Please do the following as a chain of thought:
 
     1. Please check and read the TEXT EXTRACT below in full.
@@ -1179,6 +1180,7 @@ Random Block ID: {random_block_id}
 
 **Output:**
 Output only the generated code and the Markdown table in a Markdown codeblock. Do not output any other text or explanation. The generated code should be full of elaborate and detailed comments explaining the purpose, use, and context of each variable. For each variable, think of how another Python program might use the generated code as an imported package, and whether enough information has been provided so that these variables can be located and used. Use the above Random Block ID to identify the variables and the code block, so that there's no clash in scope between the generated variables of the different code blocks.
+
 
 """
 
@@ -2399,7 +2401,7 @@ def generate_tags_for_all_chunks(ingestion_pipeline_dict):
     ingestion_pipeline_dict_ret = copy.deepcopy(ingestion_pipeline_dict)
     ingestion_pipeline_dict_ret['chunks'] = [rd for rd in ingestion_pipeline_dict_ret['chunks'] if (rd['text_file'] != '') and (read_asset_file(rd['text_file'])[0] != '')]
 
-    print("ingestion_pipeline_dict_ret", ingestion_pipeline_dict_ret)
+    # print("ingestion_pipeline_dict_ret", ingestion_pipeline_dict_ret)
     tags_filenames, _ = execute_multithreaded_funcs(generate_tags_with_GPT4, ingestion_pipeline_dict_ret)
     tags_files.extend(tags_filenames)
 

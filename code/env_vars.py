@@ -82,6 +82,9 @@ TEXT_CHUNK_OVERLAP = int(os.environ.get('TEXT_CHUNK_OVERLAP', '128'))
 
 CHAINLIT_APP = os.environ.get('CHAINLIT_APP', '')
 
+TENACITY_STOP_AFTER_DELAY = int(os.environ.get('TENACITY_STOP_AFTER_DELAY', '300'))
+TENACITY_TIMEOUT = int(os.environ.get('TENACITY_TIMEOUT', '200'))
+
 ## AML
 AML_SUBSCRIPTION_ID=os.environ.get('AML_SUBSCRIPTION_ID', '')
 AML_RESOURCE_GROUP=os.environ.get('AML_RESOURCE_GROUP', '')
