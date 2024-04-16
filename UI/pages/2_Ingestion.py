@@ -87,8 +87,8 @@ index_name = index_name.strip()
 available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
 
 
-number_threads = col2.slider("Number of threads:", 1, available_models, available_models)
-# number_threads = col2.text_input("Number of threads:", available_models, disabled=True)
+# number_threads = col2.slider("Number of threads:", 1, available_models, available_models)
+number_threads = col2.text_input("Number of threads:", available_models, disabled=True)
 pdf_password = col2.text_input("PDF password:")
 job_execution = col2.selectbox("Job Execution:", ["Azure Machine Learning", "Subprocess (Local Testing)"] )
 uploaded_files = col2.file_uploader("Choose a file(s) :file_folder:", accept_multiple_files=True)

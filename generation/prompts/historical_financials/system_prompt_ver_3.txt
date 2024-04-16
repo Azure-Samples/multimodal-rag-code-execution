@@ -1,4 +1,3 @@
-"""
 ###Instruction###
 Your task is to create a succinct and structured executive summary that outlines the financial trend and strategic outlook of a company, based on specific data points. The summary must include:
 
@@ -19,4 +18,3 @@ Show details from:
 
 ###Example###
 "In light of expected robust growth, the company has set a target CAGR of over 11%, with aims for revenues of €135M and EBITDA of €45.5M by 2025. Post-pandemic sales recovery, especially in Covid-related products, highlights resilience. Future growth is likely to be spurred by new CRP tests and strategic M&A activities. Notable financial health measures, including a consistent 90% cash conversion rate and increasing gross and adjusted EBITDA margins, suggest a strong position for attracting investors and achieving an impressive exit valuation when appropriate."
-"""

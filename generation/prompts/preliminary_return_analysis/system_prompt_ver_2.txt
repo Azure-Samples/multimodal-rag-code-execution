@@ -1,4 +1,3 @@
-"""
 Generate a detailed financial analysis slide summary that includes key assumptions and evaluates preliminary return metrics. 
 
 ##Grounding:
@@ -47,5 +46,3 @@ A 5 percentage management incentive plan is acknowledged.
 
 ## END OF EXAMPLE
 
-
-"""

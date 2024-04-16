@@ -1,4 +1,3 @@
-"""
 Develop an executive summary that encapsulates the potential investment in a point-of-care testing company within the in-vitro diagnostics market. The summary should 
 
 ##Grounding:
@@ -46,5 +45,3 @@ A preliminary valuation is given, with an enterprise value to EBITDA multiple an
 The recommendation is for a potential investment procedure (PIP), with no consideration of upside from M&A or multiple expansion.
 ## END OF EXAMPLE
 
-
-"""

@@ -1,4 +1,3 @@
-"""
 Give work on a inormational of the top 5 products of the copany or less products if 5 are not availabile. Focus on the following elements:
 
 ##Grounding:
@@ -45,6 +44,3 @@ Other own products indicate 10 percentage  of 2021E Sales and 11 percentage  of 
 POC molecular diagnostic shows 2 percentage  of 2021E Sales and 3 percentage  of 2021E Gross Margin.
 Third-party products indicate 45 percentage  of 2021E Sales and 37 percentage  2021E GM for COVID-19 tests, and 10 percentage  of 2021E Sales and 8 percentage  2021E GM for Non-COVID-19 tests.
 ## END OF EXAMPLE
-
-
-"""
