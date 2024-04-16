@@ -68,3 +68,4 @@ azure-cosmos
 ## Llama-Index
 llama-index==0.10.23
 llama-index-embeddings-azure-openai==0.1.6
+timeout-decorator

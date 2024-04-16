@@ -25,7 +25,8 @@
 
 # AML CHEATSHEET
 # https://azure.github.io/azureml-cheatsheets/docs/cheatsheets/python/v1/compute-targets
-
+import time
+import timeout_decorator
 import fitz  # PyMuPDF
 import os
 import glob
@@ -237,8 +238,7 @@ def extract_chunks_as_png_files(doc, work_dir = os.path.join(ROOT_PATH_INGESTION
 def show_json(obj):
     display(json.loads(obj.model_dump_json()))
 
-
-# os.environ.get("TENACITY_STOP_AFTER_DELAY", 300)
+@timeout_decorator.timeout(os.environ.get("TENACITY_TIMEOUT", 200))
 @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(os.environ.get("TENACITY_STOP_AFTER_DELAY", 300)), after=after_log(logger, logging.ERROR))             
 def get_chat_completion(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
     print(f"\n{bc.OKBLUE}Calling OpenAI APIs:{bc.OKGREEN} {len(messages)} messages - {AZURE_OPENAI_MODEL} - {oai_client}\n{bc.ENDC}")
