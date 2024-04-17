@@ -13,7 +13,7 @@ import subprocess
 import time
 from aml_job import *
 from doc_utils import *
-
+from env_vars import *
 
 
 from utils.ingestion_cosmos_helper import *
@@ -81,7 +81,7 @@ xlsx_extraction = col1.selectbox("Xlsx extraction:", ["OpenPyxl"] )
 chunk_size = int(col1.text_input("Chunk Size:", '512'))
 chunk_overlap = int(col1.text_input("Chunk Overlap:", '128'))
 
-index_name = col2.text_input("Index name:", st.session_state.get('index_name', 'rag-data'))
+index_name = col2.text_input("Index name:", st.session_state.get('index_name', INITIAL_INDEX))
 index_name = index_name.strip()
 
 available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
