@@ -114,6 +114,24 @@ Here's a breakdown of how the script processes the `azure_resources_file`:
 2. **Error Handling**: If the file cannot be read (either because it does not exist or due to permission issues), the script defaults to fetching configuration details from the Azure resource group.
 3. **Variable Assignment**: The script assigns values from the JSON file to variables that are used throughout the deployment process.
 
+## `get_variables_from_live_rg` Parameter
+
+### Overview
+
+The `get_variables_from_live_rg` (Get Variables from Live Resource Group) parameter allows the script to dynamically fetch configuration details directly from an existing Azure Resource Group. This is particularly useful in scenarios where the deployment configuration needs to adapt to the current state of Azure resources, ensuring that the script operates with the most up-to-date information.
+
+### How It Works
+
+When set to `true`, this parameter instructs the script to bypass static configurations or predefined JSON files for resource details. Instead, it retrieves the current settings directly from the Azure services within the specified Resource Group. This method ensures that the script uses the latest configurations and is especially critical in dynamic environments where resource settings might change frequently.
+
+### Script Processing Logic
+
+Here's a summary of how the script processes the `get_variables_from_live_rg`:
+
+1. **Check Parameter**: The script first checks if `get_variables_from_live_rg` is set to `true`.
+2. **Fetch Configurations**: If true, the script fetches live configurations such as web app settings, container registry details, and other necessary parameters directly from the Azure Resource Group.
+3. **Error Handling**: Proper error checks are implemented to handle situations where the script might fail to retrieve some or all of the configuration details.
+
 
 ## Running the Script
 
