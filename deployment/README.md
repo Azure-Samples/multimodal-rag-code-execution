@@ -82,7 +82,7 @@ Here are a few examples of how to run the script with these parameters:
 ./deploy.sh force_build_on_cloud=true build_streamlit=true update_webapp_settings=false
 ```
 
-##Force Redeployment Parameter
+## `Force Redeployment` Parameter
 
 ### Overview
 By default the script checks if the target resource group is empty and, if it is, it will go an attempt deploying all the infrastucture. If the resource group is not empty, it assumes that you want to deploy a new version of the application (CI/CD) and it will do the following: 
