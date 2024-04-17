@@ -198,6 +198,7 @@ def update_file_status():
 
 
 def check_if_indexing_in_progress():
+    print("check_if_indexing_in_progress")
     try:
         if "aml_job" not in st.session_state:
             try:
@@ -223,7 +224,7 @@ def check_if_indexing_in_progress():
                         st.session_state.warning = st.sidebar.info(f"AML Job is: {status}", icon="ℹ️")
                     else:
                         st.session_state.indexing = False
-                        update_file_list_UI()
+                        update_file_list_UI(do_check_job_status=False)
                         ic.update_aml_job_status(index_name, "not_running")
 
                 except Exception as e:
@@ -238,9 +239,12 @@ def check_if_indexing_in_progress():
 
 
 def check_job_status():
+    print("check_job_status")
+
     with st.spinner("Please wait ..."):
         # print("AML Job", st.session_state.aml_job.run is not None)
-        
+        print("check_job_status::spinner")        
+
         if st.session_state.aml_job.run is not None:
             status = st.session_state.aml_job.run.get_status()
             print(f"Status of AML Job {status}")
@@ -253,7 +257,7 @@ def check_job_status():
                 st.session_state.indexing = False
                 st.session_state.aml_job.run = None
                 check_if_indexing_in_progress()
-                update_file_list_UI()
+                # update_file_list_UI()
                 ic.update_aml_job_status(index_name, "not_running")
 
         if st.session_state.process is not None:
@@ -267,7 +271,7 @@ def check_job_status():
                 st.session_state.indexing = False
                 st.session_state.process = None
                 check_if_indexing_in_progress()
-                update_file_list_UI()
+                # update_file_list_UI()
             else:
                 st.session_state.job_status = f"Python Subprocess is: Running"
                 st.session_state.warning = st.sidebar.info(f"Python Subprocess is: Running", icon="ℹ️")
@@ -275,12 +279,13 @@ def check_job_status():
         if st.session_state.aml_job.run is None:
             st.session_state.indexing = False
             check_if_indexing_in_progress()
-            update_file_list_UI()
+            # update_file_list_UI()
             ic.update_aml_job_status(index_name, "not_running")
 
 
 
-def update_file_list_UI(do_sleep = False):
+def update_file_list_UI(do_sleep = False, do_check_job_status=True):
+    print("update_file_list_UI")
     global retry
     document = cosmos.read_document(index_name,index_name)
     if (document is None):
@@ -318,32 +323,35 @@ def update_file_list_UI(do_sleep = False):
             bar_progress.progress(100, text="Ingestion complete")
             # check_index_status(index_name, download_directory)
             append_log_message("Ingestion complete.")
-            check_job_status()
+            if do_check_job_status: check_job_status()
             try:
                 st.session_state.warning.empty()
             except:
                 pass
         else:
             if do_sleep: 
-                check_job_status()
+                if do_check_job_status: check_job_status()
                 print("Sleeping 5 seconds")
                 time.sleep(5)
 
 
 
 if index_name:
+    print("if index_name")
     check_if_indexing_in_progress()
     update_file_list_UI()
 
 
 
 if clear_ingestion: 
+    print("if clear_ingestion")
     ic.clear_indexing_in_progress(index_name)
     check_if_indexing_in_progress()
     update_file_list_UI()
 
 
 if start_ingestion:
+    print("if start_ingestion")
     
     if (st.session_state.indexing):
         st.session_state.warning = st.sidebar.warning("Indexing in progress. Please wait for the current process to complete.")
@@ -440,6 +448,7 @@ if start_ingestion:
     
 
 while st.session_state.indexing:
+    print("while st.session_state.indexing")
     update_file_list_UI(do_sleep = True)
     
 
