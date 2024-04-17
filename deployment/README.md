@@ -114,22 +114,7 @@ Here's a breakdown of how the script processes the `azure_resources_file`:
 2. **Error Handling**: If the file cannot be read (either because it does not exist or due to permission issues), the script defaults to fetching configuration details from the Azure resource group.
 3. **Variable Assignment**: The script assigns values from the JSON file to variables that are used throughout the deployment process.
 
-### Code Example
 
-Here is a snippet from the script that demonstrates how the `azure_resources_file` parameter is used:
-
-```bash
-if [ -n "$AZURE_RESOURCES_FILE" ]; then
-    echo -e "${GREEN}Getting the output variables from the Azure Resources file...${RESET}"
-    export output_variables=$(cat $AZURE_RESOURCES_FILE)
-    if [ -z "$output_variables" ]; then
-        echo -e "${RED}Output variables are empty, this is a custom deployment.${RESET}"
-        GET_VARIABLES_FROM_LIVE_RG="true"
-    else    
-        echo -e "${GREEN}Output variables have been loaded from the Azure Resources file.${RESET}"
-    fi                
-fi
-```
 ## Running the Script
 
 1. Clone this repository to your local machine:
