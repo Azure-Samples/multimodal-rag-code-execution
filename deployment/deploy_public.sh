@@ -103,9 +103,6 @@ done
 SUBSCRIPTION="<add your subscription>"
 RG_WEBAPP_NAME="<add your new resource group>"
 
-
-#!/bin/bash
-
 # Get the current Azure CLI version
 current_version=$(az version --output json | python -c "import sys, json; print(json.load(sys.stdin)['azure-cli'][:6])")
 
@@ -164,11 +161,11 @@ echo -e "${GREEN}Subscription is correct...${RESET}"
 
 clear
 echo -e "${GREEN}
-  ________        ___.            .__       __________ .__                    __        __________         .__    __       
- /  _____/   ____ \_ |__  _____   |  |      \______   \|  |  _____     ____  |  | __    \______   \  ____  |  | _/  |_     
-/   \  ___  /  _ \ | __ \ \__  \  |  |       |    |  _/|  |  \__  \  _/ ___\ |  |/ /     |    |  _/_/ __ \ |  | \   __\    
-\    \_\  \(  <_> )| \_\ \ / __ \_|  |__     |    |   \|  |__ / __ \_\  \___ |    <      |    |   \\  ___/ |  |__|  |      
- \______  / \____/ |___  /(____  /|____/     |______  /|____/(____  / \___  >|__|_ \     |______  / \___  >|____/|__|      
+  ________  .__         ___.            .__       __________ .__                    __        __________         .__    __       
+ /  _____/  |  |   ____ \_ |__  _____   |  |      \______   \|  |  _____     ____  |  | __    \______   \  ____  |  | _/  |_     
+/   \  ___  |  |  /  _ \ | __ \ \__  \  |  |       |    |  _/|  |  \__  \  _/ ___\ |  |/ /     |    |  _/_/ __ \ |  | \   __\    
+\    \_\  \_|  | (  <_> )| \_\ \ / __ \_|  |__     |    |   \|  |__ / __ \_\  \___ |    <      |    |   \\  ___/ |  |__|  |      
+ \______  / |____/\____/ |___  /(____  /|____/     |______  /|____/(____  / \___  >|__|_ \     |______  / \___  >|____/|__|      
         \/             \/      \/                   \/            \/      \/      \/            \/      \/                 
                                                                                                                            
                                                        .__                                .__ .__            __            
@@ -1600,13 +1597,6 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
         fi
     fi
 fi
-
-# if [[ "$DEPLOY_INFRA" = "false" ]] && [[ "$FORCE_DEPLOY" = "false" ]]; then
-#     # if deply infra means that this is the first time we are deploying the infra, so we need to export the settings to the files after changing the settings
-#     #  and not before because they will be empty or default.
-#     export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
-#     export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
-# fi
 
 if [ "$WEBAPP_UPDATED" = "true" ]; then
     echo -e "${YELLOW}!!!!!!!!IMPORTANT: ---------------------------------------------------------------------------.${RESET}"       
