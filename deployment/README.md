@@ -60,7 +60,76 @@ To use the `force_redeploy` parameter, pass `true` or `false` as an argument whe
 ```shellscript
 ./deploy_public.sh force_redeploy true
 ```
+## Argument Parameters
 
+The script supports various parameters to control its behavior during deployment. These parameters can be passed as command-line arguments when executing the script. Below is an explanation of each parameter and examples of how to use them.
+
+### General Parameters
+
+- **`force_redeploy`**: Accepts `true` or `false`. Forces the redeployment of the infrastructure. Use this parameter to trigger a full redeployment even if the infrastructure already exists.
+- **`update_webapp_settings`**: Accepts `true` or `false`. Updates the web app settings to the default configuration specified within the script.
+- **`force_build_on_cloud`**: Accepts `true` or `false`. Forces the build process to occur on Azure Container Registry (ACR) in the cloud, bypassing local Docker builds.
+- **`update_settings_only`**: Accepts `true` or `false`. If set to `true`, the script will only update the web app settings without building containers or deploying infrastructure.
+
+### Web App Build Parameters
+
+- **`build_chainlit`**: Accepts `true` or `false`. Determines whether to update the Chainlit web app.
+- **`build_streamlit`**: Accepts `true` or `false`. Determines whether to update the Streamlit web app.
+
+### Azure Integration Parameters
+
+- **`login_to_azure`**: Accepts `true` or `false`. Determines whether the script should automatically handle Azure login. Set this to `false` if already logged in or running in an environment like Azure Cloud Shell.
+- **`azure_resources_file`**: Specifies the file name that contains the output variables from Azure deployment. This is crucial for scripts that rely on specific Azure resource configurations.
+
+### Usage Examples
+
+Here are a few examples of how to run the script with these parameters:
+
+```bash
+# Update only the settings of web apps without redeploying infrastructure or building containers
+./deploy.sh update_settings_only=true
+
+# Force a redeployment of the infrastructure and update the Chainlit web app
+./deploy.sh force_redeploy=true build_chainlit=true
+
+# Perform a cloud-based build and update the Streamlit app without updating settings
+./deploy.sh force_build_on_cloud=true build_streamlit=true update_webapp_settings=false
+```
+## `azure_resources_file` Parameter
+
+### Overview
+
+The `azure_resources_file` parameter allows you to specify a JSON file that contains output variables from an Azure deployment. This file is critical when the script needs to obtain Azure resource configurations dynamically, especially in custom deployments where resource names or settings may vary between executions.
+
+### How It Works
+
+When provided, the script will attempt to read this file and extract Azure resource configuration details necessary for subsequent operations, such as setting up web app configurations or integrating services. If the file does not exist or is misconfigured, the script will default to attempting to retrieve the same information directly from the live Azure resource group, ensuring robustness in handling various deployment scenarios.
+As an example we are providing the azure_resources_file_example.json file that you can use to pupulate it with your custome deployments, and pass it through as an argument so that all the web app settings are generated with the right values. 
+
+### Script Processing Logic
+
+Here's a breakdown of how the script processes the `azure_resources_file`:
+
+1. **File Reading**: The script reads the JSON file specified by the `azure_resources_file` parameter.
+2. **Error Handling**: If the file cannot be read (either because it does not exist or due to permission issues), the script defaults to fetching configuration details from the Azure resource group.
+3. **Variable Assignment**: The script assigns values from the JSON file to variables that are used throughout the deployment process.
+
+### Code Example
+
+Here is a snippet from the script that demonstrates how the `azure_resources_file` parameter is used:
+
+```bash
+if [ -n "$AZURE_RESOURCES_FILE" ]; then
+    echo -e "${GREEN}Getting the output variables from the Azure Resources file...${RESET}"
+    export output_variables=$(cat $AZURE_RESOURCES_FILE)
+    if [ -z "$output_variables" ]; then
+        echo -e "${RED}Output variables are empty, this is a custom deployment.${RESET}"
+        GET_VARIABLES_FROM_LIVE_RG="true"
+    else    
+        echo -e "${GREEN}Output variables have been loaded from the Azure Resources file.${RESET}"
+    fi                
+fi
+```
 ## Running the Script
 
 1. Clone this repository to your local machine:
