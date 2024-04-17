@@ -1155,7 +1155,8 @@ def table_df_cleanup_df(df):
 
 
 
-code_harvesting_from_text = """
+code_harvesting_from_text = """You are a helpful AI assistant that helps developers to generate code snippets from text. You have been given a text that contains text. You need to generatecode snippets from the text.
+
 Please do the following as a chain of thought:
 
     1. Please check and read the TEXT EXTRACT below in full.
@@ -1179,6 +1180,7 @@ Random Block ID: {random_block_id}
 
 **Output:**
 Output only the generated code and the Markdown table in a Markdown codeblock. Do not output any other text or explanation. The generated code should be full of elaborate and detailed comments explaining the purpose, use, and context of each variable. For each variable, think of how another Python program might use the generated code as an imported package, and whether enough information has been provided so that these variables can be located and used. Use the above Random Block ID to identify the variables and the code block, so that there's no clash in scope between the generated variables of the different code blocks.
+
 
 """
 
@@ -1367,6 +1369,7 @@ def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
     doc_path = ingestion_pipeline_dict['document_path'] 
     images_folder = ingestion_pipeline_dict['images_directory'] 
     tables_folder = ingestion_pipeline_dict['tables_directory']
+    full_text_file = ingestion_pipeline_dict['full_text_file']
 
 
     tables = []
@@ -1383,6 +1386,7 @@ def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
         dataframes = {}
         logc("WARNING", f"Could not read the file {doc_path} as it is not a CSV or XLSX file.")
 
+    full_text = ''
 
     for sheet_name, df in dataframes.items():
         # chunks, header, summary = chunk_df_as_markdown_table(df, model_info, n_tokens = n_tokens, overlap = overlap)
@@ -1392,6 +1396,10 @@ def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
         tables_md.append(table_path_md)
         tables.append(table_path)
         table_count += 1
+
+        full_text += read_asset_file(table_path_md)[0] +'\n\n\n'
+
+    write_to_file(full_text, full_text_file, 'w')
 
     ingestion_pipeline_dict['tables_py'] = tables_dfs
     ingestion_pipeline_dict['tables_md'] = tables_md
@@ -1710,7 +1718,7 @@ def create_doc_chunks_with_doc_int_markdown(ingestion_pipeline_dict):
                                             )
     except:
         text_chunks = []
-        logc("Warning", f"Could not perform Semantic Chunking of file {ingestion_pipeline_dict['full_text_file']}")
+        logc("Warning Only", f"Could not perform Semantic Chunking of file {ingestion_pipeline_dict['full_text_file']}")
 
     chunk_index = 0
 
@@ -2399,7 +2407,7 @@ def generate_tags_for_all_chunks(ingestion_pipeline_dict):
     ingestion_pipeline_dict_ret = copy.deepcopy(ingestion_pipeline_dict)
     ingestion_pipeline_dict_ret['chunks'] = [rd for rd in ingestion_pipeline_dict_ret['chunks'] if (rd['text_file'] != '') and (read_asset_file(rd['text_file'])[0] != '')]
 
-    print("ingestion_pipeline_dict_ret", ingestion_pipeline_dict_ret)
+    # print("ingestion_pipeline_dict_ret", ingestion_pipeline_dict_ret)
     tags_filenames, _ = execute_multithreaded_funcs(generate_tags_with_GPT4, ingestion_pipeline_dict_ret)
     tags_files.extend(tags_filenames)
 
@@ -2482,7 +2490,8 @@ def generate_analysis_for_text(ingestion_pipeline_dict):
     analysis_files = []
 
     ingestion_pipeline_dict_ret = copy.deepcopy(ingestion_pipeline_dict)
-    ingestion_pipeline_dict_ret['chunks'] = [rd for rd in ingestion_pipeline_dict_ret['chunks'] if (rd['text_file'] != '') and (rd['type'] == 'text')]
+    # ingestion_pipeline_dict_ret['chunks'] = [rd for rd in ingestion_pipeline_dict_ret['chunks'] if (rd['text_file'] != '') and (rd['type'] == 'text')]
+    ingestion_pipeline_dict_ret['chunks'] = [rd for rd in ingestion_pipeline_dict_ret['chunks'] if (rd['text_file'] != '')]
 
     analysis_filenames, _ = execute_multithreaded_funcs(generate_analsysis_with_GPT4, ingestion_pipeline_dict_ret)
     analysis_files.extend(analysis_filenames)
