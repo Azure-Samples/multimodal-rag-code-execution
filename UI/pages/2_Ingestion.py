@@ -209,7 +209,7 @@ def check_if_indexing_in_progress():
         # print("Document", document, "Indexing State", st.session_state.indexing)
 
         if document is not None:
-            job_id = document['job_id']
+            job_id = document.get('job_id', '')
             job_status = document.get('job_status', '')
             print("\n\nJob ID Found in Cosmos", job_id, "\n\n")
 
