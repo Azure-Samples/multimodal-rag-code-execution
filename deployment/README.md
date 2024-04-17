@@ -46,8 +46,45 @@ You can set these variables in your env file environment (recommended), or you c
 
 The repo contains a sample .env.sample file. Copy it and adapt it to your needs.
 
-## Note on redeploying: Force Redeployment
+## Argument Parameters
 
+The script supports various parameters to control its behavior during deployment. These parameters can be passed as command-line arguments when executing the script. Below is an explanation of each parameter and examples of how to use them.
+
+### General Parameters
+
+- **`force_redeploy`**: Accepts `true` or `false`. Forces the redeployment of the infrastructure. Use this parameter to trigger a full redeployment even if the infrastructure already exists.
+- **`update_webapp_settings`**: Accepts `true` or `false`. Updates the web app settings to the default configuration specified within the script. By default the script will always update the settings. This is useful when you do not want the update them so you will be setting this to false.
+- **`force_build_on_cloud`**: Accepts `true` or `false`. Forces the build process to occur on Azure Container Registry (ACR) in the cloud, bypassing local Docker builds.
+- **`update_settings_only`**: Accepts `true` or `false`. If set to `true`, the script will only update the web app settings without building containers or deploying infrastructure.
+
+### Web App Build Parameters
+
+- **`build_chainlit`**: Accepts `true` or `false`. Determines whether to update the Chainlit web app. This is the web app that exposes the chat functionality
+- **`build_streamlit`**: Accepts `true` or `false`. Determines whether to update the Streamlit web app. This is the web app that exposes the ingestion and prompt management functionalities.
+
+### Azure Integration Parameters
+
+- **`login_to_azure`**: Accepts `true` or `false`. Determines whether the script should automatically handle Azure login. Set this to `false` if already logged in or running in an environment like Azure Cloud Shell.
+- **`azure_resources_file`**: Specifies the file name that contains the output variables from Azure deployment. This is crucial for scripts that rely on specific Azure resource configurations.
+
+### Usage Examples
+
+Here are a few examples of how to run the script with these parameters:
+
+```bash
+# Update only the settings of web apps without redeploying infrastructure or building containers
+./deploy.sh update_settings_only=true
+
+# Force a redeployment of the infrastructure and update the Chainlit web app
+./deploy.sh force_redeploy=true build_chainlit=true
+
+# Perform a cloud-based build and update the Streamlit app without updating settings
+./deploy.sh force_build_on_cloud=true build_streamlit=true update_webapp_settings=false
+```
+
+## `Force Redeployment` Parameter
+
+### Overview
 By default the script checks if the target resource group is empty and, if it is, it will go an attempt deploying all the infrastucture. If the resource group is not empty, it assumes that you want to deploy a new version of the application (CI/CD) and it will do the following: 
 - Build the Docker images.
 - Push them to the Azure Container Registry (ACR).
@@ -60,6 +97,44 @@ To use the `force_redeploy` parameter, pass `true` or `false` as an argument whe
 ```shellscript
 ./deploy_public.sh force_redeploy true
 ```
+
+## `azure_resources_file` Parameter
+
+### Overview
+
+The `azure_resources_file` parameter allows you to specify a JSON file that contains output variables from an Azure deployment. This file is critical when the script needs to obtain Azure resource configurations dynamically, especially in custom deployments where resource names or settings may vary between executions.
+
+### How It Works
+
+When provided, the script will attempt to read this file and extract Azure resource configuration details necessary for subsequent operations, such as setting up web app configurations or integrating services. If the file does not exist or is misconfigured, the script will default to attempting to retrieve the same information directly from the live Azure resource group, ensuring robustness in handling various deployment scenarios.
+As an example we are providing the azure_resources_file_example.json file that you can use to pupulate it with your custome deployments, and pass it through as an argument so that all the web app settings are generated with the right values. 
+
+### Script Processing Logic
+
+Here's a breakdown of how the script processes the `azure_resources_file`:
+
+1. **File Reading**: The script reads the JSON file specified by the `azure_resources_file` parameter.
+2. **Error Handling**: If the file cannot be read (either because it does not exist or due to permission issues), the script defaults to fetching configuration details from the Azure resource group.
+3. **Variable Assignment**: The script assigns values from the JSON file to variables that are used throughout the deployment process.
+
+## `get_variables_from_live_rg` Parameter
+
+### Overview
+
+The `get_variables_from_live_rg` (Get Variables from Live Resource Group) parameter allows the script to dynamically fetch configuration details directly from an existing Azure Resource Group. This is particularly useful in scenarios where the deployment configuration needs to adapt to the current state of Azure resources, ensuring that the script operates with the most up-to-date information.
+
+### How It Works
+
+When set to `true`, this parameter instructs the script to bypass static configurations or predefined JSON files for resource details. Instead, it retrieves the current settings directly from the Azure services within the specified Resource Group. This method ensures that the script uses the latest configurations and is especially critical in dynamic environments where resource settings might change frequently.
+
+### Script Processing Logic
+
+Here's a summary of how the script processes the `get_variables_from_live_rg`:
+
+1. **Check Parameter**: The script first checks if `get_variables_from_live_rg` is set to `true`.
+2. **Fetch Configurations**: If true, the script fetches live configurations such as web app settings, container registry details, and other necessary parameters directly from the Azure Resource Group.
+3. **Error Handling**: Proper error checks are implemented to handle situations where the script might fail to retrieve some or all of the configuration details.
+
 
 ## Running the Script
 
