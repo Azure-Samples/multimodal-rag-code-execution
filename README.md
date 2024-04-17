@@ -203,7 +203,7 @@ streamlit run main.py
 
 ## Deploying on Azure
 
-We are currently building an ARM template for a one-click deployment. In the meantime, please use the below script to deploy on the Azure cloud. Please make sure to fill in your `.env` file properly **before** running the deployment script. The below script has to run in a `Git Bash` shell, and will not run in Powershell bash. Visit the deployment [Section](https://github.com/Azure-Samples/multimodal-rag-code-execution/blob/main/deployment/README.md) here to get detailed instructions and advance deployment options. 
+We are currently building an ARM template for a one-click deployment. In the meantime, please use the below script to deploy on the Azure cloud. Please make sure to fill in your `.env` file properly **before** running the deployment script. The below script has to run in a `Git Bash` shell, and will not run in Powershell bash. Visit the deployment section [here](https://github.com/Azure-Samples/multimodal-rag-code-execution/blob/main/deployment/README.md) here to get detailed instructions and advance deployment options. 
 
 ```bash
 # cd into the deployment folder
