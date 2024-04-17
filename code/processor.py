@@ -101,9 +101,8 @@ class Processor():
 
 
     def develop_processing_plan(self):
-        # self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'harvest_code', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
-        self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
-        self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text',  'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']
+        
+        self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables']        
 
 
 
