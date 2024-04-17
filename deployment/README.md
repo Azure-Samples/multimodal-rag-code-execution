@@ -59,8 +59,8 @@ The script supports various parameters to control its behavior during deployment
 
 ### Web App Build Parameters
 
-- **`build_chainlit`**: Accepts `true` or `false`. Determines whether to update the Chainlit web app.
-- **`build_streamlit`**: Accepts `true` or `false`. Determines whether to update the Streamlit web app.
+- **`build_chainlit`**: Accepts `true` or `false`. Determines whether to update the Chainlit web app. This is the web app that exposes the chat functionality
+- **`build_streamlit`**: Accepts `true` or `false`. Determines whether to update the Streamlit web app. This is the web app that exposes the ingestion and prompt management functionalities.
 
 ### Azure Integration Parameters
 
