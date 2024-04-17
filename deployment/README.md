@@ -46,20 +46,6 @@ You can set these variables in your env file environment (recommended), or you c
 
 The repo contains a sample .env.sample file. Copy it and adapt it to your needs.
 
-## Note on redeploying: Force Redeployment
-
-By default the script checks if the target resource group is empty and, if it is, it will go an attempt deploying all the infrastucture. If the resource group is not empty, it assumes that you want to deploy a new version of the application (CI/CD) and it will do the following: 
-- Build the Docker images.
-- Push them to the Azure Container Registry (ACR).
-- :exclamation: **Important**: it will set the web app settings to default values and you will loose any customization to the environment variables in both web apps.
-
-The `deploy_public.sh` script accepts an optional `force_redeploy` parameter. This parameter controls whether the script should force a redeployment of the resources, even if they're already present in the resource group. 
-
-To use the `force_redeploy` parameter, pass `true` or `false` as an argument when running the script:
-
-```shellscript
-./deploy_public.sh force_redeploy true
-```
 ## Argument Parameters
 
 The script supports various parameters to control its behavior during deployment. These parameters can be passed as command-line arguments when executing the script. Below is an explanation of each parameter and examples of how to use them.
@@ -95,6 +81,23 @@ Here are a few examples of how to run the script with these parameters:
 # Perform a cloud-based build and update the Streamlit app without updating settings
 ./deploy.sh force_build_on_cloud=true build_streamlit=true update_webapp_settings=false
 ```
+
+##Force Redeployment Parameter
+
+### Overview
+By default the script checks if the target resource group is empty and, if it is, it will go an attempt deploying all the infrastucture. If the resource group is not empty, it assumes that you want to deploy a new version of the application (CI/CD) and it will do the following: 
+- Build the Docker images.
+- Push them to the Azure Container Registry (ACR).
+- :exclamation: **Important**: it will set the web app settings to default values and you will loose any customization to the environment variables in both web apps.
+
+The `deploy_public.sh` script accepts an optional `force_redeploy` parameter. This parameter controls whether the script should force a redeployment of the resources, even if they're already present in the resource group. 
+
+To use the `force_redeploy` parameter, pass `true` or `false` as an argument when running the script:
+
+```shellscript
+./deploy_public.sh force_redeploy true
+```
+
 ## `azure_resources_file` Parameter
 
 ### Overview
