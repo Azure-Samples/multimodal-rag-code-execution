@@ -67,7 +67,7 @@ The script supports various parameters to control its behavior during deployment
 ### General Parameters
 
 - **`force_redeploy`**: Accepts `true` or `false`. Forces the redeployment of the infrastructure. Use this parameter to trigger a full redeployment even if the infrastructure already exists.
-- **`update_webapp_settings`**: Accepts `true` or `false`. Updates the web app settings to the default configuration specified within the script.
+- **`update_webapp_settings`**: Accepts `true` or `false`. Updates the web app settings to the default configuration specified within the script. By default the script will always update the settings. This is useful when you do not want the update them so you will be setting this to false.
 - **`force_build_on_cloud`**: Accepts `true` or `false`. Forces the build process to occur on Azure Container Registry (ACR) in the cloud, bypassing local Docker builds.
 - **`update_settings_only`**: Accepts `true` or `false`. If set to `true`, the script will only update the web app settings without building containers or deploying infrastructure.
 
