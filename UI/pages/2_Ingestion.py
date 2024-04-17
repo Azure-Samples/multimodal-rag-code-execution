@@ -66,7 +66,7 @@ ic = IngestionCosmosHelper()
 aml_job = None
 retry = 0
 
-st.title("Document(s) ingestion")
+st.title("Document Ingestion - v.1.0.0")
 col1, col2 = st.columns(2)
 pdf_extraction = col1.selectbox("PDF extraction:", ["Hybrid", "GPT 4 Vision", "Document Intelligence"] )
 
