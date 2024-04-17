@@ -243,15 +243,15 @@ def get_chat_completion(messages: List[dict], model = AZURE_OPENAI_MODEL, client
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages, timeout=TENACITY_TIMEOUT)
 
 
-@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(12), after=after_log(logger, logging.ERROR))         
+@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(TENACITY_STOP_AFTER_DELAY), after=after_log(logger, logging.ERROR))         
 def get_chat_completion_with_json(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
     print(f"\n{bc.OKBLUE}Calling OpenAI APIs:{bc.OKGREEN} {len(messages)} messages\n{bc.ENDC}")
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages, response_format={ "type": "json_object" },timeout=TENACITY_TIMEOUT)
 
 
-@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(12), after=after_log(logger, logging.ERROR))     
+@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(TENACITY_STOP_AFTER_DELAY), after=after_log(logger, logging.ERROR))     
 def get_embeddings(text, embedding_model = AZURE_OPENAI_EMBEDDING_MODEL, client = oai_emb_client):
-    return client.embeddings.create(input=[text], model=embedding_model,timeout=TENACITY_TIMEOUT).data[0].embedding``
+    return client.embeddings.create(input=[text], model=embedding_model,timeout=TENACITY_TIMEOUT).data[0].embedding
 
 
 def ask_LLM(prompt, temperature = 0.2, model_info = None):
