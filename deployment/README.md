@@ -102,7 +102,7 @@ To use the `force_redeploy` parameter, pass `true` or `false` as an argument whe
 ## `azure_resources_file` Parameter
 
 ### Overview
-
+You should use this **only** on custom deployments (where Azure resources were not deployed by this script)  This method forces the script to read the resources names from the passed file. and will ignore any ouptuts generated as part of a generated deployment template at resource group level. 
 The `azure_resources_file` parameter allows you to specify a JSON file that contains output variables from an Azure deployment. This file is critical when the script needs to obtain Azure resource configurations dynamically, especially in custom deployments where resource names or settings may vary between executions.
 
 ### How It Works
