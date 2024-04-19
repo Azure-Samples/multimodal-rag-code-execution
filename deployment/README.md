@@ -55,11 +55,11 @@ These parameters can be passed as command-line arguments when executing the scri
 
 - **`force_redeploy`**: Accepts `true` or `false`. Forces the redeployment of the infrastructure. Use this parameter to trigger a full redeployment even if the infrastructure already exists.
 - **`update_webapp_settings`**: Accepts `true` or `false`. Updates the web app settings to the default configuration specified within the script. By default the script will always update the settings. This is useful when you do not want the update them so you will be setting this to false.
-- **`force_build_on_cloud`**: Accepts `true` or `false`. Forces the build process to occur on Azure Container Registry (ACR) in the cloud, bypassing local Docker builds.
-- **`update_settings_only`**: Accepts `true` or `false`. If set to `true`, the script will only update the web app settings without building containers or deploying infrastructure.
+- **`force_build_on_cloud`**: Accepts `true` or `false`. Forces the build process to occur on Azure Container Registry (ACR) in the cloud, bypassing local Docker builds. This is useful in stuations where the terminal running the script does not have access to a running docker such as the Azure Cloud Shell (keep in mind that docker CLI is still required). If you local docker is also performing slow you can set this parameter to true, and the build and push will be triggered in the ACR by creating a dinamic build & push ACR task.
+- **`update_settings_only`**: Accepts `true` or `false`. If set to `true`, the script will only update the web app settings without building containers or deploying infrastructure. This is useful when you want to refresh the settings to the original state. 
 
 ### Web App Build Parameters
-
+This two settings are useful when you just want to rebuild one of the web apps.
 - **`build_chainlit`**: Accepts `true` or `false`. Determines whether to update the Chainlit web app. This is the web app that exposes the chat functionality
 - **`build_streamlit`**: Accepts `true` or `false`. Determines whether to update the Streamlit web app. This is the web app that exposes the ingestion and prompt management functionalities.
 
