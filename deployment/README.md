@@ -121,6 +121,7 @@ Here's a breakdown of how the script processes the `azure_resources_file`:
 ## `get_variables_from_live_rg` Parameter
 
 ### Overview
+Avoid using this method if you created all the infrastucture using this script. This option is provided for clients with complex hybrid deployments generated manually. The script will detect if the current deployment is custom or generated with the script, and will automatically use this setting when manual deployments detected.
 
 The `get_variables_from_live_rg` (Get Variables from Live Resource Group) parameter allows the script to dynamically fetch configuration details directly from an existing Azure Resource Group. This is particularly useful in scenarios where the deployment configuration needs to adapt to the current state of Azure resources, ensuring that the script operates with the most up-to-date information.
 
