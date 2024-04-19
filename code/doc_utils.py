@@ -239,13 +239,13 @@ def show_json(obj):
 
 @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(TENACITY_STOP_AFTER_DELAY), after=after_log(logger, logging.ERROR))             
 def get_chat_completion(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
-    print(f"\n{bc.OKBLUE}Calling OpenAI APIs:{bc.OKGREEN} {len(messages)} messages - {AZURE_OPENAI_MODEL} - {oai_client}\n{bc.ENDC}")
+    print(f"\nCalling OpenAI APIs with {len(messages)} messages - Model: {AZURE_OPENAI_MODEL} - Endpoint: {oai_client._base_url}\n")
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages, timeout=TENACITY_TIMEOUT)
 
 
 @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(TENACITY_STOP_AFTER_DELAY), after=after_log(logger, logging.ERROR))         
 def get_chat_completion_with_json(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
-    print(f"\n{bc.OKBLUE}Calling OpenAI APIs:{bc.OKGREEN} {len(messages)} messages\n{bc.ENDC}")
+    print(f"\nCalling OpenAI APIs with {len(messages)} messages - Model: {AZURE_OPENAI_MODEL} - Endpoint: {oai_client._base_url}\n{bc.ENDC}")
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages, response_format={ "type": "json_object" },timeout=TENACITY_TIMEOUT)
 
 
@@ -644,7 +644,7 @@ def get_token_count(text, model = "gpt-4"):
     return len(enc.encode(text))
 
 
-def limit_token_count(text, limit = 128000, model = "gpt-4"):
+def limit_token_count(text, limit = FULL_TEXT_TOKEN_LIMIT, model = "gpt-4"):
     enc = get_encoder(model)
     return enc.decode(enc.encode(text)[:limit])
 
@@ -2375,7 +2375,7 @@ def generate_tags_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info = No
         return [tags_filename]
 
     except Exception as e:
-        print(f"Error in text processing in model {model_info['AZURE_OPENAI_RESOURCE']}:\nFor text file: {text_file}\n{e}")
+        print(f"generate_tags_with_GPT4::Error in text processing in model {model_info['AZURE_OPENAI_RESOURCE']}:\nFor text file: {text_file}\n{e}")
 
     return []
 
@@ -2438,7 +2438,7 @@ Text Chunk #{chunk_number}:
 
 The above Text Chunk is either an excerpt of the Full Main Text, or an addendum to the Full Main Text. Whatever the case may be, please generate an analysis of the relationship of the contents of the Text Chunk to the contents of the Full Main Text, and what this Text Chunk adds in terms of information to the topics covered in teh Full Main Text. Please highlight any entity relationships that are introduced or extended in the Text Chunk in relation to the Full Main Text.
 
-Be concise, do not generate more than 2 or 3 paragraphs. In your answer, do refer to the Text Chunk as 'Text Chunk'. Refer to the Text Chunk as 'Chunk #{chunk_number}'. Also, do not refer to the Full Main Text as 'Full Main Text'. Refer to the Full Main Text as 'the contents of document {filename}'.
+Be very concise, do not generate more than 2 paragraphs with only the most essentials information. In your answer, do **NOT** refer to the Text Chunk as 'Text Chunk' but refer to the Text Chunk as 'Chunk #{chunk_number}'. Also, do **NOT* refer to the Full Main Text as 'Full Main Text' but refer to the Full Main Text as 'the contents of document {filename}'.
 
 """
 
@@ -2456,7 +2456,6 @@ def generate_analsysis_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info
     print(f"GPT4 Tags - Extraction - Processing text {index} on chunk {chunk_number} using {model_info['AZURE_OPENAI_MODEL']} and endpoint {azure_endpoint}")
     analysis_filename = replace_extension(text_file, '.analysis.txt')
     
-
     try:
         client = AzureOpenAI(
             azure_endpoint =  azure_endpoint, 
@@ -2465,12 +2464,14 @@ def generate_analsysis_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info
         )
 
         if not os.path.exists(analysis_filename):
-
             full_text = read_asset_file(full_text_file)[0]
-            full_text = limit_token_count(full_text)
-
+            
             text = read_asset_file(text_file)[0]
             print(f"GPT4 Analysis - Post-Processing: Generating analysis for chunk {chunk_number} using {model_info['AZURE_OPENAI_RESOURCE']}")
+
+            text_tokens = get_token_count(text)
+            prompt_template_tokens = get_token_count(chunk_analysis_template)
+            full_text = limit_token_count(full_text, limit = (FULL_TEXT_TOKEN_LIMIT - text_tokens - prompt_template_tokens))
             prompt = chunk_analysis_template.format(full_text=full_text, text_chunk=text, chunk_number=chunk_number, filename=original_document_filename)
             analysis = ask_LLM(prompt)
             write_to_file(analysis, analysis_filename ,"w")
@@ -2480,7 +2481,7 @@ def generate_analsysis_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info
         return [analysis_filename]
 
     except Exception as e:
-        print(f"Error in text processing in model {model_info['AZURE_OPENAI_RESOURCE']}:\nFor text file: {text_file}\n{e}")
+        print(f"generate_analsysis_with_GPT4::Error in text processing in model {model_info['AZURE_OPENAI_RESOURCE']}:\nFor text file: {text_file}\n{e}")
 
     return []
 
@@ -2555,7 +2556,7 @@ def process_text_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info = Non
         return [original_text_filename]
 
     except Exception as e:
-        print(f"Error in text processing in model {model_info['AZURE_OPENAI_RESOURCE']}:\nFor text file: {text_file}\n{e}")
+        print(f"process_text_with_GPT4::Error in text processing in model {model_info['AZURE_OPENAI_RESOURCE']}:\nFor text file: {text_file}\n{e}")
 
     return []
 
