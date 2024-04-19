@@ -48,7 +48,8 @@ The repo contains a sample .env.sample file. Copy it and adapt it to your needs.
 
 ## Argument Parameters
 
-The script supports various parameters to control its behavior during deployment. These parameters can be passed as command-line arguments when executing the script. Below is an explanation of each parameter and examples of how to use them.
+The script supports various parameters to control its behavior during deployment, although we recommend deploying first without any paramters. Later on, if you want to control future deployments you can explore the options that these parameters will enable. 
+These parameters can be passed as command-line arguments when executing the script. Below is an explanation of each parameter and examples of how to use them.
 
 ### General Parameters
 
