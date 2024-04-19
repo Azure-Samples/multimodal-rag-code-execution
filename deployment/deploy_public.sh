@@ -370,7 +370,7 @@ enableDdosProtection='false'
 aiSearchRegion='eastus'
 azure_unique_name=$(generate_azure_compatible_name)
 
-LOGIN_TO_AZURE="false"
+# LOGIN_TO_AZURE="true"
 USE_DEFAULT_NAMES="true"
 CONFIRMATION="false"  #if set to true it will ask for confirmations.
 ROOT_PATH_INGESTION="/data/data"
