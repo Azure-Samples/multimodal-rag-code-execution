@@ -115,3 +115,20 @@ AML_PASSWORD = os.environ.get('AML_PASSWORD', '')
 AML_VMSIZE = os.environ.get('AML_VMSIZE', 'Standard_DS3_v2')
 
 FULL_TEXT_TOKEN_LIMIT = int(os.environ.get('FULL_TEXT_TOKEN_LIMIT', '100000'))
+
+
+AZURE_SQL_SERVER_NAME = os.environ.get('AZURE_SQL_SERVER_NAME', '')
+AZURE_SQL_DATABASE_NAME = os.environ.get('AZURE_SQL_DATABASE_NAME', '')
+AZURE_SQL_USERNAME = os.environ.get('AZURE_SQL_USERNAME', '')
+AZURE_SQL_PASSWORD = os.environ.get('AZURE_SQL_PASSWORD', '')
+AZURE_SQL_SCHEMA_NAME = os.environ.get('AZURE_SQL_SCHEMA_NAME', 'dbo')
+AZURE_SQL_DRIVER = os.environ.get('AZURE_SQL_DRIVER', 'ODBC Driver 18 for SQL Server')
+
+
+SEARCH_TOP_N =  int(os.environ.get('SEARCH_TOP_N', '4'))
+
+
+AZURE_NEO4J_URI = os.environ.get('AZURE_NEO4J_URI', '')
+AZURE_NEO4J_USERNAME = os.environ.get('AZURE_NEO4J_USERNAME', '')
+AZURE_NEO4J_PASSWORD = os.environ.get('AZURE_NEO4J_PASSWORD', '')
+AZURE_NEO4J_DATABASE = os.environ.get('AZURE_NEO4J_DATABASE', '')

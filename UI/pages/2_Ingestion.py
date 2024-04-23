@@ -46,8 +46,13 @@ if "page_config" not in st.session_state:
 if "num_threads" not in st.session_state:
     st.session_state.num_threads = 1
 
+if "proc_plans" not in st.session_state:
+    proc_plans = read_asset_file("./code/processing_plan.json")[0]
 
+    if proc_plans == '':
+        proc_plans = read_asset_file("../code/processing_plan.json")[0]
 
+    st.session_state.proc_plans = proc_plans
 
 if "process" not in st.session_state:
     st.session_state.process = None
@@ -72,7 +77,7 @@ pdf_extraction = col1.selectbox("PDF extraction:", ["Hybrid", "GPT 4 Vision", "D
 
 try:
     from docx import Document
-    docx_extraction = col1.selectbox("Docx extraction:", ["Python-Docx", "Document Intelligence"] )
+    docx_extraction = col1.selectbox("Docx extraction:", ["Document Intelligence", "Python-Docx"] )
 except:
     docx_extraction = col1.selectbox("Docx extraction:", ["Document Intelligence"] )
 
@@ -93,19 +98,28 @@ pdf_password = col2.text_input("PDF password:")
 job_execution = col2.selectbox("Job Execution:", ["Azure Machine Learning", "Subprocess (Local Testing)"] )
 uploaded_files = col2.file_uploader("Choose a file(s) :file_folder:", accept_multiple_files=True)
 
-# Main UI
-st.markdown("""---""")
+
 st.session_state.num_threads = number_threads
 
+def proc_plan_chance():
+    st.session_state.proc_plans = st.session_state.processingPlansKey 
+    print("Processing Plans Changed: ", st.session_state.proc_plans)
 
+st.text_area("Processing Plans", value=st.session_state.proc_plans, height=150, key="processingPlansKey", on_change=proc_plan_chance) 
+
+# Main UI
+st.markdown("""---""")
 st.write("## Ingestion")
 col1 , col2 = st.columns([1, 1])
-delete_ingestion_folder = col1.toggle("Delete ingestion folder")
+delcol, proc_plan_col = col1.columns([1, 1])
+delete_ingestion_folder = delcol.toggle("Delete Ingestion Folder")
+copy_proc_plan = proc_plan_col.toggle("Copy Processing Plan", value=True)
 
 ingest_col, clear_col, spinner_col = col1.columns([1, 1, 1])
 
 start_ingestion = ingest_col.button("Start Ingestion")
 clear_ingestion = clear_col.button("Clear Ingesting")
+refresh = spinner_col.button("Refresh")
 
 download_directory =""
 ingestion_directory = ""
@@ -332,8 +346,19 @@ def update_file_list_UI(do_sleep = False, do_check_job_status=True):
             if do_sleep: 
                 if do_check_job_status: check_job_status()
                 print("Sleeping 5 seconds")
-                time.sleep(5)
+                # time.sleep(5)
 
+
+
+
+if copy_proc_plan:
+    try:
+        index_processing_plan_path = os.path.join(ingestion_directory, f'{index_name}.processing_plan.txt')
+        write_to_file(st.session_state.proc_plans, index_processing_plan_path, 'w')
+        st.session_state.warning = st.sidebar.success("Processing plan copied successfully.")
+    except Exception as e:
+        st.session_state.warning = st.sidebar.error(f"Error copying processing plan: {e}")
+        print("Error copying processing plan: ", e)
 
 
 if index_name:
@@ -447,7 +472,7 @@ if start_ingestion:
 
     
 
-while st.session_state.indexing:
+if st.session_state.indexing or refresh:
     print("while st.session_state.indexing")
     update_file_list_UI(do_sleep = True)
     
