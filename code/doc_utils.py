@@ -28,6 +28,7 @@ import fitz  # PyMuPDF
 import os
 import glob
 from dotenv import load_dotenv
+import json_repair
 from typing import List, Optional
 # import comtypes.client
 import shutil
@@ -3280,58 +3281,60 @@ def process_pdf(ingestion_pipeline_dict, password = None, extract_text_mode = "G
 
 
 
+# ### OBSOLETE FUNCTION - NOT MAINTAINED - USE PROCESSORS
+# def ingest_docs_directory(directory, ingestion_directory=None, index_name='mm_doc_analysis', password=None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models=gpt4_models, vision_models=gpt4_models, num_threads=7, delete_existing_output_dir=False, processing_plan = None, verbose=False):
+#     assets = []
 
-def ingest_docs_directory(directory, ingestion_directory=None, index_name='mm_doc_analysis', password=None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models=gpt4_models, vision_models=gpt4_models, num_threads=7, delete_existing_output_dir=False, processing_plan = None, verbose=False):
-    assets = []
+#     # Walk through the directory
+#     for root, dirs, files in os.walk(directory):
+#         for file in files:
+#             # Check if the file is a PDF
+#             if file.lower().endswith('.pdf'):
+#                 logc(f"Ingesting Document: {file}", f"Ingesting Document: {file}", verbose=verbose)
+#                 # Construct the full file path
+#                 file_path = os.path.join(root, file)
+#                 # Call ingest_doc on the file
+#                 assets.append(ingest_doc(file_path, ingestion_directory, index_name, password, extract_text_mode, extract_images_mode, extract_text_from_images, models, vision_models, num_threads, delete_existing_output_dir, processing_plan, verbose))
 
-    # Walk through the directory
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            # Check if the file is a PDF
-            if file.lower().endswith('.pdf'):
-                logc(f"Ingesting Document: {file}", f"Ingesting Document: {file}", verbose=verbose)
-                # Construct the full file path
-                file_path = os.path.join(root, file)
-                # Call ingest_doc on the file
-                assets.append(ingest_doc(file_path, ingestion_directory, index_name, password, extract_text_mode, extract_images_mode, extract_text_from_images, models, vision_models, num_threads, delete_existing_output_dir, processing_plan, verbose))
-
-    return assets 
+#     return assets 
 
 
-def ingest_doc(doc_path, ingestion_directory = None, index_name = 'mm_doc_analysis', password = None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models = gpt4_models, vision_models = gpt4_models, num_threads=7, delete_existing_output_dir = False, processing_plan=None, verbose = False):
 
-    available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
-    download_directory = os.path.join(ingestion_directory, 'downloads')
-    os.makedirs(download_directory, exist_ok=True)
+# ### OBSOLETE FUNCTION - NOT MAINTAINED - USE PROCESSORS
+# def ingest_doc(doc_path, ingestion_directory = None, index_name = 'mm_doc_analysis', password = None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models = gpt4_models, vision_models = gpt4_models, num_threads=7, delete_existing_output_dir = False, processing_plan=None, verbose = False):
 
-    ingestion_params_dict = {
-        "download_directory" : download_directory,
-        "ingestion_directory" : ingestion_directory,
-        "index_name" : index_name,
-        'num_threads' : available_models,
-        "password" : password,
-        "delete_existing_output_dir" : delete_existing_output_dir,
-        "processing_mode_pdf" : pdf_extraction_option,
-        "processing_mode_docx" : docx_extraction_option,
-        'processing_mode_xlsx' : xlsx_extraction_option,
-        'models': gpt4_models,
-        'vision_models': gpt4_models,
-        'verbose': True
-    }
+#     available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
+#     download_directory = os.path.join(ingestion_directory, 'downloads')
+#     os.makedirs(download_directory, exist_ok=True)
 
-    ingestion_pipeline_dict = create_ingestion_pipeline_dict(ingestion_params_dict)
+#     ingestion_params_dict = {
+#         "download_directory" : download_directory,
+#         "ingestion_directory" : ingestion_directory,
+#         "index_name" : index_name,
+#         'num_threads' : available_models,
+#         "password" : password,
+#         "delete_existing_output_dir" : delete_existing_output_dir,
+#         "processing_mode_pdf" : pdf_extraction_option,
+#         "processing_mode_docx" : docx_extraction_option,
+#         'processing_mode_xlsx' : xlsx_extraction_option,
+#         'models': gpt4_models,
+#         'vision_models': gpt4_models,
+#         'verbose': True
+#     }
 
-    base_name = ingestion_pipeline_dict['basename']
+#     ingestion_pipeline_dict = create_ingestion_pipeline_dict(ingestion_params_dict)
 
-    # Process the PDF file - document_path is the path to the PDF file
-    ingestion_pipeline_dict = process_pdf(ingestion_pipeline_dict, password, extract_text_mode=extract_text_mode, extract_images_mode=extract_images_mode, extract_text_from_images=extract_text_from_images, models=models, vision_models=vision_models, num_threads = num_threads, processing_plan=processing_plan, verbose=verbose)
-    # save_to_pickle(ingestion_pipeline_dict, os.path.join(doc_proc_directory, 'ingestion_pipeline_dict.temp.pickle'))
+#     base_name = ingestion_pipeline_dict['basename']
 
-    logc(f"Ingestion of {base_name} Complete", f"Ingestion of document {base_name} resulted in {len(ingestion_pipeline_dict['text_files'] + ingestion_pipeline_dict['image_text_files'] + ingestion_pipeline_dict['table_text_files'])} entries in the Vector Store", verbose=verbose)
+#     # Process the PDF file - document_path is the path to the PDF file
+#     ingestion_pipeline_dict = process_pdf(ingestion_pipeline_dict, password, extract_text_mode=extract_text_mode, extract_images_mode=extract_images_mode, extract_text_from_images=extract_text_from_images, models=models, vision_models=vision_models, num_threads = num_threads, processing_plan=processing_plan, verbose=verbose)
+#     # save_to_pickle(ingestion_pipeline_dict, os.path.join(doc_proc_directory, 'ingestion_pipeline_dict.temp.pickle'))
 
-    ingestion_pipeline_dict['index_ids'], ingestion_pipeline_dict['vecstore_metadatas'] = commit_assets_to_vector_index(ingestion_pipeline_dict, ingestion_directory, index_name, vector_type = "AISearch")
+#     logc(f"Ingestion of {base_name} Complete", f"Ingestion of document {base_name} resulted in {len(ingestion_pipeline_dict['text_files'] + ingestion_pipeline_dict['image_text_files'] + ingestion_pipeline_dict['table_text_files'])} entries in the Vector Store", verbose=verbose)
 
-    return ingestion_pipeline_dict
+#     ingestion_pipeline_dict['index_ids'], ingestion_pipeline_dict['vecstore_metadatas'] = commit_assets_to_vector_index(ingestion_pipeline_dict, ingestion_directory, index_name, vector_type = "AISearch")
+
+#     return ingestion_pipeline_dict
 
 
 
@@ -3988,10 +3991,11 @@ def recover_json(json_str, verbose = False):
 
     try:
         decoded_object = json.loads(json_str)
+        return decoded_object
     except Exception:
         try:
             decoded_object = json.loads(json_str.replace("'", '"'))
-            
+            return decoded_object
         except Exception:
             try:
                 decoded_object = json_repair.loads(json_str.replace("'", '"'))
@@ -3999,8 +4003,10 @@ def recover_json(json_str, verbose = False):
                 for k, d in decoded_object.items():
                     dd = d.replace("'", '"')
                     decoded_object[k] = json.loads(dd)
+                
+                return decoded_object
             except:
-                pass
+                print(f"all json recovery operations have failed for {json_str}")
         
             if verbose:
                 if isinstance(decoded_object, dict):
@@ -4008,15 +4014,8 @@ def recover_json(json_str, verbose = False):
                 else:
                     print(f"\n{bc.OKBLUE}>>> Recovering JSON:\n{bc.OKGREEN}{json_str}{bc.ENDC}")
 
-    try:
-        if decoded_object.get('user_profile', '') == '{':
-            dd = {}
-            dd['user_profile'] = copy.deepcopy(user_profile_template)
-            decoded_object = dd
 
-        return decoded_object
-    except:
-        return json_str
+    return json_str
 
 
 
@@ -4399,7 +4398,7 @@ def process_assistants_api_response(messages, client=oai_client):
 
 
 
-def create_assistant(client=oai_client, model = AZURE_OPENAI_MODEL, name="Math Assistant", instructions="You are an AI assistant that can write code to help answer math questions."):
+def create_assistant(user_id, client=oai_client, model = AZURE_OPENAI_MODEL, name="Math Assistant", instructions="You are an AI assistant that can write code to help answer math questions."):
     # Create an assistant
     assistant = client.beta.assistants.create(
         name=name,
@@ -4409,6 +4408,7 @@ def create_assistant(client=oai_client, model = AZURE_OPENAI_MODEL, name="Math A
     )
 
     try:
+        if user_id is None: user_id = str(uuid.uuid4())[:8]
         if threads.get(user_id, None) is None:
             thread = client.beta.threads.create()
             threads[user_id] = thread
@@ -4452,7 +4452,7 @@ def query_assistant(query, assistant, thread, client=oai_client):
 
 def try_code_interpreter_for_tables_using_assistants_api(assets, query, user_id = None, include_master_py=True,  model = AZURE_OPENAI_MODEL, client=oai_client, verbose = False):
 
-    assistant, thread = create_assistant(client)    
+    assistant, thread = create_assistant(user_id, client)    
     user_query_prompt = prepare_prompt_for_code_interpreter(assets, query, include_master_py=include_master_py, limit=True, verbose=verbose)
     messages = query_assistant(user_query_prompt, assistant, thread, client)
     response, files = process_assistants_api_response(messages, client)
