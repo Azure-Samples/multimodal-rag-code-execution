@@ -71,7 +71,7 @@ ic = IngestionCosmosHelper()
 aml_job = None
 retry = 0
 
-st.title("Document Ingestion - v.1.0.0")
+st.title("Document Ingestion - v.1.0.2")
 col1, col2 = st.columns(2)
 pdf_extraction = col1.selectbox("PDF extraction:", ["Hybrid", "GPT 4 Vision", "Document Intelligence"] )
 
@@ -355,7 +355,7 @@ if copy_proc_plan:
     try:
         index_processing_plan_path = os.path.join(ingestion_directory, f'{index_name}.processing_plan.txt')
         write_to_file(st.session_state.proc_plans, index_processing_plan_path, 'w')
-        st.session_state.warning = st.sidebar.success("Processing plan copied successfully.")
+        # st.session_state.warning = st.sidebar.success("Processing plan copied successfully.")
     except Exception as e:
         st.session_state.warning = st.sidebar.error(f"Error copying processing plan: {e}")
         print("Error copying processing plan: ", e)

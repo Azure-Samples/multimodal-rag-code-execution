@@ -193,3 +193,5 @@ ui/public/
 agustin_azure_resources_file_example.json
 project_minions/
 tutorials/dbg.ipynb
+tutorials/adda.ipynb
+temp*/

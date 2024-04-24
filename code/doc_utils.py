@@ -27,6 +27,7 @@
 import fitz  # PyMuPDF
 import os
 import glob
+import traceback
 from dotenv import load_dotenv
 import json_repair
 from typing import List, Optional
@@ -855,7 +856,7 @@ def extract_markdown_table_as_df(s):
         df = pd.DataFrame(data, columns=header)
     except Exception as e:
         df = pd.DataFrame()
-        logc("Error extracting markdown tables as DataFrame", f"Error extracting markdown tables as DataFrame from text '{s[:50]}'. Error: {e}")
+        logc("Warning Only - Error extracting markdown tables as DataFrame", f"Error extracting markdown tables as DataFrame from text '{s[:50]}'. Error: {e}")
         print(s)
 
     return df
@@ -2188,27 +2189,31 @@ def pdf_extract_high_res_chunk_images(ingestion_pipeline_dict):
     high_res_chunk_images = []
     chunks_as_images_directory = ingestion_pipeline_dict['chunks_as_images_directory']
 
-    for chunk_dict in ingestion_pipeline_dict['chunks']:
+    for index, chunk_dict in enumerate(ingestion_pipeline_dict['chunks']):
         # print(chunk_dict)
-        chunk = chunk_dict['chunk']
-        chunk_number = chunk_dict['chunk_number']
+        try:
+            chunk = chunk_dict['chunk']
+            chunk_number = chunk_dict['chunk_number']
 
-        chunk_pix = chunk.get_pixmap(dpi=300)
-        cropbox = chunk.cropbox
-        chunk.set_cropbox(chunk.mediabox)
-        image_filename = f'chunk_{chunk_number}.png'
-        image_path = os.path.join(chunks_as_images_directory, image_filename)
-        chunk_pix.save(image_path)
-        high_res_chunk_images.append(image_path)
-        
-        image_filename_lowres = f'chunk_{chunk_number}_lowres.png'
-        image_path_lowres = os.path.join(chunks_as_images_directory, image_filename_lowres)
-        chunk_pix = chunk.get_pixmap(dpi=150)
-        chunk_pix.save(image_path_lowres)
+            chunk_pix = chunk.get_pixmap(dpi=300)
+            cropbox = chunk.cropbox
+            chunk.set_cropbox(chunk.mediabox)
+            image_filename = f'chunk_{chunk_number}.png'
+            image_path = os.path.join(chunks_as_images_directory, image_filename)
+            chunk_pix.save(image_path)
+            high_res_chunk_images.append(image_path)
+            
+            image_filename_lowres = f'chunk_{chunk_number}_lowres.png'
+            image_path_lowres = os.path.join(chunks_as_images_directory, image_filename_lowres)
+            chunk_pix = chunk.get_pixmap(dpi=150)
+            chunk_pix.save(image_path_lowres)
 
-        chunk_dict['chunk_image_path'] = image_path
-        # chunk_dict['cropbox'] = cropbox
-        # chunk_dict['a4_or_slide'] = 'a4' if cropbox[2] < cropbox[3] else 'slide'
+            chunk_dict['chunk_image_path'] = image_path
+            # chunk_dict['cropbox'] = cropbox
+            # chunk_dict['a4_or_slide'] = 'a4' if cropbox[2] < cropbox[3] else 'slide'
+        except Exception as e: 
+            print(f"Exception in the {index}-th chunk.\nException:{e}\ntraceback_print: {str(traceback.print_exc())}\ntraceback_format: {str(traceback.format_exc())}") 
+            
 
     ingestion_pipeline_dict['high_res_chunk_images']  = high_res_chunk_images
 

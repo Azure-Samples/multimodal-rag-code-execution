@@ -5,6 +5,7 @@ load_dotenv()
 import json
 import pandas as pd
 import sys
+
 from doc_utils import *
 from env_vars import *
 
@@ -14,16 +15,21 @@ from env_vars import *
 # match (a) -[r] -> () delete a, r
 # match (a) delete a
 
-## Show whole graph
+## Show whole graph (filters out nodes without relationships)
 # MATCH (n)-[r]->(m) RETURN n, r, m
-
+## Show all nodes (even ones without relatinships)
+# MATCH (n)  RETURN n
+## Show whole graph
+# MATCH (n)
+# OPTIONAL MATCH (n)-[r]->(m)
+# RETURN n, r, m
 
 ## Command to run the docker file neo4j in Git Bash
 # docker run --name neo4j-apoc_100 -e NEO4J_AUTH=neo4j/pleaseletmein -p 7474:7474 -p 7687:7687 -e NEO4J_apoc_export_file_enabled=true -e NEO4J_apoc_import_file_enabled=true -e NEO4J_apoc_import_file_use__neo4j__config=true -e NEO4J_PLUGINS='["apoc", "graph-data-science"]' -e NEO4J_dbms_security_procedures_unrestricted=apoc.*,algo.*,gds.* -e NEO4J_dbms_security_procedures_allowlist=apoc.*,algo.*,gds.* neo4j:5.17.0
 
 
 
-project_prompt_template = """You are a helpful financial assistant, and you are designed to output JSON.
+prompt_template = """You are a helpful financial assistant, and you are designed to output JSON.
 From the Financial sheet below, extract the following Entities & relationships described in the mentioned format 
 0. ALWAYS FINISH THE OUTPUT. Never send partial responses
 1. First, look for these Entity types in the text and generate as comma-separated format similar to entity type.
@@ -68,6 +74,8 @@ class Neo4jManager:
         self.database = database
         self.driver = GraphDatabase.driver(self.uri, auth=(self.username, self.password), encrypted=False)
 
+        self.columns = [] 
+
 
     def close(self):
         self.driver.close()
@@ -105,7 +113,6 @@ class Neo4jManager:
 
 
     def extract_entities_relationships(self, folder, prompt_template):
-        start = timer()
         files = []  # Adjust your file collection logic as needed
         system_msg = "You are a helpful IT-project and account management expert who extracts information from documents."
         print(f"Running pipeline for {len(files)} files in {folder} folder")
@@ -115,12 +122,12 @@ class Neo4jManager:
             try:
                 with open(file, "r") as f:
                     text = f.read().rstrip()
-                    prompt = Template(prompt_template).substitute(ctext=text)
-                    result = process_gpt(prompt, system_msg=system_msg)
+                    prompt = prompt_template.format(case=text)
+                    result = ask_LLM(prompt)
                     results.append(json.loads(result))
             except Exception as e:
                 print(f"Error processing {file}: {e}")
-        end = timer()
+
         print(f"Pipeline completed in {end-start} seconds")
         return results
 
@@ -140,13 +147,16 @@ class Neo4jManager:
                 if properties:
                     pairs = []
                     for key, val in properties.items():
+                        orig_key = key
                         if key[0].isdigit(): key = "p" + key
                         key = key.replace(" ", "_").replace("-", "_").replace("_", "_").replace("(", "").replace(")", "").replace('"', "_").replace("'", "_").replace("/", "_").replace(',', "_")
                         if isinstance(val, str): val = val.replace('"', "_").replace("'", "_")
-                        pairs.append(f'n.{key} = "{val}"')
+                        # pairs.append(f'n.{key} = "{val}"')
+                        pairs.append(f'{key}:"{val}"')
+                        self.columns.append({"original_key":orig_key, "n_key":key})
                     props_str = ", ".join(pairs)
-                    props_str +=  f', n.vector = {get_embeddings(id + " " + label + " " + properties["name"])}' 
-                    cypher += f" ON CREATE SET {props_str} "
+                    props_str +=  f', vector:{get_embeddings(id + " " + label + " " + properties["name"])}' 
+                    cypher += f" ON CREATE SET n += {{ {props_str} }} ON MATCH SET n += {{ {props_str} }} "
                 e_statements.append(cypher)
                 e_label_map[id] = label
             for rs in obj["relationships"]:
@@ -155,7 +165,7 @@ class Neo4jManager:
                 tgt_id = tgt_id.replace("-", "").replace("_", "")
                 src_label = e_label_map[src_id]
                 tgt_label = e_label_map[tgt_id]
-                cypher = f'MERGE (a:{src_label} {{id: "{src_id}"}}) MERGE (b:{tgt_label} {{id: "{tgt_id}"}}) MERGE (a)-[:{rs_type}]->(b)'
+                cypher = f'MERGE (a:{src_label} {{id: "{src_id}"}}) MERGE (b:{tgt_label} {{id: "{tgt_id}"}}) MERGE (a)-[r:{rs_type}]->(b) ON CREATE SET r.weight = 1 ON MATCH SET r.weight = r.weight + 1'
                 r_statements.append(cypher)
         # with open("cyphers.txt", "w") as outfile:
         #     outfile.write("\n".join(e_statements + r_statements))
@@ -182,13 +192,11 @@ class Neo4jManager:
     def execute_cypher_statements(self, cypher_statements):
         for i, stmt in enumerate(cypher_statements):
             print(f"Executing cypher statement {i+1} of {len(cypher_statements)}")
-            self.driver.execute_query(stmt)
-
-            # try:
-                
-            # except Exception as e:
-            #     with open("failed_statements.txt", "a") as f:
-            #         f.write(f"{stmt} - Exception: {e}\n")
+            
+            try:
+                self.driver.execute_query(stmt)
+            except Exception as e:
+                logc(f"Error executing cypher statement {i+1}: {e}")
 
 
     def delete_all_data(self):
@@ -197,21 +205,50 @@ class Neo4jManager:
             session.run("MATCH (a) DELETE a")
     
 
+
     def get_immediate_neighbors(self, node_id):
         with self.driver.session(database=self.database) as session:
             result = session.run(
                 """
                 MATCH (n {id: $node_id})-[r]->(m)
-                RETURN n as Node, collect(r) as Relationships, collect(m) as Neighbors
+                RETURN n as SourceNode, properties(n) as SourceProperties, 
+                       m as TargetNode, properties(m) as TargetProperties,
+                       r as Relationship, properties(r) as RelationshipProperties
+                ORDER BY r.weight DESC
                 """,
                 node_id=node_id
             )
-            
-            results = [record for record in result]
-            neighbors = []
+            return [record for record in result]
 
-            for record in results:
-                for neighbor in record["Neighbors"]:
-                    neighbors.append(neighbor)
 
-            return neighbors
+
+    def get_node_with_properties(self, node_id):
+        with self.driver.session(database=self.database) as session:
+            result = session.run(
+                """
+                MATCH (n {id: $node_id})
+                RETURN properties(n) AS Properties
+                """,
+                node_id=node_id
+            )
+            return [record for record in result]
+
+
+    def get_relationship_properties(self, relationships):
+        for relationship in relationships:
+            # Access relationship properties
+            print(f"Relationship Type: {relationship.type}")
+            # Print all properties of the relationship
+            for key, value in relationship.items():
+                print(f"Property: {key}, Value: {value}")
+
+
+    def get_all_financial_instruments(self):
+        with self.driver.session(database=self.database) as session:
+            result = session.run(
+                """
+                MATCH (fi:FinancialInstrument)
+                RETURN fi.id AS id, fi.name AS name
+                """
+            )
+            return [record for record in result]

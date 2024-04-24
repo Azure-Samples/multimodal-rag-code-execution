@@ -3,6 +3,7 @@ import os
 import shutil
 import copy
 import doc_utils
+import traceback
 from doc_utils import *
 
 
@@ -164,7 +165,7 @@ class Processor():
                         chunk_dict_copy = {}
                         for ck in chunk_dict:
                             if ck not in ['chunk']:
-                                chunk_dict_copy[ck] = chunk_dict[ck]
+                                chunk_dict_copy[ck] = copy.deepcopy(chunk_dict[ck])
                         ingestion_dict[k].append(chunk_dict_copy)
                 else:
                     ingestion_dict[k] = self.ingestion_pipeline_dict[k]
@@ -195,7 +196,11 @@ class Processor():
         for index, stage in enumerate(self.processing_plan):
             if stage == "Completed": continue
             logc(f"Ingestion Stage {index+1}/{total_stages} of {full_basename}", f"Processing Stage: {stage}", verbose=verbose)
-            self.ingestion_pipeline_dict = getattr(doc_utils, stage)(self.ingestion_pipeline_dict)
+            try:
+                self.ingestion_pipeline_dict = getattr(doc_utils, stage)(self.ingestion_pipeline_dict)
+            except Exception as e:
+                print(f"Exception in the {stage} stage.\nException:{e}\ntraceback_print: {str(traceback.print_exc())}\ntraceback_format: {str(traceback.format_exc())}")                        
+                
             save_proc_plan.remove(stage)
             if len(save_proc_plan) == 0: save_proc_plan = ['Completed']
             self.save_processing_plan(save_proc_plan=save_proc_plan)
@@ -253,7 +258,7 @@ class PdfProcessor(Processor):
             self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary', 'generate_analysis_for_text']
 
         elif self.processing_mode == 'hybrid': 
-            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_text_doc_chunks_with_sentence_chunking', 'create_image_doc_chunks', 'create_table_doc_chunks_with_table_images', 'post_process_images', 'post_process_tables', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary', 'generate_analysis_for_text']
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images', 'post_process_tables', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary', 'generate_analysis_for_text']
 
 
 
