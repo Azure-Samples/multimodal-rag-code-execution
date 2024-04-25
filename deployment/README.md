@@ -48,17 +48,18 @@ The repo contains a sample .env.sample file. Copy it and adapt it to your needs.
 
 ## Argument Parameters
 
-The script supports various parameters to control its behavior during deployment. These parameters can be passed as command-line arguments when executing the script. Below is an explanation of each parameter and examples of how to use them.
+The script supports various parameters to control its behavior during deployment, although we recommend deploying first without any paramters. Later on, if you want to control future deployments you can explore the options that these parameters will enable. 
+These parameters can be passed as command-line arguments when executing the script. Below is an explanation of each parameter and examples of how to use them.
 
 ### General Parameters
 
 - **`force_redeploy`**: Accepts `true` or `false`. Forces the redeployment of the infrastructure. Use this parameter to trigger a full redeployment even if the infrastructure already exists.
 - **`update_webapp_settings`**: Accepts `true` or `false`. Updates the web app settings to the default configuration specified within the script. By default the script will always update the settings. This is useful when you do not want the update them so you will be setting this to false.
-- **`force_build_on_cloud`**: Accepts `true` or `false`. Forces the build process to occur on Azure Container Registry (ACR) in the cloud, bypassing local Docker builds.
-- **`update_settings_only`**: Accepts `true` or `false`. If set to `true`, the script will only update the web app settings without building containers or deploying infrastructure.
+- **`force_build_on_cloud`**: Accepts `true` or `false`. Forces the build process to occur on Azure Container Registry (ACR) in the cloud, bypassing local Docker builds. This is useful in stuations where the terminal running the script does not have access to a running docker such as the Azure Cloud Shell (keep in mind that docker CLI is still required). If you local docker is also performing slow you can set this parameter to true, and the build and push will be triggered in the ACR by creating a dinamic build & push ACR task.
+- **`update_settings_only`**: Accepts `true` or `false`. If set to `true`, the script will only update the web app settings without building containers or deploying infrastructure. This is useful when you want to refresh the settings to the original state. 
 
 ### Web App Build Parameters
-
+This two settings are useful when you just want to rebuild one of the web apps.
 - **`build_chainlit`**: Accepts `true` or `false`. Determines whether to update the Chainlit web app. This is the web app that exposes the chat functionality
 - **`build_streamlit`**: Accepts `true` or `false`. Determines whether to update the Streamlit web app. This is the web app that exposes the ingestion and prompt management functionalities.
 
@@ -101,7 +102,7 @@ To use the `force_redeploy` parameter, pass `true` or `false` as an argument whe
 ## `azure_resources_file` Parameter
 
 ### Overview
-
+You should use this **only** on custom deployments (where Azure resources were not deployed by this script)  This method forces the script to read the resources names from the passed file. and will ignore any ouptuts generated as part of a generated deployment template at resource group level. 
 The `azure_resources_file` parameter allows you to specify a JSON file that contains output variables from an Azure deployment. This file is critical when the script needs to obtain Azure resource configurations dynamically, especially in custom deployments where resource names or settings may vary between executions.
 
 ### How It Works
@@ -120,6 +121,7 @@ Here's a breakdown of how the script processes the `azure_resources_file`:
 ## `get_variables_from_live_rg` Parameter
 
 ### Overview
+Avoid using this method if you created all the infrastucture using this script. This option is provided for clients with complex hybrid deployments generated manually. The script will detect if the current deployment is custom or generated with the script, and will automatically use this setting when manual deployments detected.
 
 The `get_variables_from_live_rg` (Get Variables from Live Resource Group) parameter allows the script to dynamically fetch configuration details directly from an existing Azure Resource Group. This is particularly useful in scenarios where the deployment configuration needs to adapt to the current state of Azure resources, ensuring that the script operates with the most up-to-date information.
 

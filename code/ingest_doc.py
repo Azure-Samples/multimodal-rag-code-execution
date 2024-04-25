@@ -4,7 +4,7 @@ import sys
 import json
 import time
 sys.path.append("./")
-from doc_utils import ingest_doc
+from doc_utils import *
 from processor import *
 import doc_utils
 
@@ -145,26 +145,26 @@ else:
                     print(f"Ingested file flag found for: {file}. Skipping.")
                     continue
 
-                try:
+                # try:
                 
-                    indexing_document['files_uploaded'][file_index]['status'] = 'Ingesting...'
-                    cosmos.upsert_document(indexing_document, category_id=index_name)
+                indexing_document['files_uploaded'][file_index]['status'] = 'Ingesting...'
+                cosmos.upsert_document(indexing_document, category_id=index_name)
 
-                    # Call ingest_doc on the file
-                    file_path = os.path.join(root, file)
-                    ingestion_params_dict['doc_path'] = file_path
+                # Call ingest_doc on the file
+                file_path = os.path.join(root, file)
+                ingestion_params_dict['doc_path'] = file_path
 
-                    ingest_doc_using_processors(ingestion_params_dict)
-                    # time.sleep(2)
+                ingest_doc_using_processors(ingestion_params_dict)
+                # time.sleep(2)
 
-                    indexing_document['files_uploaded'][file_index]['status'] = 'Ingested'
-                    cosmos.upsert_document(indexing_document, category_id=index_name)
+                indexing_document['files_uploaded'][file_index]['status'] = 'Ingested'
+                cosmos.upsert_document(indexing_document, category_id=index_name)
 
-                except Exception as e:
-                    indexing_document['files_uploaded'][file_index]['status'] = 'Failed'
-                    indexing_document['files_uploaded'][file_index]['error'] = f'{e}'
-                    cosmos.upsert_document(indexing_document, category_id=index_name)
-                    print(f"Failed to ingest the file {file} with exception: {e}")
+                # except Exception as e:
+                #     indexing_document['files_uploaded'][file_index]['status'] = 'Failed'
+                #     indexing_document['files_uploaded'][file_index]['error'] = f'{e}'
+                #     cosmos.upsert_document(indexing_document, category_id=index_name)
+                #     print(f"Failed to ingest the file {file} with exception: {e}")
 
 
 

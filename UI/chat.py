@@ -122,7 +122,7 @@ init_pdf_extraction_mode = 'hybrid'
 init_docx_extraction_modes = 'document-intelligence'
 init_number_of_threads = available_models
 init_delete_existing_output_directory = False
-init_top_n = 3
+init_top_n = SEARCH_TOP_N
 
 
 

@@ -3,6 +3,7 @@ import os
 import shutil
 import copy
 import doc_utils
+import traceback
 from doc_utils import *
 
 
@@ -16,12 +17,16 @@ class Processor():
         processing_mode_xlsx = ingestion_params_dict.get('processing_mode_xlsx', 'openpyxl')
 
         doc_path = ingestion_params_dict['doc_path'] 
-        os.rename(doc_path, doc_path.replace(" ", "_"))
+        try:
+            os.rename(doc_path, doc_path.replace(" ", "_"))
+        except Exception as e:
+            logc(f"Error Renaming Document: {doc_path}. Most likely the file already exists\n", e)
+            
         ingestion_params_dict['doc_path'] = doc_path
 
         self.doc_path = ingestion_params_dict['doc_path']
         self.base_name = os.path.splitext(os.path.basename(self.doc_path))[0].strip().replace(" ", "_")
-        self.extension = os.path.splitext(os.path.basename(self.doc_path))[1].strip()
+        self.extension = os.path.splitext(os.path.basename(self.doc_path))[1].strip().lower()
 
         if self.extension == '.pdf':
             self.processing_mode = processing_mode_pdf
@@ -77,15 +82,45 @@ class Processor():
 
         logc("Found Processing Plan", processing_plan)
 
-        if (processing_plan is None) or (processing_plan == ['']):
+        index_processing_plan_path = os.path.join(self.ingestion_directory, f'{self.index_name}.processing_plan.txt')
+        index_processing_plan = recover_json(read_asset_file(index_processing_plan_path)[0])
+
+        if (index_processing_plan != ''):
+            logc(f"Picking up index processing plan for extension {self.extension} and processing mode {self.processing_mode}", index_processing_plan)
+            try:
+                self.processing_plan = index_processing_plan[self.extension][self.processing_mode]
+                logc(f"Picked up index processing plan from {index_processing_plan_path}\nProcessing Plan: {self.processing_plan}")
+            except:
+                self.develop_processing_plan()
+            
+            self.save_processing_plan()
+
+        elif (processing_plan is None) or (processing_plan == ['']):
+            logc("Picking up default processing plan")
             self.develop_processing_plan()
             self.save_processing_plan()
         else:
+            logc("Picking up saved partial processing plan")
             self.processing_plan = processing_plan
             # self.resume_processing()
 
         self.initial_processing_plan = self.processing_plan
-        
+
+        if self.processing_mode == 'gpt-4-vision':
+            self.ingestion_pipeline_dict['extract_text_mode'] = "GPT"
+            self.ingestion_pipeline_dict['extract_images_mode'] = "GPT"
+            self.ingestion_pipeline_dict['extract_text_from_images'] = True
+
+        elif self.processing_mode == 'document-intelligence':
+            self.ingestion_pipeline_dict['extract_text_mode'] = "PDF" ## this setting is ignored with doc-int
+            self.ingestion_pipeline_dict['extract_images_mode'] = "PDF" ## this setting is ignored with doc-int
+            self.ingestion_pipeline_dict['extract_text_from_images'] = False
+            self.ingestion_pipeline_dict['extract_docint_tables_mode'] = "Markdown"
+
+        elif self.processing_mode == 'hybrid': 
+            self.ingestion_pipeline_dict['extract_text_mode'] = "PDF" ## this setting is ignored with doc-int
+            self.ingestion_pipeline_dict['extract_images_mode'] = "PDF" ## this setting is ignored with doc-int
+
         logc("### INGESTING A NEW DOCUMENT")
         logc("doc_path:", self.doc_path)
         logc("ingestion_directory:", self.ingestion_directory)
@@ -93,10 +128,7 @@ class Processor():
         logc("delete_existing_output_dir:", delete_existing_output_dir)
         logc("num_threads:", self.num_threads)
         logc("processing mode", self.processing_mode)
-        logc("---")
-        logc("<br><br>")
-
-
+        logc("---")            
 
 
 
@@ -133,7 +165,7 @@ class Processor():
                         chunk_dict_copy = {}
                         for ck in chunk_dict:
                             if ck not in ['chunk']:
-                                chunk_dict_copy[ck] = chunk_dict[ck]
+                                chunk_dict_copy[ck] = copy.deepcopy(chunk_dict[ck])
                         ingestion_dict[k].append(chunk_dict_copy)
                 else:
                     ingestion_dict[k] = self.ingestion_pipeline_dict[k]
@@ -164,7 +196,11 @@ class Processor():
         for index, stage in enumerate(self.processing_plan):
             if stage == "Completed": continue
             logc(f"Ingestion Stage {index+1}/{total_stages} of {full_basename}", f"Processing Stage: {stage}", verbose=verbose)
-            self.ingestion_pipeline_dict = getattr(doc_utils, stage)(self.ingestion_pipeline_dict)
+            try:
+                self.ingestion_pipeline_dict = getattr(doc_utils, stage)(self.ingestion_pipeline_dict)
+            except Exception as e:
+                print(f"Exception in the {stage} stage.\nException:{e}\ntraceback_print: {str(traceback.print_exc())}\ntraceback_format: {str(traceback.format_exc())}")                        
+                
             save_proc_plan.remove(stage)
             if len(save_proc_plan) == 0: save_proc_plan = ['Completed']
             self.save_processing_plan(save_proc_plan=save_proc_plan)
@@ -216,24 +252,13 @@ class PdfProcessor(Processor):
     def develop_processing_plan(self):
         
         if self.processing_mode == 'gpt-4-vision':
-            self.ingestion_pipeline_dict['extract_text_mode'] = "GPT"
-            self.ingestion_pipeline_dict['extract_images_mode'] = "GPT"
-            self.ingestion_pipeline_dict['extract_text_from_images'] = True
-            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'pdf_extract_text', 'pdf_extract_images', 'delete_pdf_chunks', 'post_process_images', 'extract_tables_from_images', 'post_process_tables', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary', 'generate_analysis_for_text']
 
         elif self.processing_mode == 'document-intelligence':
-            self.ingestion_pipeline_dict['extract_text_mode'] = "PDF" ## this setting is ignored with doc-int
-            self.ingestion_pipeline_dict['extract_images_mode'] = "PDF" ## this setting is ignored with doc-int
-            self.ingestion_pipeline_dict['extract_text_from_images'] = False
-            self.ingestion_pipeline_dict['extract_docint_tables_mode'] = "Markdown"
-            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary', 'generate_analysis_for_text']
 
         elif self.processing_mode == 'hybrid': 
-            self.ingestion_pipeline_dict['extract_text_mode'] = "PDF" ## this setting is ignored with doc-int
-            self.ingestion_pipeline_dict['extract_images_mode'] = "PDF" ## this setting is ignored with doc-int
-            self.ingestion_pipeline_dict['extract_docint_tables_mode'] = "JustExtract"
-            self.ingestion_pipeline_dict['extract_text_from_images'] = True
-            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_text_doc_chunks_with_sentence_chunking', 'generate_analysis_for_text', 'create_image_doc_chunks', 'create_table_doc_chunks_with_table_images', 'post_process_images', 'post_process_tables', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
+            self.processing_plan = ['create_pdf_chunks', 'pdf_extract_high_res_chunk_images', 'delete_pdf_chunks', 'extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images', 'post_process_tables', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary', 'generate_analysis_for_text']
 
 
 
@@ -255,13 +280,13 @@ class DocxProcessor(Processor):
     def develop_processing_plan(self):
 
         if self.processing_mode == 'py-docx':
-            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks_with_doc_int_markdown', 'generate_analysis_for_text', 'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
+            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks_with_doc_int_markdown','post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary', 'generate_analysis_for_text']
 
         elif self.processing_mode == 'document-intelligence':
-            self.processing_plan = ['extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown',  'post_process_images', 'generate_analysis_for_text', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
+            self.processing_plan = ['extract_doc_using_doc_int', 'create_doc_chunks_with_doc_int_markdown',  'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary', 'generate_analysis_for_text']
         else:
             logc("Processing Mode Not Supported - defaulting to 'py-docx'")
-            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images', 'generate_analysis_for_text', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
+            self.processing_plan = ['extract_docx_using_py_docx', 'create_doc_chunks_with_doc_int_markdown', 'post_process_images', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary', 'generate_analysis_for_text']
             
             
 
@@ -270,7 +295,8 @@ class DocxProcessor(Processor):
 class XlsxProcessor(Processor):
 
     def develop_processing_plan(self):
-        self.processing_plan = ['extract_xlsx_using_openpyxl', 'create_doc_chunks_with_doc_int_markdown', 'generate_analysis_for_text', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary']
+        create_table_doc_chunks_markdown
+        self.processing_plan = ['extract_xlsx_using_openpyxl', 'create_table_doc_chunks_markdown', 'create_image_doc_chunks', 'generate_tags_for_all_chunks', 'generate_document_wide_tags', 'generate_document_wide_summary', 'generate_analysis_for_text']
 
 
 
