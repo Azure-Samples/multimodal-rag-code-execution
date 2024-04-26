@@ -69,7 +69,7 @@ The following are technical features implemented as part of this solution:
 1. Support for the two new embedding models `text-embedding-3-small` and `text-embedding-3-large`, as well as for `text-embedding-ada-002`
 
 
-## In-the-Works Upcoming Features
+### In-the-Works Upcoming Features
 
 1. Dynamic semantic chunking with approximate fixed size chunks (soon)
 1. Graph DB support for enhanced data retrieval. The Graph DB will complement, and not replace, the AI Search resource.
@@ -78,7 +78,7 @@ The following are technical features implemented as part of this solution:
 <br/>
 <br/>
 
-## The Concept of Processing Pipelines and Processors
+# The Concept of Processing Pipelines and Processors
 
 For the sake of providing an extendable modular architecture, we have implemented in this accelerator the concept of a processing pipeline, where each document undergoes a pre-specified number of processing steps, each step adding some degree of change to the documents. Processors are format-specific (e.g. PDF, MS Word, Excel, etc..), and are created to ingest multimodal documents in the most efficient way for that format. Therefore the list of processing steps for a PDF is different than the list of steps for an Excel sheet. This is implemented in the `processor.py` Python file. The list of processing steps can be customized by changing the file `processing_plan.json`. As an example, processing Excel files will follow the below steps, each step building on the results of the previous one:
 1. extract_xlsx_using_openpyxl: read the Excel sheet with OpenPyxl and store it in a dataframe.
