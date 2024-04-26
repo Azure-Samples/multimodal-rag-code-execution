@@ -91,7 +91,37 @@ For the sake of providing an extendable modular architecture, we have implemente
 
 At the start of the processing pipeline, a Python dictionary variable called `ingestion_pipeline_dict` with all the input parameters is created in the constructor of the Processor and then passed to the first step. The step will do its own processing, will change variables inside the `ingestion_pipeline_dict` and will add new ones. The `ingestion_pipeline_dict` is then returned by this first step, and will then become the input for the second step. This way, the `ingestion_pipeline_dict` is passed from each step to the next downstream the pipeline. It is the common context which all steps work on. The `ingestion_pipeline_dict` is saved in a text file at the end of each step, so as to provide a way for debugging and troubleshooting under the processing folder name in the `stages` directory.
 
-At the end of this document, there is a list of all the steps and a short explanation for each one of them. 
+At the end of this document, there is a [list](#processing-steps) of all the steps and a short explanation for each one of them. The below JSON block describes the processing pipelines per document format per processing option: 
+<br/>
+
+```json
+{
+    ".pdf": {
+        "gpt-4-vision": [
+            "create_pdf_chunks", "pdf_extract_high_res_chunk_images", "pdf_extract_text", "pdf_extract_images", "delete_pdf_chunks", "post_process_images", "extract_tables_from_images", "post_process_tables", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary", "generate_analysis_for_text"
+        ],
+        "document-intelligence": [
+            "create_pdf_chunks", "pdf_extract_high_res_chunk_images", "pdf_extract_text", "pdf_extract_images", "delete_pdf_chunks", "extract_doc_using_doc_int", "create_doc_chunks_with_doc_int_markdown", "post_process_images", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary", "generate_analysis_for_text"
+        ],
+        "hybrid": [
+            "create_pdf_chunks", "pdf_extract_high_res_chunk_images", "delete_pdf_chunks", "extract_doc_using_doc_int", "create_doc_chunks_with_doc_int_markdown", "post_process_images", "post_process_tables", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary", "generate_analysis_for_text"
+        ]
+    },
+    ".docx": {
+        "py-docx": [
+            "extract_docx_using_py_docx", "create_doc_chunks_with_doc_int_markdown", "post_process_images", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary", "generate_analysis_for_text"
+        ],
+        "document-intelligence": [
+            "extract_doc_using_doc_int", "create_doc_chunks_with_doc_int_markdown", "post_process_images", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary", "generate_analysis_for_text"
+        ]
+    },
+    ".xlsx": {
+        "openpyxl": [
+            "extract_xlsx_using_openpyxl", "create_table_doc_chunks_markdown", "create_image_doc_chunks", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary", "generate_analysis_for_text"
+        ]
+    }
+}
+```
 
 <br/>
 
@@ -315,7 +345,7 @@ cp -r project ../test_project/
 
 
 
-## Processing Steps
+# Processing Steps
 
 The `create_doc_chunks_with_doc_int_markdown` function is integral to the processing of documents, particularly when utilizing the Document Intelligence service. It's designed to handle the markdown conversion of document chunks, ensuring that the extracted data is formatted correctly for further analysis. This function is applicable to various document formats and is capable of processing text, images, and tables, making it versatile in the multimodal information extraction process. Its role is crucial in structuring the raw extracted data into a more accessible and analyzable form.
 
