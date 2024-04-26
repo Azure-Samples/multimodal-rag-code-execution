@@ -2062,6 +2062,15 @@ def extract_docx_using_py_docx(ingestion_pipeline_dict):
     
 
 
+def extract_audio_using_whisper(ingestion_pipeline_dict):
+
+    ### generate concatenated_text
+    concatenated_text = ""
+    ingestion_pipeline_dict['full_text'] = concatenated_text
+    write_to_file(concatenated_text, ingestion_pipeline_dict['full_text_file'], 'w')
+
+    return ingestion_pipeline_dict
+
 
 def create_pdf_chunks(ingestion_pipeline_dict):
     document_file_path = ingestion_pipeline_dict['document_path']
