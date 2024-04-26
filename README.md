@@ -76,6 +76,24 @@ The following are technical features implemented as part of this solution:
 
 
 <br/>
+<br/>
+
+## The Concept of Processing Pipelines and Processors
+
+For the sake of providing an extendable modular architecture, we have implemented in this accelerator the concept of a processing pipeline, where each document undergoes a pre-specified number of processing steps, each step adding some degree of change to the documents. Processors are format-specific (e.g. PDF, MS Word, Excel, etc..), and are created to ingest multimodal documents in the most efficient way for that format. Therefore the list of processing steps for a PDF is different than the list of steps for an Excel sheet. This is implemented in the `processor.py` Python file. The list of processing steps can be customized by changing the file `processing_plan.json`. As an example, processing Excel files will follow the below steps, each step building on the results of the previous one:
+1. extract_xlsx_using_openpyxl: read the Excel sheet with OpenPyxl and store it in a dataframe.
+1. create_table_doc_chunks_markdown: go through the dataframe after converting it to Markdown, and chunk into text in a smart way: chunks that are almost equal in size but without breaking any sentences in the middle.
+1. create_image_doc_chunks: extract images from the Excel if any
+1. generate_tags_for_all_chunks: for each chunk of text, generate tags. This is very important for hybrid search in AI Search.
+1. generate_document_wide_tags: genereate tags for the whole documents. This is very important for hybrid search in AI Search.
+1. generate_document_wide_summary: provide a document summary that will be inserted into the Context for RAG, as well as the top chunks.
+1. generate_analysis_for_text: provide an analysis for each chunk of text in relation to the whole document, e.g. what does chunk add as information vs the whole text.
+
+At the start of the processing pipeline, a Python dictionary variable called `ingestion_pipeline_dict` with all the input parameters is created in the constructor of the Processor and then passed to the first step. The step will do its own processing, will change variables inside the `ingestion_pipeline_dict` and will add new ones. The `ingestion_pipeline_dict` is then returned by this first step, and will then become the input for the second step. This way, the `ingestion_pipeline_dict` is passed from each step to the next downstream the pipeline. It is the common context which all steps work on. The `ingestion_pipeline_dict` is saved in a text file at the end of each step, so as to provide a way for debugging and troubleshooting under the processing folder name in the `stages` directory.
+
+At the end of this document, there is a list of all the steps and a short explanation for each one of them. 
+
+<br/>
 
 ## Solution Architecture
 
@@ -291,4 +309,47 @@ cp -r project ../test_project/
 
 > **Note:**
 > Similiarly, there are a number of test notebooks in this solution that use Autogen. If the user wants to experiment with Autogen, then in this case, the file `OAI_CONFIG_LIST` in the `code` folder needs to be configured. Please refer to `OAI_CONFIG_LIST.sample`, populate it with the right values, and then rename it to `OAI_CONFIG_LIST`.
+
+<br/>
+<br/>
+
+
+
+## Processing Steps
+
+The `create_doc_chunks_with_doc_int_markdown` function is integral to the processing of documents, particularly when utilizing the Document Intelligence service. It's designed to handle the markdown conversion of document chunks, ensuring that the extracted data is formatted correctly for further analysis. This function is applicable to various document formats and is capable of processing text, images, and tables, making it versatile in the multimodal information extraction process. Its role is crucial in structuring the raw extracted data into a more accessible and analyzable form.
+
+The `create_image_doc_chunks` function is integral to the processing of image data within multimodal documents. It specifically targets the extraction and organization of image-related content, segmenting each image as a discrete chunk for further analysis. This function is applicable across various document formats that include image data, playing a crucial role in the multimodal extraction pipeline by ensuring that visual information is accurately captured and prepared for subsequent processing steps such as tagging and analysis. It deals exclusively with the image modality, isolating it from text and tables to streamline the handling of visual content.
+
+The `create_pdf_chunks` function is a crucial step in the document ingestion process, particularly for PDF files. It segments the input PDF document into individual chunks, which are then processed separately in subsequent stages of the pipeline. This function is applicable to all modalities within a PDF document, including text, images, and tables, ensuring a comprehensive breakdown of the document's content for detailed analysis and extraction. Its role is foundational, as it sets the stage for the specialized processing of each modality by other functions in the pipeline.
+
+The function `create_table_doc_chunks_markdown` is responsible for processing tables within documents, specifically converting them into Markdown format. It is applicable to `.xlsx` files as part of the `openpyxl` pipeline. This function not only handles the conversion but also manages the chunking of tables when they are too large, ensuring that the Markdown representation is accurate and manageable. It processes the table modality exclusively and is crucial for preserving the structure and data of tables during the document ingestion process.
+
+The `delete_pdf_chunks` function is a crucial step in the document processing pipeline, particularly for PDF files. It is responsible for removing the temporary storage of PDF chunks from memory, ensuring that the system resources are efficiently managed and not overburdened with unnecessary data. This function is applied after the initial extraction of high-resolution images and text from the PDF document, and before any post-processing of images or tables. It is applicable to all modalities—text, images, and tables—since it deals with the cleanup of data extracted from PDF chunks.
+
+The `extract_doc_using_doc_int` function is a key component in the document processing pipeline, specifically tailored for handling `.docx` and `.pdf` files. It leverages the capabilities of Azure's Document Intelligence Service to analyze and extract structured data, including text and tables, from documents. This function is crucial for converting document content into a format that can be further processed for insights and is versatile in dealing with both textual and tabular data modalities.
+
+The `extract_docx_using_py_docx` function is designed to handle the extraction of content from `.docx` files, specifically focusing on text, images, and tables. It utilizes the `python-docx` library to access and extract these elements, ensuring that the data is accurately retrieved and stored in a structured format suitable for further processing. This function is crucial for the initial stage of the ingestion pipeline, setting the foundation for subsequent analysis and processing steps. It is applicable to `.docx` files and is responsible for extracting all three modalities: text, images, and tables, from the document.
+
+The `extract_tables_from_images` function is designed to identify and extract tables from image files within a document. It applies to image modalities, specifically targeting visual data representations such as tables embedded within image files. This function is crucial for converting visual table data into a structured format that can be further processed or analyzed, making it an essential step in multimodal document processing pipelines that deal with both textual and visual information. It is particularly relevant for documents where tabular information is presented in non-textual formats.
+
+The `extract_xlsx_using_openpyxl` function is designed to handle the extraction of data from `.xlsx` files, specifically focusing on the retrieval of tables and their conversion into various formats for further processing. It leverages the `openpyxl` library to access and manipulate Excel files, ensuring that the extracted data is accurately represented in Python-friendly structures such as DataFrames. This function is crucial for parsing spreadsheet data, which is often rich in structured information, making it a key step in the data extraction phase for `.xlsx` files within the ingestion pipeline. It processes the table modality, transforming Excel sheets into Markdown, plain text, and Python scripts, which can then be integrated into the multimodal information extraction framework.
+
+The `generate_analysis_for_text` function is designed to analyze the relationship between a specific text chunk and the overall content of a document. It highlights entity relationships introduced or extended in the text chunk, providing a concise analysis that adds context to the document's topics. This function is applicable to all modalities—text, images, and tables—ensuring a comprehensive understanding of the document's content. It plays a crucial role in enhancing the document's metadata by providing insights into the significance of each section within the larger document structure.
+
+The `generate_document_wide_summary` function is responsible for creating a concise summary of the entire document's content. It extracts key information and presents it in a few paragraphs, ensuring that the essence of the document is captured without unnecessary details. This function is applicable to all document formats, including text, images, and tables, making it a versatile component in the multimodal information extraction pipeline. It plays a crucial role in providing a quick overview of the document, which can be beneficial for both indexing and search purposes.
+
+The `generate_document_wide_tags` function is a crucial component in the document ingestion pipeline, applicable across various document formats including PDF, DOCX, and XLSX. It is responsible for extracting key tags from the entire document, which are essential for enhancing search and retrieval capabilities. This function processes text modality, ensuring that significant entities and topics within the document are captured as tags, aiding in the creation of a searchable index for the ingested content.
+
+The `generate_tags_for_all_chunks` function is integral to the multimodal information extraction process, applicable across various document formats including PDF, DOCX, and XLSX. It operates on all three modalities—text, images, and tables—extracting and optimizing tags for enhanced search and retrieval within a vector store. This function ensures that each chunk of the document, regardless of its content type, is accurately represented by a set of descriptive tags, facilitating efficient indexing and subsequent search operations.
+
+The `pdf_extract_high_res_chunk_images` function is responsible for extracting high-resolution images from each chunk of a PDF document. It plays a crucial role in the initial stages of the document processing pipeline, particularly for PDF formats, ensuring that visual data is captured in detail for subsequent analysis. This function focuses on the image modality, converting document chunks into PNG images at a DPI of 300, which are then used for further image-based processing tasks.
+
+The `pdf_extract_images` function is designed to handle the extraction of images from PDF documents. It is applicable to PDF formats and operates within a multimodal extraction context, where it specifically processes the image modality. This function plays a crucial role in isolating visual content from PDFs, which is essential for subsequent image analysis and understanding in the broader multimodal information extraction process.
+
+The `pdf_extract_text` function is a crucial component in the document processing pipeline, specifically tailored for handling PDF files. It is responsible for extracting textual content from each page of a PDF document, converting it into a machine-readable format. This function is pivotal for subsequent stages that may involve text analysis, search indexing, or further data extraction tasks. It operates solely on the text modality, ensuring that the rich textual information embedded within PDFs is accurately captured and made available for downstream processing.
+
+The `post_process_images` function is integral to refining the output from image extraction operations within the document ingestion process. It specifically handles the enhancement and clarification of images, ensuring that any visual data is accurately represented and usable for subsequent analysis. This function is applicable across various document formats that include image content, playing a pivotal role in multimodal information extraction where visual data is a key component. It is designed to work with images as a modality, complementing other functions that handle text and tables.
+
+The `post_process_tables` function is designed to handle the refinement of table data extracted from documents. It applies to various document formats, including PDFs and images, where tables are present. The function's role is to enhance the quality of the extracted table information, ensuring that it is accurately represented and formatted for further use. It specifically deals with the 'table' modality, focusing on the post-extraction processing of tables to prepare them for integration into a searchable vector index or for analytical computations.
 

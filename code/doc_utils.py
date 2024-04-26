@@ -4209,7 +4209,7 @@ def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, l
     global user_query, table_info
     codeblocks = []
     added = []
-    py_code = [os.path.abspath(asset) for asset in assets['python_code']]
+    # py_code = [os.path.abspath(asset) for asset in assets['python_code']]
     py_code = []
 
     if include_master_py:
@@ -4725,7 +4725,7 @@ import random
 
 
 
-def call_ai_search(query, index_name, top=7, computation_approach = "Taskweaver", t_wait = True, count=False):
+def call_ai_search(query, index_name, top=7, computation_approach = "Taskweaver", count=False, t_wait = True):
 
     index = CogSearchRestAPI(index_name)
     select_fields = ["asset_id", "asset_path", "document_path", "filename", "image_file", "asset_filename", "chunk_number", "type", "document_id", "python_block", "python_code", "markdown", "mermaid", "text"], 
@@ -4742,7 +4742,7 @@ def call_ai_search(query, index_name, top=7, computation_approach = "Taskweaver"
     return search_results
 
 
-def aggregate_ai_search(query, index_name, top=5, approx_tag_limit=20, computation_approach = "Taskweaver", count=False, temperature=0.2, verbose = False):
+def aggregate_ai_search(query, index_name, top=5, approx_tag_limit=20, computation_approach = "Taskweaver", count=False, temperature=0.2, t_wait=True, verbose = False):
 
     entities = get_query_entities(query, approx_tag_limit=approx_tag_limit, temperature=temperature)
     entities = [x.strip() for x in entities.split(',')]
@@ -4754,8 +4754,9 @@ def aggregate_ai_search(query, index_name, top=5, approx_tag_limit=20, computati
     tops = [top] * num_threads
     computation_approaches = [computation_approach] * num_threads
     counts = [count] * num_threads
+    waits = [t_wait] * num_threads
 
-    results = pool.starmap(call_ai_search,  zip(entities, index_names, tops, computation_approaches, counts))
+    results = pool.starmap(call_ai_search,  zip(entities, index_names, tops, computation_approaches, counts, waits))
     max_items = max([len(r) for r in results])
 
     query_results = call_ai_search(query, index_name, top=top, computation_approach = computation_approach, count=count)
@@ -4788,7 +4789,7 @@ def check_if_computation_is_needed(query):
     return result.choices[0].message.content
      
 
-def apply_computation_support(query, assets, computation_approach, conversation_history = [], user_id = None, include_master_py=True, verbose = False):
+def apply_computation_support(query, assets, computation_approach="AssistantsAPI", conversation_history = [], user_id = None, include_master_py=True, verbose = False):
     files = []
     if computation_approach == "Taskweaver":
         computation_support, files = try_code_interpreter_for_tables_using_taskweaver(assets, query, include_master_py=include_master_py,verbose = verbose)
@@ -4933,7 +4934,7 @@ def get_history_as_string(conversation_history):
     return history
 
 
-def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_history = [], user_id = None, computation_approach = "Taskweaver", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, verbose = False):
+def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_history = [], user_id = None, computation_approach = "AssistantsAPI", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, verbose = False):
     global search_context_extension, search_system_prompt, search_prompt
 
     if vector_directory is None:

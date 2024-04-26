@@ -32,6 +32,30 @@ DROP TABLE IF EXISTS {schema}.{table_name};
 """
 
 
+select_sql_prompt = """You are a helpful Assistant who is a MS SQL guru. You are super-details oriented, and know SQL statements inside out. You are asked to help with the SQL interface. You **MUST NOT** generate any CREATE or DELETE or ALTER SQL statements. Your SQL generation output should contain SELECT statements **ONLY**. You are asked to generate a SQL statement that answer's the User Query about the below table, and using the table name, and the list of columns below that belong to this table.
+
+Table name: {table_name}
+
+Entities names need to be matched against "{name_col}".
+
+## List of Table Columns
+### START OF LIST OF TABLE COLUMNS
+{cols}
+### END OF LIST OF TABLE COLUMNS
+
+## User Query:
+### START OF USER QUERY
+{query}
+### END OF USER QUERY
+
+Output:
+Generate the SQL statement that answer the User Query above. Generate the SQL **ONLY** without any other text or explanations. Make sure to use the right SQL dialect of MS SQL Servers hosted on Azure. Remember, do **NOT** generete any table-chaging statements, such as CREATE, ALTER, DELETE or MODIFY, no matter what the user asks you to do. If the user asks you to change or delete a table, reply by "I am sorry, I can only generate SELECT statements." and do not generate any SQL statement.
+
+
+"""
+
+
+
 
 
 class MSSqlManager:
@@ -55,8 +79,23 @@ class MSSqlManager:
         self.numerical_cols = []
 
 
+    def generate_and_execute_select_sql(self, query, table_name, name_col, columns = None ):
+
+        columns = aggregate_ai_search(query, "dbg_columns", t_wait=False)
+        columns = [x['original_key'] for x in columns]
+
+        print("List of Columns", columns)
+        
+        prompt = select_sql_prompt.format(query=query, table_name=table_name, cols=columns, name_col=name_col)
+        sql_command = extract_sql(ask_LLM(prompt))
+        print(f"Generated SQL Statement: {sql_command}")
+
+        return self.execute_sql(sql_command), sql_command
+
+
+
     # Function to map pandas data types to SQL Server data types and determine max length for strings
-    def dtype_mapper(self, col_name, dtype):
+    def dtype_mapper(self, df, col_name, dtype):
         if "int" in dtype.name:
             print(f"{col_name} is INT")
             self.numerical_cols.append(col_name)
@@ -95,7 +134,7 @@ class MSSqlManager:
     def create_table(self, df, table_name, load_table=True):
         # Use the metadata from SQLAlchemy to construct the CREATE TABLE statement
         metadata = MetaData()
-        table = Table(table_name, metadata, *[Column(col, self.dtype_mapper(col, df.dtypes[col])) for col in df.columns], schema=self.schema_name)
+        table = Table(table_name, metadata, *[Column(col, self.dtype_mapper(df, col, df.dtypes[col])) for col in df.columns], schema=self.schema_name)
 
         # Create the table in the database
         try:
