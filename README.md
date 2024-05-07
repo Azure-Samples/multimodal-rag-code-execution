@@ -12,6 +12,18 @@ Multimodal Document Analysis with RAG and Code Execution: using Text, Images and
 1. Text is programmatically extracted from documents, processed to improve structure and tag extraction for better searchability, and numerical data is captured through generated Python code for later use.
 1. Images and data tables are processed to generate multiple text-based representations (including detailed text descriptions, Mermaid, and Python code for images, and various formats for tables) to ensure information is searchable and usable for calculations, forecasts, and applying machine learning models using Code Interpreter capabilities.
 
+<br/>
+<br />
+
+## YouTube Video
+<br />
+<p align="center">
+
+[<img src="images/Snapshot.png" width="30%">](https://www.youtube.com/watch?v=6ZeK5pLN9Sg)
+
+</p>
+    
+<br/>
 
 <br/>
 
@@ -81,13 +93,13 @@ The following are technical features implemented as part of this solution:
 # The Concept of Processing Pipelines and Processors
 
 For the sake of providing an extendable modular architecture, we have implemented in this accelerator the concept of a processing pipeline, where each document undergoes a pre-specified number of processing steps, each step adding some degree of change to the documents. Processors are format-specific (e.g. PDF, MS Word, Excel, etc..), and are created to ingest multimodal documents in the most efficient way for that format. Therefore the list of processing steps for a PDF is different than the list of steps for an Excel sheet. This is implemented in the `processor.py` Python file. The list of processing steps can be customized by changing the file `processing_plan.json`. As an example, processing Excel files will follow the below steps, each step building on the results of the previous one:
-1. extract_xlsx_using_openpyxl: read the Excel sheet with OpenPyxl and store it in a dataframe.
-1. create_table_doc_chunks_markdown: go through the dataframe after converting it to Markdown, and chunk into text in a smart way: chunks that are almost equal in size but without breaking any sentences in the middle.
-1. create_image_doc_chunks: extract images from the Excel if any
-1. generate_tags_for_all_chunks: for each chunk of text, generate tags. This is very important for hybrid search in AI Search.
-1. generate_document_wide_tags: genereate tags for the whole documents. This is very important for hybrid search in AI Search.
-1. generate_document_wide_summary: provide a document summary that will be inserted into the Context for RAG, as well as the top chunks.
-1. generate_analysis_for_text: provide an analysis for each chunk of text in relation to the whole document, e.g. what does chunk add as information vs the whole text.
+1. `extract_xlsx_using_openpyxl`: read the Excel sheet with OpenPyxl and store it in a dataframe.
+1. `create_table_doc_chunks_markdown`: go through the dataframe after converting it to Markdown, and chunk into text in a smart way: chunks that are almost equal in size but without breaking any sentences in the middle.
+1. `create_image_doc_chunk`s: extract images from the Excel if any
+1. `generate_tags_for_all_chunks`: for each chunk of text, generate tags. This is very important for hybrid search in AI Search.
+1. `generate_document_wide_tags`: genereate tags for the whole documents. This is very important for hybrid search in AI Search.
+1. `generate_document_wide_summary`: provide a document summary that will be inserted into the Context for RAG, as well as the top chunks.
+1. `generate_analysis_for_text`: provide an analysis for each chunk of text in relation to the whole document, e.g. what does chunk add as information vs the whole text.
 
 At the start of the processing pipeline, a Python dictionary variable called `ingestion_pipeline_dict` with all the input parameters is created in the constructor of the Processor and then passed to the first step. The step will do its own processing, will change variables inside the `ingestion_pipeline_dict` and will add new ones. The `ingestion_pipeline_dict` is then returned by this first step, and will then become the input for the second step. This way, the `ingestion_pipeline_dict` is passed from each step to the next downstream the pipeline. It is the common context which all steps work on. The `ingestion_pipeline_dict` is saved in a text file at the end of each step, so as to provide a way for debugging and troubleshooting under the processing folder name in the `stages` directory.
 
