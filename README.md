@@ -15,7 +15,7 @@ Multimodal Document Analysis with RAG and Code Execution: using Text, Images and
 <br/>
 <br />
 
-## YouTube Video
+## Research Copilot YouTube Video
 
 <p align="center">
 
