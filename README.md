@@ -16,7 +16,7 @@ Multimodal Document Analysis with RAG and Code Execution: using Text, Images and
 <br />
 
 ## YouTube Video
-<br />
+
 <p align="center">
 
 [<img src="images/Snapshot.PNG" width="30%">](https://www.youtube.com/watch?v=6ZeK5pLN9Sg)
