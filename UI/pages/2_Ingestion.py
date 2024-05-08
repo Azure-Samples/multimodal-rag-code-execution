@@ -73,17 +73,23 @@ retry = 0
 
 st.title("Document Ingestion - v.1.0.2")
 col1, col2 = st.columns(2)
-pdf_extraction = col1.selectbox("PDF extraction:", ["Hybrid", "GPT 4 Vision", "Document Intelligence"] )
+
+hybrid_label = "Hybrid (choose if pptx file is tidy - default option)"
+gpt4v_label = "GPT 4 Vision (choose if pptx is very messy, or pdf is scanned)"
+docint_label_pdf = "Document Intelligence (choose if this pdf is saved from docx)"
+docint_label_docx = "Document Intelligence"
+
+pdf_extraction = col1.selectbox("PDF extraction:", [hybrid_label, gpt4v_label, docint_label_pdf] )
 
 try:
     from docx import Document
-    docx_extraction = col1.selectbox("Docx extraction:", ["Document Intelligence", "Python-Docx"] )
+    docx_extraction = col1.selectbox("Docx extraction:", [docint_label_docx, "Python-Docx"] )
 except:
-    docx_extraction = col1.selectbox("Docx extraction:", ["Document Intelligence"] )
+    docx_extraction = col1.selectbox("Docx extraction:", [docint_label_docx] )
 
 xlsx_extraction = col1.selectbox("Xlsx extraction:", ["OpenPyxl"] )
 
-chunk_size = int(col1.text_input("Chunk Size:", '512'))
+chunk_size = int(col1.text_input("Chunk Size:", '800'))
 chunk_overlap = int(col1.text_input("Chunk Overlap:", '128'))
 
 index_name = col2.text_input("Index name:", st.session_state.get('index_name', INITIAL_INDEX))
@@ -105,7 +111,7 @@ def proc_plan_chance():
     st.session_state.proc_plans = st.session_state.processingPlansKey 
     print("Processing Plans Changed: ", st.session_state.proc_plans)
 
-st.text_area("Processing Plans", value=st.session_state.proc_plans, height=150, key="processingPlansKey", on_change=proc_plan_chance) 
+st.text_area("Processing Plans (Leave as Default - no need to change)", value=st.session_state.proc_plans, height=150, key="processingPlansKey", on_change=proc_plan_chance) 
 
 # Main UI
 st.markdown("""---""")
@@ -397,16 +403,16 @@ if start_ingestion:
             st.session_state.warning = st.sidebar.warning("No files uploaded")
         else:
             st.session_state.indexing = True
-            if pdf_extraction == "GPT 4 Vision":
+            if pdf_extraction == gpt4v_label:
                 pdf_extraction_option = 'gpt-4-vision'
-            elif pdf_extraction == "Document Intelligence":
+            elif pdf_extraction == docint_label_pdf:
                 pdf_extraction_option = 'document-intelligence'
-            elif pdf_extraction == "Hybrid":
+            elif pdf_extraction == hybrid_label:
                 pdf_extraction_option = 'hybrid'                
             else:
                 pdf_extraction_option = 'document-intelligence'
 
-            if docx_extraction == "Document Intelligence":
+            if docx_extraction == docint_label_docx:
                 docx_extraction_option = 'document-intelligence'
             elif docx_extraction == "Python-Docx":
                 docx_extraction_option = 'py-docx'
@@ -437,6 +443,7 @@ if start_ingestion:
                 'verbose': True
             }
 
+            print("Ingestion Param dict", ingestion_params_dict)
 
             try:
                 if job_execution == "Azure Machine Learning":

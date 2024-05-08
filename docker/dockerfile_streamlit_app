@@ -17,6 +17,8 @@ COPY requirements.txt /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    xclip \
+    xsel \
     software-properties-common \
     git \
     && rm -rf /var/lib/apt/lists/*
