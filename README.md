@@ -107,6 +107,17 @@ For the sake of providing an extendable modular architecture, we have implemente
 
 At the start of the processing pipeline, a Python dictionary variable called `ingestion_pipeline_dict` with all the input parameters is created in the constructor of the Processor and then passed to the first step. The step will do its own processing, will change variables inside the `ingestion_pipeline_dict` and will add new ones. The `ingestion_pipeline_dict` is then returned by this first step, and will then become the input for the second step. This way, the `ingestion_pipeline_dict` is passed from each step to the next downstream the pipeline. It is the common context which all steps work on. The `ingestion_pipeline_dict` is saved in a text file at the end of each step, so as to provide a way for debugging and troubleshooting under the processing folder name in the `stages` directory.
 
+This is a visual representation of a pipeline:
+
+<br />
+<p align="center">
+<img src="images/pipelines.png" width="800" />
+</p>
+<br/>
+
+<br/>
+
+
 At the end of this document, there is a [list](#processing-steps) of all the steps and a short explanation for each one of them. The below JSON block describes the processing pipelines per document format per processing option: 
 <br/>
 
@@ -140,6 +151,10 @@ At the end of this document, there is a [list](#processing-steps) of all the ste
 ```
 
 <br/>
+
+
+
+
 
 ## Solution Architecture
 
