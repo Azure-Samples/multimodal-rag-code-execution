@@ -240,13 +240,13 @@ def show_json(obj):
 
 @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(TENACITY_STOP_AFTER_DELAY), after=after_log(logger, logging.ERROR))             
 def get_chat_completion(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
-    print(f"\nCalling OpenAI APIs with {len(messages)} messages - Model: {AZURE_OPENAI_MODEL} - Endpoint: {oai_client._base_url}\n")
+    print(f"\nCalling OpenAI APIs with {len(messages)} messages - Model: {model} - Endpoint: {oai_client._base_url}\n")
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages, timeout=TENACITY_TIMEOUT)
 
 
 @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(TENACITY_STOP_AFTER_DELAY), after=after_log(logger, logging.ERROR))         
 def get_chat_completion_with_json(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
-    print(f"\nCalling OpenAI APIs with {len(messages)} messages - Model: {AZURE_OPENAI_MODEL} - Endpoint: {oai_client._base_url}\n{bc.ENDC}")
+    print(f"\nCalling OpenAI APIs with {len(messages)} messages - Model: {model} - Endpoint: {oai_client._base_url}\n{bc.ENDC}")
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages, response_format={ "type": "json_object" },timeout=TENACITY_TIMEOUT)
 
 

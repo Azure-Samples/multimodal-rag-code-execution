@@ -7,25 +7,29 @@
 # Research CoPilot: Multimodal RAG with Code Execution
 Multimodal Document Analysis with RAG and Code Execution: using Text, Images and Data Tables with GPT4-V, TaskWeaver, and Assistants API:
 
+1. **"Chat-With-Your-Multimodal-Data"**: Implemented a GenAI solution to automatically ingest and analyze multimodal documents, including texts, tables, and images, and produce searchable semantic contents.
+1. **Content Generation**: The solution can be used to output most of the contents needed for standardized formats, such as memos or PowerPoint presentations that highlights essential facts about the ingested data
+1. **Analytical Queries with OpenAI Assistants API and Taskweaver**: Develop an advanced feature allowing analysts to interact with the multimodal data using a chat interface integrated with a Code Interpreter. This tool will support complex analytical queries, including calculations and on-the-fly graph and file generation.
 
+<br/>
+<br />
+
+## Research Copilot YouTube Video
+<p align="center">
+
+[<img src="images/Snapshot.PNG" width="30%">](https://youtu.be/Si4m-Zl9xvQ)
+
+</p>
+<br/>
+<br/>
+
+## Description
 1. The work focuses on processing multi-modal analytical documents by extracting text, images, and data tables to maximize data representation and information extraction, utilizing formats like Python code, Markdown, and Mermaid script for compatibility with GPT-4 models.
 1. Text is programmatically extracted from documents, processed to improve structure and tag extraction for better searchability, and numerical data is captured through generated Python code for later use.
 1. Images and data tables are processed to generate multiple text-based representations (including detailed text descriptions, Mermaid, and Python code for images, and various formats for tables) to ensure information is searchable and usable for calculations, forecasts, and applying machine learning models using Code Interpreter capabilities.
 
 <br/>
 <br />
-
-## Research Copilot YouTube Video
-
-<p align="center">
-
-[<img src="images/Snapshot.PNG" width="30%">](https://youtu.be/Si4m-Zl9xvQ)
-
-</p>
-    
-<br/>
-
-<br/>
 
 ## Current Challenges
 1. As of today with conventional techniques, to be able to search through a knowledge base with RAG, text from documents need to be extracted, chunked and stored in a vector database
