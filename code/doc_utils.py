@@ -268,7 +268,7 @@ def ask_LLM(prompt, temperature = 0.2, model_info = None):
 
     messages = []
     messages.append({"role": "system", "content": "You are a helpful assistant, who helps the user with their query."})     
-    messages.append({"role": "system", "content": prompt})     
+    messages.append({"role": "user", "content": prompt})     
 
     result = get_chat_completion(messages, temperature = temperature, client=client)
 
@@ -288,7 +288,7 @@ def ask_LLM_with_JSON(prompt, temperature = 0.2, model_info = None):
 
     messages = []
     messages.append({"role": "system", "content": "You are a helpful assistant, who helps the user with their query. You are designed to output JSON."})     
-    messages.append({"role": "system", "content": prompt})     
+    messages.append({"role": "user", "content": prompt})     
 
     result = get_chat_completion_with_json(messages, temperature = temperature, client=client)
 
@@ -3518,7 +3518,7 @@ def get_image_base64(image_path):
 
 
 @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(10), after=after_log(logger, logging.DEBUG))
-def call_gpt4v(imgs, gpt4v_prompt = "describe the attached image", prompt_extension = "", temperature = 0.2, model_info=None):
+def call_gpt4v(imgs, gpt4v_prompt = "describe the attached image", prompt_extension = "", temperature = 0.2, model_info=None, enable_ai_enhancements=False):
 
     if model_info is None:
         api_base = OPENAI_API_BASE
@@ -3577,33 +3577,43 @@ def call_gpt4v(imgs, gpt4v_prompt = "describe the attached image", prompt_extens
     ]
 
     content = content + img_msgs
-    endpoint = f"{base_url}/extensions/chat/completions?api-version={AZURE_OPENAI_VISION_API_VERSION}" 
+    
 
-    print("endpoint", endpoint)
+    
     data = { 
         "temperature": temperature,
         "messages": [ 
             { "role": "system", "content": vision_system_prompt}, 
             { "role": "user",   "content": content } 
-        ],
-        "dataSources": [
+        ], 
+        "max_tokens": 4095 
+    }   
+
+    if enable_ai_enhancements:
+        endpoint = f"{base_url}/extensions/chat/completions?api-version={AZURE_OPENAI_VISION_API_VERSION}" 
+
+        data['dataSources'] = [
             {
                 "type": "AzureComputerVision",
                 "parameters": {
                     "endpoint": AZURE_VISION_ENDPOINT,
                     "key": AZURE_VISION_KEY
                 }
-            }],
-        "enhancements": {
+            }]
+        
+        data['enhancements'] = {
             "ocr": {
                 "enabled": True
             },
             "grounding": {
                 "enabled": True
             }
-        },   
-        "max_tokens": 4095 
-    }   
+        }
+    else:
+        endpoint = f"{base_url}/chat/completions?api-version={AZURE_OPENAI_VISION_API_VERSION}" 
+    
+    print("endpoint", endpoint)
+    # print("Data", data)
    
     response = requests.post(endpoint, headers=headers, data=json.dumps(data), timeout=300)   
     # print(json.dumps(recover_json(response.text), indent=4))
