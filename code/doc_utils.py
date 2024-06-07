@@ -4954,7 +4954,7 @@ def get_history_as_string(conversation_history):
 
 
 def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_history = [], user_id = None, computation_approach = "AssistantsAPI", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, verbose = False):
-    global search_context_extension, search_system_prompt, search_prompt
+    global search_context_extension, search_system_prompt, search_prompt #FIXME: Remove this global variable
 
     if vector_directory is None:
         vector_directory = os.path.join(ROOT_PATH_INGESTION, index_name)

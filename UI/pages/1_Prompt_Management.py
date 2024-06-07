@@ -1,17 +1,51 @@
 import streamlit as st
 import sys
+import os
+import uuid
+import requests
 sys.path.append("../code")
-from doc_utils import *
-from utils.cogsearch_rest import CogSearchHttpRequest
 import pyperclip as pc
-import utils.cosmos_helpers as cs
 
-# Base directory for categories
+class APIClient:
+    def __init__(self):
+        self.base_url = os.getenv("API_BASE_URL")
 
-cosmos = cs.SCCosmosClient()
+    def get_prompts(self):
+        return requests.get(f"{self.base_url}/prompts").json()
+
+    def get_indexes(self):
+        return requests.get(f"{self.base_url}/indexes").json()
+
+    def update_prompt(self, prompt):
+        requests.patch(f"{self.base_url}/prompts/{prompt['id']}", json=prompt)
+        
+    def create_prompt(self, prompt):
+        requests.post(f"{self.base_url}/prompts", json=prompt)
+
+    def delete_prompt(self, category_name):
+        prompt = self.get_prompt(category_name)
+        requests.delete(f"{self.base_url}/prompts/{prompt['id']}")
+
+    def generate_new_section(self, section):
+        return requests.post(f"{self.base_url}/generate_new_section", json=section).json()
+
+    def generate_content(self, content, index_name):
+        return requests.post(f"{self.base_url}/search", 
+                             json={
+                                 "query": content, 
+                                 "index_name": index_name, 
+                                 "computation_approach": "AssistantsAPI", 
+                                 "computation_decision":"LLM"
+                             }).json()
+
+    def get_prompt(self, category_name):
+        prompts = self.get_prompts()
+        return next((item for item in prompts if item['Category'] == category_name), None)
+
+api_client = APIClient()
 
 if "Prompts" not in st.session_state:
-    st.session_state.Prompts = cosmos.get_all_documents()
+    st.session_state.Prompts = api_client.get_prompts()
 
 if "prompt_index" not in st.session_state:
     st.session_state.prompt_index = ""
@@ -31,14 +65,9 @@ if "page_config" not in st.session_state:
 if 'processing' not in st.session_state:
     st.session_state.processing = False
 
-def get_indexes():
-    cogrequest = CogSearchHttpRequest()
-    indexes = cogrequest.get_indexes()
-    return [index["name"] for index in indexes["value"]] 
-        
-
 if "Indexes" not in st.session_state:
-    st.session_state.Indexes = get_indexes()
+    indexes = api_client.get_indexes()
+    st.session_state.Indexes = [index["name"] for index in indexes["value"]]
 
 def get_prompts_category():
     return [item['Category'] for item in st.session_state.Prompts]
@@ -53,11 +82,11 @@ def save(category_name, body):
     if prompt:
         # Update the existing category
         prompt['Content'] = body['Content']
-        cosmos.upsert_document(prompt)
+        api_client.update_prompt(prompt)
         st.sidebar.success(f"Category '{category_name}' updated.")
     else:
         # Create a new category
-        cosmos.create_document(body)
+        api_client.create_prompt(body)
         st.sidebar.success(f"Category '{category_name}' created with initial version.")
 
 def create_new_prompt(category_name):
@@ -74,27 +103,18 @@ def create_new_prompt(category_name):
         "Content": ""
     }
     save(category_name, body)
-  
-
-# Function to delete a category
-def delete_prompt(category_name):
-    prompt = get_prompt(category_name)
-    cosmos.delete_document(doc_id=prompt['id'])
-
 
 def generate_new_section(section):
-    section_prompt = generate_section(section)
+    section_prompt = api_client.generate_new_section(section)
     return section_prompt
-
 
 def generate_consolidated_content(content, sections):
     section_contents = [c for c in sections if isinstance(c, str)]
     return content + "\n\n" + "\n\n".join(section_contents)
 
 def generate_content(content):
-    final_answer, references, output_excel, search_results, files  = search(content, index_name=st.session_state.prompt_index, computation_approach= "AssistantsAPI", computation_decision="LLM")
+    final_answer, references, output_excel, search_results, files  = api_client.generate_content(content, st.session_state.prompt_index)
     return final_answer
-
 
 def save_prompt(prompt, edited_sections, edited_content):
     index = 0
@@ -104,11 +124,9 @@ def save_prompt(prompt, edited_sections, edited_content):
 
     save(category_name, {"Content": edited_content, "Sections": prompt['Sections']})
 
-
 def delete_section(prompt, edited_sections, text_area):
     prompt['Sections'].remove(section)
     edited_sections.remove(text_area)
-
 
 def clear_inputs():
     st.session_state.newSectionTitle = ""
@@ -137,7 +155,7 @@ refresh_col, save_col  = st.sidebar.columns([1, 1])
 
 refresh = refresh_col.button("Reload Prompts")
 if refresh:
-    st.session_state.Prompts = cosmos.get_all_documents()
+    st.session_state.Prompts = api_client.get_prompts()
     st.session_state['categories'] = get_prompts_category()
 
 save_action = save_col.button("Save Prompt")
@@ -245,10 +263,6 @@ if category_name:
     test_output = outputCol.text_area("Test Output:", value=answer, height=1200, key="promptTestOutput", disabled=True)
 
     outputCol.button("Copy Output", key="copy_consolidated_prompt", on_click=pc.copy, args=[st.session_state.promptTestOutput])
-
-
-        
-    
 else:
     st.markdown("## Please select a section to view or edit the prompt.")  
 
@@ -268,10 +282,6 @@ if st.sidebar.button("Delete Prompt"):
     if delete_category_name:
         # Confirmation dialog to prevent accidental deletion
         if st.sidebar.checkbox("I understand this action cannot be undone and all data in the category will be lost."):
-            delete_prompt(delete_category_name)
+            api_client.delete_prompt(delete_category_name)
     else:
         st.sidebar.warning("Please select a prompt to delete.")
-
-
-
-    
