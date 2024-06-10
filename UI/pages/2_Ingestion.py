@@ -13,7 +13,7 @@ load_dotenv()
 
 sys.path.append("../code")
 
-from env_vars import ROOT_PATH_INGESTION, INITIAL_INDEX
+from env_vars import INITIAL_INDEX
 
 class APIClient:
     def __init__(self):
@@ -25,8 +25,11 @@ class APIClient:
     def get_models(self):
         return requests.get(f"{self.base_url}/models").json()
     
-    def update_index_download_files(self, index_name, download_directory):
-        return requests.post(f"{self.base_url}/index/{index_name}/download_files", json={"download_directory": download_directory})
+    def upload_files(self, index_name, files):
+        return requests.post(f"{self.base_url}/index/{index_name}/upload_files", files=files)
+    
+    def get_existing_files(self, index_name):
+        return requests.get(f"{self.base_url}/index/{index_name}/files").json()
     
     def get_index_documents(self, index_name):
         return requests.get(f"{self.base_url}/index/{index_name}/documents").json()
@@ -35,19 +38,22 @@ class APIClient:
         return requests.get(f"{self.base_url}/index/{index_name}/status").json()
     
     def update_index_status(self, index_name, status):
-        return requests.post("/index/{index_name}/status", json={"status": status})
+        return requests.post("/index/{index_name}/status", json={"status": status}).json()
     
     def get_index_log(self, index_name):
         return requests.get(f"{self.base_url}/index/{index_name}/log").json()
     
     def copy_processing_plan_to_index(self, index_name):
-        return requests.post(f"{self.base_url}/index/{index_name}/plan")
+        return requests.post(f"{self.base_url}/index/{index_name}/plan").json()
     
     def clear_indexing_status(self, index_name):
-        return requests.delete(f"{self.base_url}/index/{index_name}/status")
+        return requests.delete(f"{self.base_url}/index/{index_name}/status").json()
     
-    def update_aml_job_id(self, index_name, run_id, status):
-        return requests.post(f"{self.base_url}/index/{index_name}/aml_job_id", json={"run_id": run_id, "status": status})
+    def submit_ingestion_job(self, index_name, ingestion_params_dict):
+        return requests.post(f"{self.base_url}/index/{index_name}/job", json=ingestion_params_dict).json()
+    
+    def get_job_status(self, job_id):
+        return requests.get(f"{self.base_url}/job/{job_id}/status").json()
     
 api_client = APIClient()
 
@@ -103,7 +109,6 @@ def log_message(message, level):
 
 #Main UI
 
-aml_job = None
 retry = 0
 
 st.title("Document Ingestion - v.1.0.2")
@@ -117,7 +122,6 @@ docint_label_docx = "Document Intelligence"
 pdf_extraction = col1.selectbox("PDF extraction:", [hybrid_label, gpt4v_label, docint_label_pdf] )
 
 try:
-    from docx import Document
     docx_extraction = col1.selectbox("Docx extraction:", [docint_label_docx, "Python-Docx"] )
 except:
     docx_extraction = col1.selectbox("Docx extraction:", [docint_label_docx] )
@@ -163,48 +167,39 @@ start_ingestion = ingest_col.button("Start Ingestion")
 clear_ingestion = clear_col.button("Clear Ingesting")
 refresh = spinner_col.button("Refresh")
 
-download_directory =""
-ingestion_directory = ""
-ingestion_directory = os.path.join(ROOT_PATH_INGESTION , index_name) 
-os.makedirs(ingestion_directory, exist_ok=True)
-download_directory = os.path.join(ingestion_directory, 'downloads')
-os.makedirs(download_directory, exist_ok=True)
-
-col2.write(f":blue[Download directory:] :green[{download_directory}]")
-col2.write(f":blue[Ingestion directory:] :green[{ingestion_directory}]")
 col2.write(f":blue[Index name:] :green[{index_name}]")
 # col2.text(f":blue[Job Status:] :green[{st.session_state.job_status}]")
 
-existing_file_names = []
-try:
-    files = os.listdir(download_directory)
-    existing_file_names = [file for file in files if os.path.isfile(os.path.join(download_directory, file))]
-except Exception as e:
-    log_message(f"Not able to get list of current files in the Downloads directory.\nException:\n{str(e)}")
+existing_file_names = api_client.get_existing_files(index_name)
 
 
 ## COPY UPLOADED FILES TO THE DOWNLOAD DIRECTORY AND RENAME THEM
-for uploaded_file in uploaded_files :
-    log_message("Uploaded Files -- before processing", uploaded_files)
-    #Use the file here. For example, you can read it:
-    if uploaded_file.name.replace(" ", "_") in st.session_state.files_ingested: continue
+# for uploaded_file in uploaded_files :
+#     log_message("Uploaded Files -- before processing", uploaded_files)
+#     #Use the file here. For example, you can read it:
+#     if uploaded_file.name.replace(" ", "_") in st.session_state.files_ingested: continue
 
-    new_name = os.path.join(download_directory, uploaded_file.name.replace(" ", "_"))
-    old_name = os.path.join(download_directory, uploaded_file.name)
+#     new_name = os.path.join(download_directory, uploaded_file.name.replace(" ", "_"))
+#     old_name = os.path.join(download_directory, uploaded_file.name)
 
-    if not os.path.exists(new_name):
-        with open(os.path.join(download_directory, uploaded_file.name), "wb") as f:
-            f.write(uploaded_file.getvalue())
+#     if not os.path.exists(new_name):
+#         with open(os.path.join(download_directory, uploaded_file.name), "wb") as f:
+#             f.write(uploaded_file.getvalue())
 
-        try:
-            os.rename(old_name, new_name)      
-        except Exception as e:
-            log_message(f"Error renaming file to {new_name}. Most likely a problem with permissions accessing the downloads folder {download_directory}.\nException:\n{e}")
+#         try:
+#             os.rename(old_name, new_name)      
+#         except Exception as e:
+#             log_message(f"Error renaming file to {new_name}. Most likely a problem with permissions accessing the downloads folder {download_directory}.\nException:\n{e}")
 
-    st.session_state.files_ingested[uploaded_file.name.replace(" ", "_")] = "Not ingested"
-    log_message("st.session_state.files_ingested", st.session_state.files_ingested)
+#     st.session_state.files_ingested[uploaded_file.name.replace(" ", "_")] = "Not ingested"
+#     log_message("st.session_state.files_ingested", st.session_state.files_ingested)
 
-api_client.update_index_download_files(index_name, download_directory)
+file_to_upload = []
+for uploaded_file in uploaded_files:
+    file = uploaded_file.getvalue()
+    file_to_upload.append(('file', (uploaded_file.name, file, uploaded_file.type)))
+    
+api_client.upload_files(index_name, file_to_upload)
 
 
 bar_progress = st.progress(0, text="Please click on ingestion to start the process")
@@ -246,11 +241,8 @@ def update_file_status():
 def check_if_indexing_in_progress():
     log_message("check_if_indexing_in_progress")
     try:
-        if "aml_job" not in st.session_state:
-            try:
-                st.session_state.aml_job = AmlJob()
-            except:
-                st.session_state.aml_job = None
+        if "aml_job_id" not in st.session_state:
+                st.session_state.aml_job_id = None
 
         st.session_state.indexing, document = api_client.get_index_status(index_name)
         # log_message("Document", document, "Indexing State", st.session_state.indexing)
@@ -262,7 +254,7 @@ def check_if_indexing_in_progress():
 
             if (job_id != '') and (job_status == 'running'):
                 try:    
-                    status = st.session_state.aml_job.check_job_status_using_run_id(job_id)
+                    status = api_client.get_job_status(st.session_state.aml_job_id)
                     log_message(f"Checking Run_ID: {job_id}, status {status}")
 
                     if status not in ["Completed", "Failed", "Canceled"]:
@@ -283,20 +275,20 @@ def check_job_status():
     log_message("check_job_status")
 
     with st.spinner("Please wait ..."):
-        # log_message("AML Job", st.session_state.aml_job.run is not None)
+        
         log_message("check_job_status::spinner")        
 
-        if st.session_state.aml_job.run is not None:
-            status = st.session_state.aml_job.run.get_status()
+        if st.session_state.aml_job_run_id is not None:
+            status = api_client.get_job_status(st.session_state.aml_job_run_id)
             log_message(f"Status of AML Job {status}")
-            log_message("AML Job Run ID", st.session_state.aml_job.run.id)
+            log_message("AML Job Run ID", st.session_state.aml_job_run_id)
             st.session_state.warning.empty()
             st.session_state.job_status = f"AML Job is: {status}"
             st.session_state.warning = st.sidebar.info(f"AML Job is: {status}", icon="ℹ️")
 
             if  status in ["Completed", "Failed", "Canceled"]:
                 st.session_state.indexing = False
-                st.session_state.aml_job.run = None
+                st.session_state.aml_job_run_id = None
                 check_if_indexing_in_progress()
                 # update_file_list_UI()
                 api_client.update_index_status(index_name, "not_running")
@@ -317,7 +309,7 @@ def check_job_status():
                 st.session_state.job_status = f"Python Subprocess is: Running"
                 st.session_state.warning = st.sidebar.info(f"Python Subprocess is: Running", icon="ℹ️")
 
-        if st.session_state.aml_job.run is None:
+        if st.session_state.aml_job_run_id is None:
             st.session_state.indexing = False
             check_if_indexing_in_progress()
             # update_file_list_UI()
@@ -326,8 +318,8 @@ def check_job_status():
 def update_file_list_UI(do_sleep = False, do_check_job_status=True):
     log_message("update_file_list_UI")
     global retry # FIXME: remove global variable
-    document = api_client.get_index_log(index_name)
-    if (document is None):
+    index_log = api_client.get_index_log(index_name)
+    if (index_log is None):
         retry = retry + 1
         time.sleep(1) # sometimes this process start before the document is commited into Cosmos DB
         if (retry > 60):
@@ -339,8 +331,8 @@ def update_file_list_UI(do_sleep = False, do_check_job_status=True):
         processed_files = 0
         processing_files = 0
         total_files = 0
-        files = document['files_uploaded']
-        logs = document['log_entries']
+        files = index_log['files_uploaded']
+        logs = index_log['log_entries']
         
         for file in files:
             total_files += 1
@@ -469,10 +461,7 @@ if start_ingestion:
                     st.write(f"ROOT_PATH_INGESTION Files: {os.listdir(ROOT_PATH_INGESTION)}")
                     st.write(f"Root Path Files: {os.listdir('./')}\n\n")
                     
-                    # aml_job = AmlJob()
-                    st.session_state.aml_job.submit_ingestion_job(ingestion_params_dict, script = 'ingest_doc.py', source_directory='./code')
-
-                    api_client.update_aml_job_id(index_name, st.session_state.aml_job.run.id, status = "running")
+                    st.session_state.aml_job_id = api_client.submit_ingestion_job(index_name, ingestion_params_dict)
                 
                 elif job_execution == "Subprocess (Local Testing)":
                     process = subprocess.Popen(["python", "../code/ingest_doc.py", 

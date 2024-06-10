@@ -1,7 +1,5 @@
 import os
 import logging
-from typing import Optional
-import shutil
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -11,7 +9,6 @@ from chainlit.playground.providers import ChatOpenAI
 from chainlit import run_sync
 from time import sleep
 
-import shutil
 import sys
 import requests
 
@@ -41,12 +38,6 @@ class APIClient:
     def __init__(self):
         self.base_url = os.getenv('API_BASE_URL')
 
-    def log_message(self, message, level):
-        endpoint = '/log'
-        payload = {'message': message, 'level': level}
-        response = requests.post(self.base_url + endpoint, json=payload)
-        return response.json()
-
     def get_models(self):
         endpoint = '/models'
         response = requests.get(self.base_url + endpoint)
@@ -74,8 +65,11 @@ class APIClient:
         return response.json()
 
     def search(self, query_params):
-        endpoint = '/search'
-        response = requests.post(self.base_url + endpoint, json=query_params)
+        response = requests.post(f"{self.base_url}/search", json=query_params)
+        return response.json()
+    
+    def upload_files(self, index_name, files):
+        response = requests.post(f"{self.base_url}/{index_name}/upload_files", files=files)
         return response.json()
 
 api_client = APIClient()
@@ -198,7 +192,6 @@ except Exception as e:
     prompts = []
 
 async def update_task_list():
-    # ingestion_directory = ingestion_directories[cl.user_session.get("id")]
     index_name = index_names[cl.user_session.get("id")]
     password = passwords[cl.user_session.get("id")]
     approx_tag_limit = approx_tag_limits[cl.user_session.get("id")]
@@ -215,7 +208,7 @@ async def update_task_list():
 
     # Add tasks to the task list
     # task_ingestion_directory = cl.Task(title=f"Ingestion Directory: {ingestion_directory}", status=cl.TaskStatus.DONE)
-    task_build_id = cl.Task(title=f"Build ID: {BUILD_ID}", status=cl.TaskStatus.DONE) # FIXME
+    task_build_id = cl.Task(title=f"Build ID: {BUILD_ID}", status=cl.TaskStatus.DONE)
     task_index_name = cl.Task(title=f"Index Name: {index_name}", status=cl.TaskStatus.DONE)
     task_password = cl.Task(title=f"PDF Password: {password}", status=cl.TaskStatus.DONE)
     task_approx_tag_limit = cl.Task(title=f"Search Tags Limit: {approx_tag_limit}", status=cl.TaskStatus.DONE)
@@ -428,33 +421,22 @@ async def main(message: cl.Message):
                                             max_files = 100,
                                             timeout=1000).send()
             if files:
-                filenames = [file.name for file in files]
+                files_upload = {}
                 for file in files:
-                    log_message(file)
-                    index_name = index_names[cl.user_session.get("id")]            
-                    ingestion_directory = os.path.join(ROOT_PATH_INGESTION , index_name) 
-                    # ingestion_directory = os.path.join(ROOT_PATH_INGESTION, ingestion_directories[cl.user_session.get("id")])
-                    os.makedirs(ingestion_directory, exist_ok=True)
-                    download_directory = os.path.join(ingestion_directory, 'downloads')
-                    os.makedirs(download_directory, exist_ok=True)
-                    shutil.copy(file.path, os.path.join(download_directory, file.name.replace(" ", "_")))
+                    files_upload[file.name] = open(file.path, 'rb')
+                api_client.upload_files(index_name, files_upload)
                 
+                filenames = [file.name for file in files]
                 fns = ', '.join(filenames)
-                await cl.Message(content=f"File(s) '{fns}' have been uploaded to '{download_directory}'.").send()
+                await cl.Message(content=f"File(s) '{fns}' have been uploaded'.").send()
 
 
-        elif cmd == "ingest":
-            # ingestion_directory = os.path.join(ROOT_PATH_INGESTION, ingestion_directories[cl.user_session.get("id")])        
-            index_name = index_names[cl.user_session.get("id")]            
-            ingestion_directory = os.path.join(ROOT_PATH_INGESTION , index_name)     
-            download_directory = os.path.join(ingestion_directory, 'downloads')
+        elif cmd == "ingest":      
+            index_name = index_names[cl.user_session.get("id")]
             
-            await cl.Message(content=f"Starting ingestion of '{ingestion_directory}' into '{index_name}'.").send()
+            await cl.Message(content=f"Starting ingestion into '{index_name}'.").send()
 
             log_message("\n\nIngestion Variables:")
-            log_message("ROOT_PATH_INGESTION:", ROOT_PATH_INGESTION)
-            log_message("ingestion_directory:", ingestion_directory, type(ingestion_directory))
-            log_message("download_directory:", download_directory, type(download_directory))
             log_message("index_name:", index_names[cl.user_session.get("id")], type(index_names[cl.user_session.get("id")]))
             log_message("password:", passwords[cl.user_session.get("id")], type(passwords[cl.user_session.get("id")]))
             log_message("approx_tag_limit:", approx_tag_limits[cl.user_session.get("id")], type(approx_tag_limits[cl.user_session.get("id")]))
@@ -464,8 +446,6 @@ async def main(message: cl.Message):
             log_message("delete_existing_output_directory:", delete_existing_output_directory[cl.user_session.get("id")], type(delete_existing_output_directory[cl.user_session.get("id")]))
 
             ingestion_params_dict = {
-                "download_directory" : download_directory,
-                "ingestion_directory" : ingestion_directory,
                 "index_name" : index_name,
                 'num_threads' : available_models,
                 "password" : passwords[cl.user_session.get("id")],
@@ -477,23 +457,9 @@ async def main(message: cl.Message):
                 'verbose': True
             }
 
-            # await cl.make_async(ingest_docs_directory)(
-            #     directory=download_directory, 
-            #     ingestion_directory=ingestion_directory, 
-            #     index_name=index_names[cl.user_session.get("id")], 
-            #     password=passwords[cl.user_session.get("id")], 
-            #     approx_tag_limit=approx_tag_limits[cl.user_session.get("id")], 
-            #     pdf_extraction_mode=pdf_extraction_modes[cl.user_session.get("id")], 
-            #     docx_extraction_modes=docx_extraction_modes[cl.user_session.get("id")], 
-            #     num_threads=number_of_threads[cl.user_session.get("id")], 
-            #     delete_existing_output_dir=delete_existing_output_directory[cl.user_session.get("id")], 
-            #     processing_stages=None, 
-            #     verbose=False
-            # )
-
             await cl.make_async(ingest_docs_directory_using_processors)(ingestion_params_dict)
 
-            await cl.Message(content=f"Ingestion of '{ingestion_directory}' into '{index_name}' complete.").send()
+            await cl.Message(content=f"Ingestion into '{index_name}' complete.").send()
 
         elif cmd == "gen":
             try:

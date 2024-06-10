@@ -38,7 +38,6 @@ class AmlJob():
         self.subscription_id = subscription_id
         self.resource_group = resource_group
         self.workspace_name = workspace_name
-        self.run = None        
 
         svc_pr_password = os.environ.get("AML_PASSWORD")
 
@@ -164,8 +163,9 @@ class AmlJob():
 
         self.config.run_config.data_references[data_ref.data_reference_name] = data_ref.to_config()
 
-        self.run = self.exp.submit(self.config)
-        print(self.run)
+        run = self.exp.submit(self.config)
+        print(run)
+        return run.id
 
 
 
@@ -173,10 +173,5 @@ class AmlJob():
         run = self.ws.get_run(run_id)
         status = run.get_status()
         print(f"AML Run status: {status}")
-
-        if status not in ["Completed", "Failed", "Canceled"]:
-            self.run = run
-        else:
-            self.run = None
 
         return status

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, FileResponse
 from pydantic import BaseModel
 import re
@@ -106,6 +106,38 @@ def run_search(request: SearchRequest):
 def generate_section(section: str):
     return generate_section(section)
 
+# A GET operation to get the list of existing files in downaload directory
+@app.get("/{index_name}/files")
+def get_download_files(index_name: str):
+    existing_file_names = []
+    ingestion_directory = os.path.join(ROOT_PATH_INGESTION , index_name)
+    download_directory = os.path.join(ingestion_directory, 'downloads')
+    try:
+        files = os.listdir(download_directory)
+        existing_file_names = [file for file in files if os.path.isfile(os.path.join(download_directory, file))]
+    except Exception as e:
+        log_message(f"Not able to get list of current files in the Downloads directory.\nException:\n{str(e)}")
+        
+    return existing_file_names
+
+# A POST operation to upload files in batches in download directory
+@app.post("/{index_name}/upload_files")
+def upload_files(index_name: str, request: Request):
+    
+    ingestion_directory = os.path.join(ROOT_PATH_INGESTION , index_name)  
+    os.makedirs(ingestion_directory, exist_ok=True)   
+    download_directory = os.path.join(ingestion_directory, 'downloads')
+    os.makedirs(download_directory, exist_ok=True)
+    
+    for file in request.files:
+        file_path = os.path.join(download_directory, file.filename.replace(" ", "_"))
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+    ic.update_cosmos_with_download_files(index_name, download_directory)
+        
+    return None
+
 class IngestionRequest(BaseModel):
     download_directory: str
     ingestion_directory: str
@@ -122,8 +154,17 @@ class IngestionRequest(BaseModel):
 # A POST /ingest that takes a JSON with the following structure:
 @app.post("/ingest")
 def run_ingestion(request: IngestionRequest):
-    # invoke ingestion function matching the signature using the request object
-    return ingest_doc_using_processors(request)
+    
+    ingestion_directory = os.path.join(ROOT_PATH_INGESTION , request.get("index_name"))  
+    os.makedirs(ingestion_directory, exist_ok=True)   
+    download_directory = os.path.join(ingestion_directory, 'downloads')
+    os.makedirs(download_directory, exist_ok=True)
+    
+    dict = request.model_dump()
+    dict['download_directory'] = download_directory
+    dict['ingestion_directory'] = ingestion_directory
+    
+    return ingest_doc_using_processors(dict)
 
 cogsearch = CogSearchHttpRequest()
 # A GET to return the list of cog_search indexes
@@ -148,8 +189,8 @@ def get_indexing_status(index_name: str):
 
 # A POST operation to update AmlJob status
 @app.post("/index/{index_name}/status")
-def update_aml_job_status(index_name: str, request):
-    return ic.update_aml_job_status(index_name, requests.get("status"))
+def update_aml_job_status(index_name: str, request: Request):
+    return ic.update_aml_job_status(index_name, request.get("status"))
 
 # A DELETE operation to clear indexing status
 @app.delete("/index/{index_name}/status")
@@ -157,10 +198,19 @@ def clear_indexing_status(index_name: str):
     ic.clear_indexing_in_progress(index_name)
     return None
 
-# A POST operation to set aml job id for an index
-@app.post("/index/{index_name}/aml_job_id")
-def set_aml_job_id(index_name: str, request):
-    return ic.update_aml_job_id(index_name, request.get("run_id"), status = "running")
+aml_job = AmlJob()
+# A POST operation to submit an AmlJob
+@app.post("/index/{index_name}/job")
+def submit_aml_job(index_name: str, request: Request):
+    # CHECKME - need to pass the request object to the submit_ingestion_job function
+    run_id = aml_job.submit_ingestion_job(request, script = 'ingest_doc.py', source_directory='./code')
+    ic.update_aml_job_id(index_name, run_id, status = "running")
+    return None
+
+@app.get("/job/{job_id}")
+def set_aml_job_id(job_id: str):
+    return aml_job.check_job_status_using_run_id(job_id)
+
 
 ROOT_PATH_INGESTION = os.getenv("ROOT_PATH_INGESTION")
 LOG_CONTAINER_NAME = os.getenv("COSMOS_LOG_CONTAINER")
@@ -187,12 +237,6 @@ def copy_processing_plan_to_index(index_name: str):
     os.makedirs(ingestion_directory, exist_ok=True)
     write_to_file(plans, index_processing_plan_path, 'w')
     return None
-
-# A POST request to update cosmos with download file
-@app.post("/index/{index_name}/download_files")
-def update_cosmos(index_name:str, request: dict):
-    download_directory = request.get("download_directory")
-    return ic.update_cosmos_with_download_files(index_name, download_directory)
 
 # A GET to fetch cosmos log
 @app.get("/indexes/{index_name}/log")
