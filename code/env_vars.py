@@ -113,6 +113,7 @@ AML_TENANT_ID = os.environ.get('AML_TENANT_ID', '')
 AML_SERVICE_PRINCIPAL_ID = os.environ.get('AML_SERVICE_PRINCIPAL_ID', '')
 AML_PASSWORD = os.environ.get('AML_PASSWORD', '')
 AML_VMSIZE = os.environ.get('AML_VMSIZE', 'Standard_DS3_v2')
+AML_CLUSTER_NAME = os.environ.get('AML_CLUSTER_NAME','mm-doc-cpu-cluster')
 
 FULL_TEXT_TOKEN_LIMIT = int(os.environ.get('FULL_TEXT_TOKEN_LIMIT', '100000'))
 

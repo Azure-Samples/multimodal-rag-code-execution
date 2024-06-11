@@ -1,4 +1,3 @@
-import os
 import json
 import logging
 
@@ -24,7 +23,7 @@ class AmlJob():
                 account_key = AZURE_FILE_SHARE_KEY,
         ):
 
-        self.cpu_cluster_name = os.environ.get("AML_CLUSTER_NAME", 'mm-doc-cpu-cluster')
+        self.cpu_cluster_name = AML_CLUSTER_NAME
         self.file_share_datastore_name='research_copilot_datastore'
         self.experiments_name = 'research_copilot_experiments'
         self.env_name = 'research_copilot_env'
@@ -35,31 +34,28 @@ class AmlJob():
         self.subscription_id = subscription_id
         self.resource_group = resource_group
         self.workspace_name = workspace_name
-
-        svc_pr_password = os.environ.get("AML_PASSWORD")
-
+                
         svc_pr = ServicePrincipalAuthentication(
-            tenant_id=os.environ.get("AML_TENANT_ID"),
-            service_principal_id=os.environ.get("AML_SERVICE_PRINCIPAL_ID"),
-            service_principal_password=svc_pr_password)
+            tenant_id=AML_TENANT_ID,
+            service_principal_id=AML_SERVICE_PRINCIPAL_ID,
+            service_principal_password=AML_PASSWORD)
 
         try:
+            logging.info(f'Accessing workspace {workspace_name} using environment variables.')
             self.ws = Workspace(
                     subscription_id=subscription_id,
                     resource_group=resource_group,
                     workspace_name=workspace_name,
                     auth=svc_pr
-                )
-            logging.info(f'Accessing workspace {workspace_name} using environment variables.')
-            
+                )            
         except Exception as e:
             logging.error(f"Could not access AML Workspace: {str(e)}")
             try:
                 self.ws = Workspace.from_config()
-                logging.info(f'Accessing workspace using config.json')
+                logging.warn(f'Accessing workspace using config.json')
                 
             except Exception as e:
-                logging.error(f"Could not create AML Workspace: {str(e)}")
+                logging.critical(f"Could not create AML Workspace: {str(e)}")
 
         self.cpu_cluster = None
         self.env = None
@@ -112,9 +108,7 @@ class AmlJob():
             logging.info(f'Found existing cluster {self.cpu_cluster_name}, use it')
 
         except ComputeTargetException:
-            compute_config = AmlCompute.provisioning_configuration( vm_size=os.environ.get("AML_VMSIZE", 'Standard_DS3_v2'),
-                                                                    max_nodes=3, 
-                                                                    idle_seconds_before_scaledown=2400)
+            compute_config = AmlCompute.provisioning_configuration(vm_size=AML_VMSIZE, max_nodes=3, idle_seconds_before_scaledown=2400)
             self.cpu_cluster = ComputeTarget.create(self.ws, self.cpu_cluster_name, compute_config)
             self.cpu_cluster.wait_for_completion(show_output=True)
             logging.warn(f'Creating new cluster {self.cpu_cluster_name}.')

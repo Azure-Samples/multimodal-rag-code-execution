@@ -39,6 +39,7 @@ uvicorn
 fastapi
 python-multipart
 colorlog
+invoke
 
 ## Use 2023-10-31-preview
 azure-core

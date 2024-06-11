@@ -4,6 +4,8 @@ import copy
 
 from env_vars import *
 
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
+
 
 def init_container(containerId, partitionKeyPath, indexing_policy, **kwargs):
 
@@ -15,7 +17,7 @@ def init_container(containerId, partitionKeyPath, indexing_policy, **kwargs):
         try:
             container = database.create_container_if_not_exists(id=containerId, partition_key=partitionKeyPath, indexing_policy=indexing_policy, **kwargs)
         except Exception as e:
-            print(f"Encountered error {e} while creating the container")
+            logging.error(f"Encountered error {e} while creating the container")
 
     return container
 
@@ -31,7 +33,7 @@ try:
     database = client.create_database_if_not_exists(id=COSMOS_DB_NAME)
 
 except Exception as e:
-    print(f"Failed to initialize Cosmos DB container: {e}")
+    logging.error(f"Failed to initialize Cosmos DB container: {e}")
 
 
 
@@ -63,7 +65,7 @@ class SCCosmosClient():
         try:
             return self.container.read_item(item=doc_id, partition_key=partition_key)
         except Exception as e:
-            print(f"Cosmos Read Document Exception: {e}")
+            logging.error(f"Cosmos Read Document Exception: {e}")
             return None
        
 
@@ -78,8 +80,7 @@ class SCCosmosClient():
             return document
 
         except Exception as e:
-            print(f"Cosmos Get Documnet by ID Exception: {e}")
-            logging.warning(f"Cosmos Get Documnet by ID Exception: {e}")
+            logging.warn(f"Cosmos Get Document by ID Exception: {e}")
             return None
 
 
@@ -89,7 +90,6 @@ class SCCosmosClient():
             return self.container.delete_item(doc_id, partition_key=partition_key)
         except Exception as e:
             logging.error(f"Cosmos Delete Document Exception: {e}")
-            print(f"CosmosDelete Document Exception: {e}")
 
 
     def clean_document(self, document):
@@ -114,6 +114,4 @@ class SCCosmosClient():
             return self.container.upsert_item(document)
         except Exception as e:
             logging.error(f"Upsert Document Exception: {e}")
-            print(f"Upsert Document Exception: {e}")
             return None
-

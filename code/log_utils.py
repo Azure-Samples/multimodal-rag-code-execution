@@ -3,7 +3,7 @@ import logging
 from colorlog import ColoredFormatter
 
 formatter = ColoredFormatter(
-    "%(log_color)s%(levelname)s%(reset)s:\t%(message)s",
+    "%(log_color)s%(levelname)s%(reset)s(%(filename)s):\t%(message)s",
     log_colors={
         'DEBUG': 'blue',
         'INFO': 'green',

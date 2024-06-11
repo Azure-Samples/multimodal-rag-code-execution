@@ -41,7 +41,7 @@ class IngestionCosmosHelper():
 
     def check_if_indexing_in_progress(self, index_name):
         document = self.get_index_document(index_name)
-        # print("Document1", document)
+        # logging.info("Document1", document)
 
         if document is not None:
             file_status = [ x['status'] for x in document['files_uploaded']]
@@ -72,10 +72,10 @@ class IngestionCosmosHelper():
     def update_index_document(self, document, download_directory):
         files_object = []
         ingested_files = [ x['file_name'] for x in document['files_uploaded']]
-        print(f"Ingested files: {ingested_files}")
+        logging.info(f"Ingested files: {ingested_files}")
 
         for root, dirs, files in os.walk(download_directory):
-            print(f"Found the following files: {files} in the downloads dir {download_directory}")
+            logging.info(f"Found the following files: {files} in the downloads dir {download_directory}")
             
             for file in files:
                 
@@ -89,10 +89,10 @@ class IngestionCosmosHelper():
                 ## If file is new, check for extension, ingested status, and add to the index
                 extension = os.path.splitext(os.path.basename(file))[1].strip().lower()
                 if extension not in ['.pdf', '.docx', '.xlsx', '.doc', '.xls', '.csv']: 
-                    print(f"Discarding {file}. Extension not supported.")
+                    logging.info(f"Discarding {file}. Extension not supported.")
                     continue
                 
-                print(os.path.join(root, file + '.ingested'), os.path.exists(os.path.join(root, file + '.ingested')))
+                logging.info(os.path.join(root, file + '.ingested'), os.path.exists(os.path.join(root, file + '.ingested')))
                 if os.path.exists(os.path.join(root, file + '.ingested')):
                     status = 'Ingested'
                 else:
@@ -134,7 +134,7 @@ class IngestionCosmosHelper():
         document = self.get_index_document(index_name)
         document['job_id'] = run_id
         if status is not None: document['job_status'] = status
-        print(f"\n\nUpdating AML Job Run id in Cosmos: {run_id}\n\n")
+        logging.info(f"Updating AML Job Run id in Cosmos: {run_id}")
         self.upsert_document(document, index_name)
 
 
@@ -145,7 +145,7 @@ class IngestionCosmosHelper():
     def update_aml_job_status(self, index_name, status):
         document = self.get_index_document(index_name)
         document['job_status'] = status
-        print(f"\n\nUpdating AML Job Run Status in Cosmos: {status}\n\n")
+        logging.info(f"Updating AML Job Run Status in Cosmos: {status}")
         self.upsert_document(document, index_name)
 
 
@@ -165,7 +165,7 @@ class IngestionCosmosHelper():
             try:
                 self.create_index_document(document)
             except Exception as e:
-                print(f"Error creating new document: {e}")
+                logging.error(f"Error creating new document: {e}")
                 raise e
 
         return document
