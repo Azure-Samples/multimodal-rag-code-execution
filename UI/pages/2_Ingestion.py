@@ -1,59 +1,168 @@
 import streamlit as st
-import sys
 import os
-import json
 import requests
-import logging
-import subprocess
 import time
-
 from itertools import groupby
 from dotenv import load_dotenv
+
 load_dotenv()
+INITIAL_INDEX = os.getenv("INITIAL_INDEX")
 
-sys.path.append("../code")
+# Set up logging format
+import logging
+from colorlog import ColoredFormatter
 
-from env_vars import INITIAL_INDEX
+formatter = ColoredFormatter(
+    "%(log_color)s%(levelname)s%(reset)s:\t%(message)s",
+    log_colors={
+        'DEBUG': 'blue',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'red,bg_white',
+    }
+)
+
+# Create a logger
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Create a console handler and set the formatter
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+
+# Add the console handler to the logger
+logger.addHandler(console_handler)
 
 class APIClient:
     def __init__(self):
-        self.base_url = os.getenv("API_BASE_URL")
+        self.base_url = os.getenv("API_BASE_URL").strip("/")
         
     def get_processing_plan(self):
-        return requests.get(f"{self.base_url}/processing_plan").json()
+        try:
+            response = requests.get(f"{self.base_url}/processing_plan")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error retrieving processing plan: {e}")
+            return None
     
     def get_models(self):
-        return requests.get(f"{self.base_url}/models").json()
+        try:
+            response = requests.get(f"{self.base_url}/models")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error retrieving models: {e}")
+            return None
     
     def upload_files(self, index_name, files):
-        return requests.post(f"{self.base_url}/index/{index_name}/upload_files", files=files)
+        try:
+            response = requests.post(f"{self.base_url}/index/{index_name}/files", files=files)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error uploading files: {e}")
+            return None
     
     def get_existing_files(self, index_name):
-        return requests.get(f"{self.base_url}/index/{index_name}/files").json()
+        try:
+            response = requests.get(f"{self.base_url}/index/{index_name}/files")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error retrieving existing files: {e}")
+            return None
     
     def get_index_documents(self, index_name):
-        return requests.get(f"{self.base_url}/index/{index_name}/documents").json()
+        try:
+            response = requests.get(f"{self.base_url}/index/{index_name}/documents")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error retrieving index documents: {e}")
+            return None
     
     def get_index_status(self, index_name):
-        return requests.get(f"{self.base_url}/index/{index_name}/status").json()
+        try:
+            response = requests.get(f"{self.base_url}/index/{index_name}/status")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error retrieving index status: {e}")
+            return None
     
     def update_index_status(self, index_name, status):
-        return requests.post("/index/{index_name}/status", json={"status": status}).json()
+        try:
+            response = requests.post(f"{self.base_url}/index/{index_name}/status", json={"status": status})
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error updating index status: {e}")
+            return None
     
     def get_index_log(self, index_name):
-        return requests.get(f"{self.base_url}/index/{index_name}/log").json()
+        try:
+            response = requests.get(f"{self.base_url}/index/{index_name}/log")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error retrieving index log: {e}")
+            return None
     
     def copy_processing_plan_to_index(self, index_name):
-        return requests.post(f"{self.base_url}/index/{index_name}/plan").json()
+        try:
+            response = requests.post(f"{self.base_url}/index/{index_name}/plan")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error copying processing plan to index: {e}")
+            return None
     
     def clear_indexing_status(self, index_name):
-        return requests.delete(f"{self.base_url}/index/{index_name}/status").json()
+        try:
+            response = requests.delete(f"{self.base_url}/index/{index_name}/status")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error clearing indexing status: {e}")
+            return None
     
     def submit_ingestion_job(self, index_name, ingestion_params_dict):
-        return requests.post(f"{self.base_url}/index/{index_name}/job", json=ingestion_params_dict).json()
+        try:
+            response = requests.post(f"{self.base_url}/index/{index_name}/aml_job", json=ingestion_params_dict)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error submitting ingestion job: {e}")
+            return None
+    
+    def submit_local_ingestion_job(self, index_name, ingestion_params_dict):
+        try:
+            response = requests.post(f"{self.base_url}/index/{index_name}/local_job", json=ingestion_params_dict)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error submitting local ingestion job: {e}")
+            return None
     
     def get_job_status(self, job_id):
-        return requests.get(f"{self.base_url}/job/{job_id}/status").json()
+        try:
+            response = requests.get(f"{self.base_url}/job/{job_id}")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error retrieving job status: {e}")
+            return None
+    
+    def get_local_job_status(self, pid):
+        try:
+            response = requests.get(f"{self.base_url}/local_job/{pid}")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error retrieving local job status: {e}")
+            return None
     
 api_client = APIClient()
 
@@ -82,8 +191,8 @@ if "num_threads" not in st.session_state:
 if "proc_plans" not in st.session_state:
     st.session_state.proc_plans = api_client.get_processing_plan()
 
-if "process" not in st.session_state:
-    st.session_state.process = None
+if "process_id" not in st.session_state:
+    st.session_state.process_id = None
 
 if "job_status" not in st.session_state:
     st.session_state.job_status = ''
@@ -92,7 +201,7 @@ if "warning" not in st.session_state:
     st.session_state.warning = st.empty()
 
 
-def log_message(message, level):
+def log_message(message, level = "info"):
     if level == 'debug':
         logging.debug(message)
     elif level == 'info':
@@ -134,22 +243,24 @@ chunk_overlap = int(col1.text_input("Chunk Overlap:", '128'))
 index_name = col2.text_input("Index name:", st.session_state.get('index_name', INITIAL_INDEX))
 index_name = index_name.strip()
 
-gpt4_models = api_client.get_models()
-available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
+if "available_models" not in st.session_state:
+    gpt4_models = api_client.get_models()
+    st.session_state.available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
 
 
 # number_threads = col2.slider("Number of threads:", 1, available_models, available_models)
-number_threads = col2.text_input("Number of threads:", available_models, disabled=True)
+number_threads = col2.text_input("Number of threads:", st.session_state.available_models, disabled=True)
 pdf_password = col2.text_input("PDF password:")
 job_execution = col2.selectbox("Job Execution:", ["Azure Machine Learning", "Subprocess (Local Testing)"] )
 uploaded_files = col2.file_uploader("Choose a file(s) :file_folder:", accept_multiple_files=True)
 
 
 st.session_state.num_threads = number_threads
+st.session_state.aml_job_run_id = None
 
 def proc_plan_chance():
     st.session_state.proc_plans = st.session_state.processingPlansKey 
-    log_message("Processing Plans Changed: ", st.session_state.proc_plans)
+    log_message(f"Processing Plans Changed: {st.session_state.proc_plans}")
 
 st.text_area("Processing Plans (Leave as Default - no need to change)", value=st.session_state.proc_plans, height=150, key="processingPlansKey", on_change=proc_plan_chance) 
 
@@ -168,38 +279,14 @@ clear_ingestion = clear_col.button("Clear Ingesting")
 refresh = spinner_col.button("Refresh")
 
 col2.write(f":blue[Index name:] :green[{index_name}]")
-# col2.text(f":blue[Job Status:] :green[{st.session_state.job_status}]")
 
-existing_file_names = api_client.get_existing_files(index_name)
-
-
-## COPY UPLOADED FILES TO THE DOWNLOAD DIRECTORY AND RENAME THEM
-# for uploaded_file in uploaded_files :
-#     log_message("Uploaded Files -- before processing", uploaded_files)
-#     #Use the file here. For example, you can read it:
-#     if uploaded_file.name.replace(" ", "_") in st.session_state.files_ingested: continue
-
-#     new_name = os.path.join(download_directory, uploaded_file.name.replace(" ", "_"))
-#     old_name = os.path.join(download_directory, uploaded_file.name)
-
-#     if not os.path.exists(new_name):
-#         with open(os.path.join(download_directory, uploaded_file.name), "wb") as f:
-#             f.write(uploaded_file.getvalue())
-
-#         try:
-#             os.rename(old_name, new_name)      
-#         except Exception as e:
-#             log_message(f"Error renaming file to {new_name}. Most likely a problem with permissions accessing the downloads folder {download_directory}.\nException:\n{e}")
-
-#     st.session_state.files_ingested[uploaded_file.name.replace(" ", "_")] = "Not ingested"
-#     log_message("st.session_state.files_ingested", st.session_state.files_ingested)
-
-file_to_upload = []
-for uploaded_file in uploaded_files:
-    file = uploaded_file.getvalue()
-    file_to_upload.append(('file', (uploaded_file.name, file, uploaded_file.type)))
-    
-api_client.upload_files(index_name, file_to_upload)
+if uploaded_files:
+    file_to_upload = []
+    for uploaded_file in uploaded_files:
+        file = uploaded_file.getvalue()
+        file_to_upload.append(('files', (uploaded_file.name, file, uploaded_file.type)))
+        
+    api_client.upload_files(index_name, file_to_upload)
 
 
 bar_progress = st.progress(0, text="Please click on ingestion to start the process")
@@ -241,16 +328,12 @@ def update_file_status():
 def check_if_indexing_in_progress():
     log_message("check_if_indexing_in_progress")
     try:
-        if "aml_job_id" not in st.session_state:
-                st.session_state.aml_job_id = None
-
-        st.session_state.indexing, document = api_client.get_index_status(index_name)
-        # log_message("Document", document, "Indexing State", st.session_state.indexing)
+        status, document = api_client.get_index_status(index_name)
 
         if document is not None:
-            job_id = document.get('job_id', '')
-            job_status = document.get('job_status', '')
-            log_message("\n\nJob ID Found in Cosmos", job_id, "\n\n")
+            job_id = document['job_id']
+            job_status = document['job_status']
+            log_message(f"Job ID Found in Cosmos {job_id}")
 
             if (job_id != '') and (job_status == 'running'):
                 try:    
@@ -266,9 +349,10 @@ def check_if_indexing_in_progress():
                         api_client.update_index_status(index_name, "not_running")
 
                 except Exception as e:
-                    log_message(f"Error getting AML job status: {e}")
+                    log_message(f"Error getting AML job status: {e}", level="error")
 
     except Exception as e:
+        log_message(f"Error getting log document: {e}", level="error")
         st.session_state.warning = st.sidebar.warning(f"Error getting log document: {e}")
 
 def check_job_status():
@@ -281,7 +365,7 @@ def check_job_status():
         if st.session_state.aml_job_run_id is not None:
             status = api_client.get_job_status(st.session_state.aml_job_run_id)
             log_message(f"Status of AML Job {status}")
-            log_message("AML Job Run ID", st.session_state.aml_job_run_id)
+            log_message(f"AML Job Run ID: {st.session_state.aml_job_run_id}")
             st.session_state.warning.empty()
             st.session_state.job_status = f"AML Job is: {status}"
             st.session_state.warning = st.sidebar.info(f"AML Job is: {status}", icon="ℹ️")
@@ -293,20 +377,19 @@ def check_job_status():
                 # update_file_list_UI()
                 api_client.update_index_status(index_name, "not_running")
 
-        if st.session_state.process is not None:
-            status = st.session_state.process.poll()
+        if st.session_state.process_id is not None:
+            status = api_client.get_local_job_status(st.session_state.process_id)
             st.session_state.warning.empty()
             log_message(f"Status of Subprocess {status}")
+            st.session_state.job_status = f"Python Subprocess is: {status}"
 
-            if status is not None:
-                st.session_state.job_status = f"Python Subprocess is: Completed"
+            if status == "completed":
                 st.session_state.warning = st.sidebar.info(f"Python Subprocess is: Completed", icon="ℹ️")
                 st.session_state.indexing = False
-                st.session_state.process = None
+                st.session_state.process_id = None
                 check_if_indexing_in_progress()
                 # update_file_list_UI()
             else:
-                st.session_state.job_status = f"Python Subprocess is: Running"
                 st.session_state.warning = st.sidebar.info(f"Python Subprocess is: Running", icon="ℹ️")
 
         if st.session_state.aml_job_run_id is None:
@@ -372,7 +455,7 @@ if copy_proc_plan:
         # st.session_state.warning = st.sidebar.success("Processing plan copied successfully.")
     except Exception as e:
         st.session_state.warning = st.sidebar.error(f"Error copying processing plan: {e}")
-        log_message("Error copying processing plan: ", e)
+        log_message(f"Error copying processing plan: {e}", level="error")
 
 if index_name:
     log_message("if index_name")
@@ -397,10 +480,10 @@ if start_ingestion:
         try: 
             document = api_client.get_index_log(index_name)
             if document is not None:
-                 pending_files = [x['file_name'] for x in document['files_uploaded'] if (x['status'] == 'Not ingested') or (x['status'] == 'Ingesting...')]
-                 log_message("Pending files: ", pending_files)
+                pending_files = [x['file_name'] for x in document['files_uploaded'] if (x['status'] == 'Not ingested') or (x['status'] == 'Ingesting...')]
+                log_message(f"Pending files: {pending_files}")
         except Exception as e:
-            log_message("Error getting log document: ", e)
+            log_message(f"Error getting log document: {e}", level="error")
         
 
         if (len(uploaded_files) == 0) and (len(pending_files) == 0):
@@ -431,44 +514,28 @@ if start_ingestion:
                 xlsx_extraction_option = 'openpyxl'
 
             ingestion_params_dict = {
-                "download_directory" : download_directory,
-                "ingestion_directory" : ingestion_directory,
                 "index_name" : index_name,
-                'num_threads' : available_models,
+                'num_threads' : st.session_state.available_models,
                 "password" : pdf_password,
                 "delete_existing_output_dir" : delete_ingestion_folder,
                 "processing_mode_pdf" : pdf_extraction_option,
                 "processing_mode_docx" : docx_extraction_option,
                 'processing_mode_xlsx' : xlsx_extraction_option,
-                'models': gpt4_models,
-                'vision_models': gpt4_models,
                 'chunk_size': int(chunk_size),
                 'chunk_overlap': int(chunk_overlap),
                 'verbose': True
             }
 
-            log_message("Ingestion Param dict", ingestion_params_dict)
+            log_message(f"Ingestion Param dict: {ingestion_params_dict}")
 
             try:
-                if job_execution == "Azure Machine Learning":
-                    log_message("Current working directory:", os.path.abspath(os.getcwd()))
-                    log_message("ROOT_PATH_INGESTION:", ROOT_PATH_INGESTION)
-
-                    st.write(f"Current working directory: {os.path.abspath(os.getcwd())}")
-                    st.write(f"ROOT_PATH_INGESTION: {ROOT_PATH_INGESTION}")
-
-                    st.write(f"\n\nCWD Files: {os.listdir(os.getcwd())}")
-                    st.write(f"ROOT_PATH_INGESTION Files: {os.listdir(ROOT_PATH_INGESTION)}")
-                    st.write(f"Root Path Files: {os.listdir('./')}\n\n")
-                    
+                if job_execution == "Azure Machine Learning":                    
                     st.session_state.aml_job_id = api_client.submit_ingestion_job(index_name, ingestion_params_dict)
                 
                 elif job_execution == "Subprocess (Local Testing)":
-                    process = subprocess.Popen(["python", "../code/ingest_doc.py", 
-                                    "--ingestion_params_dict", json.dumps(ingestion_params_dict),
-                                    ])
+                    process_id = api_client.submit_local_ingestion_job(index_name, ingestion_params_dict)
 
-                    st.session_state.process = process
+                    st.session_state.process_id = process_id
                 else:
                     st.session_state.warning = st.sidebar.warning("This Job Execution mode is not supported yet.")
 
@@ -476,7 +543,7 @@ if start_ingestion:
                 st.session_state.warning = st.sidebar.error(f"Error starting ingestion job: {e}")
                 st.session_state.indexing = False
                 append_log_message("Error starting ingestion job", e)
-                log_message("Error starting ingestion job", e)
+                log_message(f"Error starting ingestion job: {e}", level="error")
 
 if st.session_state.indexing or refresh:
     log_message("while st.session_state.indexing")

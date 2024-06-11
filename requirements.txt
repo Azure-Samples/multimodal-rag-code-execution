@@ -34,6 +34,12 @@ Pillow
 openpyxl
 pyperclip
 
+# APIs
+uvicorn
+fastapi
+python-multipart
+colorlog
+
 ## Use 2023-10-31-preview
 azure-core
 azure-ai-formrecognizer

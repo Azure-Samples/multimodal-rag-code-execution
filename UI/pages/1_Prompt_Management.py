@@ -1,44 +1,118 @@
 import streamlit as st
-import sys
 import os
 import uuid
 import requests
-sys.path.append("../code")
 import pyperclip as pc
+
+# Set up logging format
+import logging
+from colorlog import ColoredFormatter
+import requests
+from requests.exceptions import HTTPError
+formatter = ColoredFormatter(
+    "%(log_color)s%(levelname)s%(reset)s:\t%(message)s",
+    log_colors={
+        'DEBUG': 'blue',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'red,bg_white',
+    }
+)
+
+# Create a logger
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Create a console handler and set the formatter
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+
+# Add the console handler to the logger
+logger.addHandler(console_handler)
 
 class APIClient:
     def __init__(self):
-        self.base_url = os.getenv("API_BASE_URL")
+        self.base_url = os.getenv("API_BASE_URL").strip("/")
 
     def get_prompts(self):
-        return requests.get(f"{self.base_url}/prompts").json()
+        try:
+            logging.info("Getting prompts from API")
+            response = requests.get(f"{self.base_url}/prompt")
+            response.raise_for_status()
+            return response.json()
+        except HTTPError as e:
+            logging.error(f"Failed to get prompts: {e}")
+            raise
 
     def get_indexes(self):
-        return requests.get(f"{self.base_url}/indexes").json()
+        try:
+            logging.info("Getting indexes from API")
+            response = requests.get(f"{self.base_url}/index")
+            response.raise_for_status()
+            return response.json()
+        except HTTPError as e:
+            logging.error(f"Failed to get indexes: {e}")
+            raise
 
     def update_prompt(self, prompt):
-        requests.patch(f"{self.base_url}/prompts/{prompt['id']}", json=prompt)
-        
+        try:
+            logging.info(f"Updating prompt with ID: {prompt['id']}")
+            response = requests.patch(f"{self.base_url}/prompt", json=prompt)
+            response.raise_for_status()
+        except HTTPError as e:
+            logging.error(f"Failed to update prompt: {e}")
+            raise
+
     def create_prompt(self, prompt):
-        requests.post(f"{self.base_url}/prompts", json=prompt)
+        try:
+            logging.info(f"Creating new prompt with ID: {prompt['id']}")
+            response = requests.post(f"{self.base_url}/prompt", json=prompt)
+            response.raise_for_status()
+        except HTTPError as e:
+            logging.error(f"Failed to create prompt: {e}")
+            raise
 
     def delete_prompt(self, category_name):
-        prompt = self.get_prompt(category_name)
-        requests.delete(f"{self.base_url}/prompts/{prompt['id']}")
+        prompt = self.get_prompt_by_category(category_name)
+        if prompt:
+            try:
+                logging.info(f"Deleting prompt with ID: {prompt['id']}")
+                response = requests.delete(f"{self.base_url}/prompt/{prompt['id']}")
+                response.raise_for_status()
+            except HTTPError as e:
+                logging.error(f"Failed to delete prompt: {e}")
+                raise
+        else:
+            logging.warning(f"Prompt with category name '{category_name}' not found.")
 
     def generate_new_section(self, section):
-        return requests.post(f"{self.base_url}/generate_new_section", json=section).json()
+        try:
+            logging.info("Generating new section")
+            response = requests.post(f"{self.base_url}/generate_section", json=section)
+            response.raise_for_status()
+            return response.json()
+        except HTTPError as e:
+            logging.error(f"Failed to generate new section: {e}")
+            raise
 
     def generate_content(self, content, index_name):
-        return requests.post(f"{self.base_url}/search", 
-                             json={
-                                 "query": content, 
-                                 "index_name": index_name, 
-                                 "computation_approach": "AssistantsAPI", 
-                                 "computation_decision":"LLM"
-                             }).json()
+        try:
+            logging.info("Generating content")
+            response = requests.post(f"{self.base_url}/search", 
+                                     json={
+                                         "query": content, 
+                                         "index_name": index_name, 
+                                         "computation_approach": "AssistantsAPI", 
+                                         "computation_decision":"LLM"
+                                     })
+            response.raise_for_status()
+            return response.json()
+        except HTTPError as e:
+            logging.error(f"Failed to generate content: {e}")
+            raise
 
-    def get_prompt(self, category_name):
+    def get_prompt_by_category(self, category_name):
         prompts = self.get_prompts()
         return next((item for item in prompts if item['Category'] == category_name), None)
 
@@ -282,6 +356,7 @@ if st.sidebar.button("Delete Prompt"):
     if delete_category_name:
         # Confirmation dialog to prevent accidental deletion
         if st.sidebar.checkbox("I understand this action cannot be undone and all data in the category will be lost."):
+            logging.info(f"Deleting prompt with category name '{delete_category_name}'")
             api_client.delete_prompt(delete_category_name)
     else:
         st.sidebar.warning("Please select a prompt to delete.")

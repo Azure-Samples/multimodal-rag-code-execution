@@ -1,23 +1,14 @@
 import os
+import requests
 import logging
-import os
+
 from dotenv import load_dotenv
 load_dotenv()
 
 import chainlit as cl
-from chainlit.playground.providers import ChatOpenAI
 from chainlit import run_sync
-from time import sleep
-
-import sys
-import requests
-
-sys.path.append("../code")
 
 from env_vars import ROOT_PATH_INGESTION, INITIAL_INDEX, SEARCH_TOP_N, BUILD_ID
-
-from utils.bcolors import bcolors as bc  
-
 
 def log_message(message, level):
     if level == 'debug':
@@ -36,32 +27,27 @@ def log_message(message, level):
 
 class APIClient:
     def __init__(self):
-        self.base_url = os.getenv('API_BASE_URL')
+        self.base_url = os.getenv('API_BASE_URL').strip("/")
 
     def get_models(self):
-        endpoint = '/models'
-        response = requests.get(self.base_url + endpoint)
+        response = requests.get(f"{self.base_url}/models")
         return response.json()
 
     def get_prompts(self):
-        endpoint = '/prompts'
-        response = requests.get(self.base_url + endpoint)
+        response = requests.get(f"{self.base_url}/prompt")
         return response.json()
 
     def get_prompt(self, p):
-        endpoint = f'/prompts/{p}'
-        response = requests.get(self.base_url + endpoint)
+        response = requests.get(f'{self.base_url}/prompt/{p}')
         return response.json()
 
     def ingest_docs(self, ingestion_params):
-        endpoint = '/ingest'
-        response = requests.post(self.base_url + endpoint, json=ingestion_params)
+        response = requests.post(f"{self.base_url}/ingest", json=ingestion_params)
         return response.json()
 
     def get_file(self, asset):
-        endpoint = '/file'
         payload = {'asset': asset}
-        response = requests.get(self.base_url + endpoint, json=payload)
+        response = requests.get(f"{self.base_url}/file", json=payload)
         return response.json()
 
     def search(self, query_params):
@@ -69,49 +55,15 @@ class APIClient:
         return response.json()
     
     def upload_files(self, index_name, files):
-        response = requests.post(f"{self.base_url}/{index_name}/upload_files", files=files)
+        response = requests.post(f"{self.base_url}/{index_name}/files", files=files)
         return response.json()
 
 api_client = APIClient()
-
-### FIXING THE CURRENT WORKING DIRECTORY
-
-log_message("ROOT_PATH_INGESTION:", ROOT_PATH_INGESTION)
-log_message("Current working directory:", os.path.abspath(os.getcwd()))
-log_message("Full path", os.path.abspath(ROOT_PATH_INGESTION))
 
 try: 
     init_index_name = INITIAL_INDEX
 except:
     init_index_name = 'rag-data'
-
-cwd = os.path.join(ROOT_PATH_INGESTION, init_index_name)
-log_message("Changing to NEW Current Directory", cwd)
-os.makedirs(cwd, exist_ok=True)
-os.chdir(cwd)
-
-log_message("Current working directory:", os.path.abspath(os.getcwd()))
-
-
-
-######################  TEST INSTALLATION  ######################
-## pip install chainlit
-## chainlit run chat.py -w --port 8050
-######################  TEST INSTALLATION  ######################
-
-
-#we will be using the index name to look for the path of folders in the container.
-# init_index_name = 'openai_faq'
-# init_ingestion_directory = init_ingestion_directory + '/'+ init_index_name
-# init_ingestion_directory=ROOT_PATH_INGESTION
-
-
-
-init_ingestion_directory = cwd
-
-print ("*******init_ingestion_directory:", init_ingestion_directory)
-# logging.basicConfig(level=logging.INFO)
-log_message('*******init_ingestion_directory:'+ init_ingestion_directory, 'info')
 
 def unify_path(path):
     return path.replace('\\', '/')
@@ -421,10 +373,10 @@ async def main(message: cl.Message):
                                             max_files = 100,
                                             timeout=1000).send()
             if files:
-                files_upload = {}
-                for file in files:
-                    files_upload[file.name] = open(file.path, 'rb')
-                api_client.upload_files(index_name, files_upload)
+                files_to_upload = []
+                for file in files:          
+                    files_to_upload.append(('files', (file.name, open(file.path, 'rb'), file.type)))
+                api_client.upload_files(index_name, files_to_upload)
                 
                 filenames = [file.name for file in files]
                 fns = ', '.join(filenames)
@@ -579,6 +531,7 @@ async def app_search(query: str):
                         cl.Text(name=f"Text below:", content=text, display="inline")]
             elif r['type'] == 'table':
                 e = []
+                # FIXME
                 if os.path.exists(replace_extension(r['asset'], '.png')): # FIXME
                     e.append(cl.Image(name=os.path.basename(r['asset']), path=replace_extension(r['asset'], '.png'), size='large', display="inline"),
                         cl.Text(name=f"Text below:", content=text, display="inline"))
