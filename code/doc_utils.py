@@ -186,26 +186,26 @@ def logc(label, text = None, newline=False, timestamp=False, verbose=True):
         if text is not None:
             out_s = f"\n{get_current_time()} :: {bc.OKGREEN}{label}:{nls}{bc.OKBLUE}{text}{bc.ENDC}"
             out_n = f"\n{get_current_time()} :: {label}:{nls}{text}"
-            if verbose: print(out_s)
+            if verbose: logging.info(out_s)
         else:
             out_s = f"\n{get_current_time()} :: {bc.OKGREEN}{label}{nls}{bc.ENDC}"
             out_n = f"\n{get_current_time()} :: {label}{nls}"
-            if verbose: print(out_s)
+            if verbose: logging.info(out_s)
     else:
         if text is not None:
             out_s = f"\n{bc.OKGREEN}{label}:{nls}{bc.OKBLUE}{text}{bc.ENDC}"
             out_n = f"\n{label}:{nls}{text}"
-            if verbose: print(out_s)
+            if verbose: logging.info(out_s)
         else:
             out_s = f"\n{bc.OKGREEN}{label}{nls}{bc.ENDC}"
             out_n = f"\n{label}{nls}"
-            if verbose: print(out_s)
+            if verbose: logging.info(out_s)
 
     if log_ui_func_hook is not None:
         try:
             log_ui_func_hook(label, text)
         except Exception as e:
-            print(f"Error in log_ui_func_hook")
+            logging.error(f"Error in log_ui_func_hook")
     else:
         pass
         # print("log_ui_func_hook is None")
@@ -244,10 +244,15 @@ def get_chat_completion(messages: List[dict], model = AZURE_OPENAI_MODEL, client
     return client.chat.completions.create(model = model, temperature = temperature, messages = messages, timeout=TENACITY_TIMEOUT)
 
 
-@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(TENACITY_STOP_AFTER_DELAY), after=after_log(logger, logging.ERROR))         
-def get_chat_completion_with_json(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
-    print(f"\nCalling OpenAI APIs with {len(messages)} messages - Model: {model} - Endpoint: {oai_client._base_url}\n{bc.ENDC}")
-    return client.chat.completions.create(model = model, temperature = temperature, messages = messages, response_format={ "type": "json_object" },timeout=TENACITY_TIMEOUT)
+@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(5), retry_error_callback=lambda e: isinstance(e, requests.exceptions.HTTPError) and e.response.status_code == 429, after=after_log(logger, logging.ERROR))
+def get_chat_completion_with_json(messages: List[dict], model=AZURE_OPENAI_MODEL, client=oai_client, temperature=0.2):
+    try:
+        print(f"\nCalling OpenAI APIs with {len(messages)} messages - Model: {model} - Endpoint: {oai_client._base_url}\n{bc.ENDC}")
+        print(f"Messages: {messages}")
+        return client.chat.completions.create(model=model, temperature=temperature, messages=messages, response_format={"type": "json_object"}, timeout=TENACITY_TIMEOUT)
+    except Exception as e:
+        print(f"Error in get_chat_completion_with_json: {e}")
+        raise e
 
 
 @retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(TENACITY_STOP_AFTER_DELAY), after=after_log(logger, logging.ERROR))     
@@ -4967,14 +4972,14 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
     search_results = {}
     files = []
 
+    results = []
     if vector_type == "AISearch":
         results = aggregate_ai_search(query, index_name, top=top, approx_tag_limit=approx_tag_limit, computation_approach=computation_approach, count=count, temperature=temperature, verbose = verbose)
-        text_results = [result['text'] for result in results]
+        text_results = [result['text'] for result in results] # FIXME
 
 
     ## Limit the results
     # results = results[:35]
-
     assets = generate_search_assets(results, verbose = verbose)
 
     summaries = []

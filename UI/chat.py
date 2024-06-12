@@ -1,16 +1,22 @@
 import os
 import requests
-import logging
 
 from dotenv import load_dotenv
 load_dotenv()
 
+import logging
+from ui_log_utils import setup_logger
+setup_logger()
+
 import chainlit as cl
 from chainlit import run_sync
 
-from env_vars import ROOT_PATH_INGESTION, INITIAL_INDEX, SEARCH_TOP_N, BUILD_ID
+ROOT_PATH_INGESTION = os.environ.get("ROOT_PATH_INGESTION")
+INITIAL_INDEX = os.environ.get('INITIAL_INDEX', 'rag-data')
+SEARCH_TOP_N = os.environ.get('SEARCH_TOP_N', '5')
+BUILD_ID = os.environ.get('BUILD_ID')
 
-def log_message(message, level):
+def log_message(message, level = 'info'):
     if level == 'debug':
         logging.debug(message)
     elif level == 'info':
@@ -24,68 +30,89 @@ def log_message(message, level):
     else:
         logging.info('Invalid log level, defaulting to info')
         logging.info(message)
+        
+
+def replace_extension(asset_path, new_extension):
+    base_name = os.path.splitext(asset_path)[0].strip()
+
+    return f"{base_name}{new_extension}"
 
 class APIClient:
     def __init__(self):
         self.base_url = os.getenv('API_BASE_URL').strip("/")
 
     def get_models(self):
-        response = requests.get(f"{self.base_url}/models")
-        return response.json()
+        try:
+            response = requests.get(f"{self.base_url}/models")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Error retrieving models: {e}")
+            raise
 
     def get_prompts(self):
-        response = requests.get(f"{self.base_url}/prompt")
-        return response.json()
+        try:
+            response = requests.get(f"{self.base_url}/prompt")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Error retrieving prompts: {e}")
+            raise
 
     def get_prompt(self, p):
-        response = requests.get(f'{self.base_url}/prompt/{p}')
-        return response.json()
+        try:
+            response = requests.get(f'{self.base_url}/prompt/{p}')
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Error retrieving prompt {p}: {e}")
+            raise
 
     def ingest_docs(self, ingestion_params):
-        response = requests.post(f"{self.base_url}/ingest", json=ingestion_params)
-        return response.json()
+        try:
+            response = requests.post(f"{self.base_url}/ingest", json=ingestion_params)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Error ingesting documents: {e}")
+            raise
 
-    def get_file(self, asset):
-        payload = {'asset': asset}
-        response = requests.get(f"{self.base_url}/file", json=payload)
-        return response.json()
+    def get_file(self, asset_path):
+        try:
+            response = requests.get(f"{self.base_url}/file", params={'asset_path': asset_path})
+            response.raise_for_status()
+            return response.text
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Error retrieving file {asset_path}: {e}")
+            raise
+        
+    def get_file_url(self, asset_path, format = "text"):
+        return f"{self.base_url}/file?asset_path={asset_path}&format={format}"
 
     def search(self, query_params):
-        response = requests.post(f"{self.base_url}/search", json=query_params)
-        return response.json()
-    
+        try:
+            response = requests.post(f"{self.base_url}/search", json=query_params)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Error searching: {e}")
+            raise
+
     def upload_files(self, index_name, files):
-        response = requests.post(f"{self.base_url}/{index_name}/files", files=files)
-        return response.json()
+        try:
+            response = requests.post(f"{self.base_url}/index/{index_name}/files", files=files)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Error uploading files: {e}")
+            raise
 
 api_client = APIClient()
 
-try: 
-    init_index_name = INITIAL_INDEX
-except:
-    init_index_name = 'rag-data'
-
-def unify_path(path):
-    return path.replace('\\', '/')
-
-def change_to_container_path(path, root_path):
-    # we remove reference to the relative path:
-    return_path = unify_path(root_path + path.replace('..', '')) 
-
-    #check if the folder exists
-    if not os.path.exists(return_path):
-        error_message = f"The path {return_path} does not exist."
-        log_message(error_message, 'error')
-        raise FileNotFoundError(error_message)
-    else:
-        log_message(f"The path {return_path} exists.", 'info')
-    return return_path
-
-# test: # change_to_container_path('/openai_faq', ROOT_PATH_INGESTION)
+init_index_name = INITIAL_INDEX
 
 gpt4_models = api_client.get_models()
 available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
-# logc("available_models", available_models) #FIXME
 
 init_code_interpreter = "NoComputationTextOnly"
 init_code_interpreter = "Taskweaver"
@@ -97,7 +124,7 @@ init_pdf_extraction_mode = 'hybrid'
 init_docx_extraction_modes = 'document-intelligence'
 init_number_of_threads = available_models
 init_delete_existing_output_directory = False
-init_top_n = SEARCH_TOP_N # FIXME
+init_top_n = int(SEARCH_TOP_N)
 init_ingestion_directory = init_index_name
 
 
@@ -247,7 +274,7 @@ async def main(message: cl.Message):
     message_content = message.content.strip().lower()
 
     if conversations.get(cl.user_session.get("id")) is None:
-        log_message("########################## INITIALIZING HISTORY")
+        log_message("INITIALIZING HISTORY")
         conversations[cl.user_session.get("id")] = []
     
 
@@ -360,6 +387,7 @@ async def main(message: cl.Message):
 
 
         elif cmd == "upload":
+            index_name = index_names[cl.user_session.get("id")]
 
             # while files == None:
             files = await cl.AskFileMessage(content="Please upload the file.", 
@@ -389,13 +417,13 @@ async def main(message: cl.Message):
             await cl.Message(content=f"Starting ingestion into '{index_name}'.").send()
 
             log_message("\n\nIngestion Variables:")
-            log_message("index_name:", index_names[cl.user_session.get("id")], type(index_names[cl.user_session.get("id")]))
-            log_message("password:", passwords[cl.user_session.get("id")], type(passwords[cl.user_session.get("id")]))
-            log_message("approx_tag_limit:", approx_tag_limits[cl.user_session.get("id")], type(approx_tag_limits[cl.user_session.get("id")]))
-            log_message("pdf_extraction_mode:", pdf_extraction_modes[cl.user_session.get("id")], type(pdf_extraction_modes[cl.user_session.get("id")]))
-            log_message("docx_extraction_mode:", docx_extraction_modes[cl.user_session.get("id")], type(docx_extraction_modes[cl.user_session.get("id")]))
-            log_message("number_of_threads:", number_of_threads[cl.user_session.get("id")], type(number_of_threads[cl.user_session.get("id")]))
-            log_message("delete_existing_output_directory:", delete_existing_output_directory[cl.user_session.get("id")], type(delete_existing_output_directory[cl.user_session.get("id")]))
+            log_message(f"index_name: {index_names[cl.user_session.get('id')]}")
+            log_message(f"password: {passwords[cl.user_session.get('id')]}")
+            log_message(f"approx_tag_limit: {approx_tag_limits[cl.user_session.get('id')]}")
+            log_message(f"pdf_extraction_mode: {pdf_extraction_modes[cl.user_session.get('id')]}")
+            log_message(f"docx_extraction_mode: {docx_extraction_modes[cl.user_session.get('id')]}")
+            log_message(f"number_of_threads: {number_of_threads[cl.user_session.get('id')]}")
+            log_message(f"delete_existing_output_directory: {delete_existing_output_directory[cl.user_session.get('id')]}")
 
             ingestion_params_dict = {
                 "index_name" : index_name,
@@ -404,10 +432,10 @@ async def main(message: cl.Message):
                 "delete_existing_output_dir" : delete_existing_output_directory[cl.user_session.get("id")],
                 "processing_mode_pdf" : pdf_extraction_modes[cl.user_session.get("id")],
                 "processing_mode_docx" : docx_extraction_modes[cl.user_session.get("id")],
-                'models': gpt4_models, # FIXME
-                'vision_models': gpt4_models, # FIXME
                 'verbose': True
             }
+            # FIXME: param required but not passed
+            # ingestion_params_dict['doc_path']
 
             await cl.make_async(ingest_docs_directory_using_processors)(ingestion_params_dict)
 
@@ -467,7 +495,7 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
 
 
 async def app_search(query: str):   
-    log_message("Conversation History", conversations[cl.user_session.get("id")])     
+    log_message(f"Conversation History {conversations[cl.user_session.get("id")]}")
 
     final_answer, references, output_excel, search_results, files = await cl.make_async(search)(
         query, 
@@ -489,9 +517,9 @@ async def app_search(query: str):
 
     conversations[cl.user_session.get("id")].append({"role": "user", "content": query})
     conversations[cl.user_session.get("id")].append({"role": "assistant", "content": final_answer})
-    log_message("Conversation History1", conversations[cl.user_session.get("id")])
+    log_message(f"Conversation History1: {conversations[cl.user_session.get("id")]}")
     conversations[cl.user_session.get("id")] = conversations[cl.user_session.get("id")][-6:]
-    log_message("Conversation History2", conversations[cl.user_session.get("id")])
+    log_message(f"Conversation History2: {conversations[cl.user_session.get("id")]}")
 
     for f in files:
         if f['type'] == 'assistant_image':
@@ -511,53 +539,57 @@ async def app_search(query: str):
 
     if (output_excel != "")  and (output_excel is not None):
         try:
-            output_excel = change_to_container_path(output_excel, ROOT_PATH_INGESTION)
-            async with cl.Step(name=f"Search Results",  elements = [cl.File(name="Results Excel", path=output_excel, display="inline")]) as step:
+            url = api_client.get_file_url(output_excel, format="binary")
+            async with cl.Step(name=f"Search Results",  elements = [cl.File(name="Results Excel", url=url, display="inline")]) as step:
                 step.output = f"Excel Document '{os.path.basename(output_excel)}'\nThe below has been taken from **{os.path.basename(output_excel)}**."
         except Exception as e:
-            log_message("Error in output_excel message", output_excel, "\n", e)
+            log_message(f"Error in output_excel message{output_excel}\n{e}", 'error')
 
 
-    for index, r in enumerate(files + references):
+    for index, ref in enumerate(files + references):
         try:
-            text = get_asset_file(r['asset'])
+            text = get_asset_file(ref['asset'])
             if text == '':
-                text = f"Current working directory {os.path.abspath(os.getcwd())}\nFile Abs Path: {os.path.abspath(r['asset'])}"
+                text = f"Current working directory {os.path.abspath(os.getcwd())}\nFile Abs Path: {os.path.abspath(ref['asset'])}"
 
-            if r['type'] == 'text':
+            if ref['type'] == 'text':
                 e = [cl.Text(name=f"Text below:", content=text, display="inline")]
-            elif r['type'] == 'image':
-                e = [cl.Image(name=os.path.basename(r['asset']), path=replace_extension(r['asset'], '.jpg'), size='large', display="inline"), # FIXME
+            elif ref['type'] == 'image':
+                url = api_client.get_file_url(replace_extension(ref['asset'], '.jpg'), format="binary")
+                e = [cl.Image(name=os.path.basename(ref['asset']), url=url, size='large', display="inline"), # FIXME
                         cl.Text(name=f"Text below:", content=text, display="inline")]
-            elif r['type'] == 'table':
+            elif ref['type'] == 'table':
                 e = []
+                url = api_client.get_file_url(replace_extension(ref['asset'], '.jpg'), format="binary")
                 # FIXME
-                if os.path.exists(replace_extension(r['asset'], '.png')): # FIXME
-                    e.append(cl.Image(name=os.path.basename(r['asset']), path=replace_extension(r['asset'], '.png'), size='large', display="inline"),
+                if os.path.exists(replace_extension(ref['asset'], '.png')):
+                    e.append(cl.Image(name=os.path.basename(ref['asset']), url=url, size='large', display="inline"),
                         cl.Text(name=f"Text below:", content=text, display="inline"))
-                if os.path.exists(r['asset']):
+                if os.path.exists(ref['asset']):
                     e.append(cl.Text(name=f"Text below:", content=text, display="inline"))
-            elif r['type'] == 'file':
-                e = [cl.File(name="Results File", path=r['asset'], display="inline")]
-            elif r['type'] == 'assistant_image':
-                e = [cl.Image(name=os.path.basename(r['asset']), path=replace_extension(r['asset'], '.jpg'), size='large', display="inline")] # FIXME           
+            elif ref['type'] == 'file':
+                url = api_client.get_file_url(ref['asset'], format="binary")
+                e = [cl.File(name="Results File", url=url, display="inline")]
+            elif ref['type'] == 'assistant_image':
+                url = api_client.get_file_url(replace_extension(ref['asset'], '.jpg'), format="binary")
+                e = [cl.Image(name=os.path.basename(ref['asset']), url=url, size='large', display="inline")]           
 
             async with cl.Step(name=f"Search References",  elements = e) as step:
                 try:
-                    step.output = f"### Search Result #{r['search_result_number']}\nThe below has been taken from **{r['original_document']}**.\n[Open Document]({r['sas_link']})"
+                    step.output = f"### Search Result #{ref['search_result_number']}\nThe below has been taken from **{ref['original_document']}**.\n[Open Document]({ref['sas_link']})"
                 except:
                     step.output = f"File Generated by Code Interpreter."
 
         except Exception as e:
-            log_message("Error in file message", index, "\n", r, "\n", e)
+            log_message(f"Error in file message {index} - {ref['asset']}\n{e}", 'error')
 
 
     for pdf in pdfs:
         if pdf.endswith('.pdf'):
             try:
-                pdf=change_to_container_path(pdf, ROOT_PATH_INGESTION)
-                log_message("Current Dir", os.getcwd())
-                async with cl.Step(name=f"Search References",  elements = [cl.Pdf(name="PDF", path=pdf, display="inline")]) as step:
+                url = api_client.get_file_url(pdf, format="binary")
+                log_message(f"PDF URL: {url}")
+                async with cl.Step(name=f"Search References",  elements = [cl.Pdf(name="PDF", url=url, display="inline")]) as step:
                     step.output = f"Document '{os.path.basename(pdf)}'\nThe below has been taken from **{os.path.basename(pdf)}**."
             except Exception as e:
-                log_message("Error in pdf message", pdf, "\n", e)
+                log_message(f"Error in pdf message: {pdf}\n{e}", 'error')

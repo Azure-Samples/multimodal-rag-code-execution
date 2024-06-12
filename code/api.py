@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, Request, HTTPException, UploadFile
-from fastapi.responses import PlainTextResponse, FileResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
 import psutil
 from pydantic import BaseModel
 import re
@@ -49,6 +50,15 @@ def get_latest_file_version(directory, file_pattern):
                 latest_file = filename
 
     return os.path.join(directory, latest_file) if latest_file else None
+
+# FastAPI global configuration
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    logging.error(f"Unprocessable request: {request} {exc}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
 
 # API Endpoints
 
@@ -124,43 +134,75 @@ def get_models():
         raise HTTPException(status_code=500, detail=str(e))
 
 # A GET operation to get a file
-@app.get("/file", response_class=FileResponse)
-def get_file(asset_path: str):
+@app.get("/file")
+def get_file(asset_path: str, format:str = "text"):
     try:
         logging.info(f"Getting file: {asset_path}")
-        return read_asset_file(asset_path)
+        
+        if format == "binary":
+            return FileResponse(
+                asset_path.replace("\\", "/"), 
+                # required to ensure the file is displayed in the browser correctly
+                content_disposition_type="inline")
+        elif format == "text":
+            text, status = read_asset_file(asset_path)
+            return text
     except Exception as e:
         logging.error(f"Error getting file: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# a list of objects with role and content as strings
+class HistoryMessage(BaseModel):
+    role: str
+    content: str
 
 class SearchRequest(BaseModel):
     query: str
     top: int
     approx_tag_limit: int
-    conversation_history: str
+    conversation_history: List[HistoryMessage]    
     user_id: str
     computation_approach: str
     computation_decision: str
-    vision_support: str
-    include_master_py: str
+    vision_support: bool
+    include_master_py: bool
     vector_directory: str
     vector_type: str
     index_name: str
-    full_search_output: str
-    count: int
+    full_search_output: bool
+    count: bool
     token_limit: int
     temperature: float
-    verbose: str
+    verbose: bool
 
 # A POST /search that takes a JSON with following structure:
 @app.post("/search")
 def run_search(request: SearchRequest):
     try:
         # invoke search function matching the signature using the request object
-        logging.info("Running search")
-        return search(request.query, request.top, request.approx_tag_limit, request.conversation_history, request.user_id, request.computation_approach, request.computation_decision, request.vision_support, request.include_master_py, request.vector_directory, request.vector_type, request.index_name, request.full_search_output, request.count, request.token_limit, request.temperature, request.verbose)
+        logging.info(f"Running search with input: {request}")
+        final_answer, references, output_excel, search_results, files = search(
+            query=request.query, 
+            learnings=None, 
+            top=request.top, 
+            approx_tag_limit=request.approx_tag_limit, 
+            conversation_history=request.conversation_history, 
+            user_id=request.user_id, 
+            computation_approach=request.computation_approach, 
+            computation_decision=request.computation_decision, 
+            vision_support=request.vision_support, 
+            include_master_py=request.include_master_py, 
+            vector_directory=request.vector_directory, 
+            vector_type=request.vector_type, 
+            index_name=request.index_name, 
+            full_search_output=request.full_search_output, 
+            count=request.count, 
+            token_limit=request.token_limit, 
+            temperature=request.temperature, 
+            verbose=request.verbose)
+        return final_answer, references, output_excel, search_results, files
     except Exception as e:
-        logging.error(f"Error running search: {str(e)}")
+        logging.error(f"Error running search: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # A POST /generate_section that uses the generate_section function
@@ -170,7 +212,7 @@ async def generate_new_section(section: Request):
         logging.info("Generating section")
         return generate_section(await section.json())
     except Exception as e:
-        logging.error(f"Error generating section: {str(e)}")
+        logging.error(f"Error generating section: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 def ensure_download_dictory(index_name):
@@ -198,7 +240,7 @@ def get_download_files(index_name: str):
         existing_file_names = [file for file in files if os.path.isfile(os.path.join(download_directory, file))]
         return existing_file_names
     except Exception as e:
-        logging.error(f"Error getting download files: {str(e)}")
+        logging.error(f"Error getting download files: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # A POST operation to upload files in batches in download directory
@@ -218,19 +260,17 @@ def upload_files(index_name: str, files: List[UploadFile]):
             
         return None
     except Exception as e:
-        logging.error(f"Error uploading files: {str(e)}")
+        logging.error(f"Error uploading files: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 class IngestionRequest(BaseModel):
     index_name: str
     num_threads: int
     password: str
-    delete_existing_output_dir: str
+    delete_existing_output_dir: bool
     processing_mode_pdf: str
     processing_mode_docx: str
-    models: str
-    vision_models: str
-    verbose: str
+    verbose: bool
     
 # A POST /ingest that takes a JSON with the following structure:
 @app.post("/ingest")
@@ -238,15 +278,17 @@ def run_ingestion(request: IngestionRequest):
     try:
         logging.info("Running ingestion")
         
-        ingestion_directory, download_directory = ensure_download_dictory(request.get("index_name"))
+        ingestion_directory, download_directory = ensure_download_dictory(request.index_name)
         
         dict = request.model_dump()
         dict['download_directory'] = download_directory
         dict['ingestion_directory'] = ingestion_directory
+        dict['vision_models'] = gpt4_models
+        dict['models'] = gpt4_models
         
         return ingest_doc_using_processors(dict)
     except Exception as e:
-        logging.error(f"Error running ingestion: {str(e)}")
+        logging.error(f"Error running ingestion: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 cogsearch = CogSearchHttpRequest()
@@ -257,7 +299,7 @@ def get_indexes():
         logging.info("Getting indexes")
         return cogsearch.get_indexes()
     except Exception as e:
-        logging.error(f"Error getting indexes: {str(e)}")
+        logging.error(f"Error getting indexes: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # A GET to get CogSearch index documents, is exists
@@ -271,7 +313,7 @@ def get_index_status(index_name: str):
             return documents
         return None
     except Exception as e:
-        logging.error(f"Error getting index status: {str(e)}")
+        logging.error(f"Error getting index status: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # A GET operation to check indexing status
@@ -281,7 +323,7 @@ def get_indexing_status(index_name: str):
         logging.info("Checking indexing status")
         return ic.check_if_indexing_in_progress(index_name)
     except Exception as e:
-        logging.error(f"Error checking indexing status: {str(e)}")
+        logging.error(f"Error checking indexing status: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # A POST operation to update AmlJob status
@@ -291,7 +333,7 @@ def update_aml_job_status(index_name: str, request: Request):
         logging.info("Updating AmlJob status")
         return ic.update_aml_job_status(index_name, request.get("status"))
     except Exception as e:
-        logging.error(f"Error updating AmlJob status: {str(e)}")
+        logging.error(f"Error updating AmlJob status: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # A DELETE operation to clear indexing status
@@ -302,7 +344,7 @@ def clear_indexing_status(index_name: str):
         ic.clear_indexing_in_progress(index_name)
         return None
     except Exception as e:
-        logging.error(f"Error clearing indexing status: {str(e)}")
+        logging.error(f"Error clearing indexing status: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 class JobRequest(BaseModel):
@@ -342,7 +384,7 @@ def submit_aml_job(index_name: str, request: JobRequest):
         ic.update_aml_job_id(index_name, run_id, status = "running")
         return None
     except Exception as e:
-        logging.error(f"Error submitting AmlJob: {str(e)}")
+        logging.error(f"Error submitting AmlJob: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
     
 # POST operation to submit a local ingestion job
@@ -372,7 +414,7 @@ def get_aml_job_status(job_id: str):
         logging.info(f"Getting AmlJob status using run_id {job_id}")
         return aml_job.check_job_status_using_run_id(job_id)
     except Exception as e:
-        logging.error(f"Error getting AmlJob ID: {str(e)}")
+        logging.error(f"Error getting AmlJob ID: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/local_job/{pid}")
@@ -386,7 +428,7 @@ def get_local_job_status(pid: str):
         else:
             return "completed"
     except Exception as e:
-        logging.error(f"Error setting AmlJob ID: {str(e)}")
+        logging.error(f"Error setting AmlJob ID: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # A GET to fetch processin plan
@@ -398,7 +440,7 @@ def get_processing_plan():
 
         return proc_plans
     except Exception as e:
-        logging.error(f"Error getting processing plan: {str(e)}")
+        logging.error(f"Error getting processing plan: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # A POST to copy the processing plan to the index
@@ -413,7 +455,7 @@ def copy_processing_plan_to_index(index_name: str):
         write_to_file(plans, index_processing_plan_path, 'w')
         return None
     except Exception as e:
-        logging.error(f"Error copying processing plan to index: {str(e)}")
+        logging.error(f"Error copying processing plan to index: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # A GET to fetch cosmos log
@@ -423,5 +465,5 @@ def get_cosmos_log(index_name: str):
         logging.info("Getting cosmos log")
         return cosmos_log.read_document(index_name, index_name)
     except Exception as e:
-        logging.error(f"Error getting cosmos log: {str(e)}")
+        logging.error(f"Error getting cosmos log: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
