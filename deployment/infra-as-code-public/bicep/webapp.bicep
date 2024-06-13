@@ -1,10 +1,6 @@
 /*
   Deploy a web app with a managed identity, diagnostic, and a private endpoint
 */
-// param appName string
-
-
-
 @description('The name of the storage account')
 param mlWorkspaceName string
 @description('The name of the storage account')
@@ -22,24 +18,17 @@ param uniqueid string
 @description('The resource group location')
 param location string = resourceGroup().location
 
-
 @description('The name of the storage account')
 param storageName string
 
 @description('The name of the Log Analytics workspace for monitoring logs')
 param logWorkspaceName string
 
-// variables
-var fileshare = {
-  accountName: storageAccount
-  mountPath: '/data'
-  shareName: storageAccount
-  type: 'AzureFiles'
-  accessKey: listKeys(resourceId('Microsoft.Storage/storageAccounts', storageAccount), '2023-01-01').keys[0].value
-}
+// Variables
 
 var appName = '${namePrefix}-app-chat-${uniqueid}'
 var appName2 = '${namePrefix}-app-main-${uniqueid}'
+var appNameApi = '${namePrefix}-app-api-${uniqueid}'
 
 var appServicePlanName = 'asp-${appName}'
 var appServiceManagedIdentityName = 'id-${appName}'
@@ -61,6 +50,11 @@ resource azureMlWorkspace 'Microsoft.MachineLearningServices/workspaces@2021-04-
   name: mlWorkspaceName
 }
 
+// Existing container registry
+resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
+  name: containerRegistry
+}
+
 // Built-in Azure RBAC role that is applied to a Key storage to grant data reader permissions. 
 resource blobDataReaderRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
@@ -74,7 +68,6 @@ resource appServiceManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdenti
   name: appServiceManagedIdentityName
   location: location
 }
-
 
 // Grant the App Service managed identity storage data reader role permissions
 resource blobDataReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
@@ -98,6 +91,20 @@ resource mlContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@20
   properties: {
     roleDefinitionId: contributorRole.id
     principalType: 'ServicePrincipal'
+    principalId: appServiceManagedIdentity.properties.principalId
+  }
+}
+
+// Grant the App Service managed identity access to the container registry
+resource acrPullRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  scope: subscription()
+  name: '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull role ID
+}
+resource acrRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
+  name: guid(acr.id, appServiceManagedIdentity.name, 'AcrPull')
+  scope: acr
+  properties: {
+    roleDefinitionId: acrPullRole.id
     principalId: appServiceManagedIdentity.properties.principalId
   }
 }
@@ -146,25 +153,14 @@ resource webApp 'Microsoft.Web/sites@2022-09-01' = {
     keyVaultReferenceIdentity: appServiceManagedIdentity.id
     hostNamesDisabled: false
     siteConfig: {
-      acrUseManagedIdentityCreds: false
-      functionAppScaleLimit: 0
-      
+      acrUseManagedIdentityCreds: true
+      acrUserManagedIdentityID: appServiceManagedIdentity.id      
       http20Enabled: true
       linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot:latest'
-      minimumElasticInstanceCount: 0
       numberOfWorkers: 1
-      cors: {
-        allowedOrigins: [
-          '*'
-        ]
-        supportCredentials: false
-      }
-      publicNetworkAccess: 'Disabled'
       alwaysOn: true
     }
-    storageAccountRequired: false
-    vnetContentShareEnabled: false
-    vnetImagePullEnabled: false        
+    storageAccountRequired: false  
   }
   dependsOn: [    
     blobDataReaderRoleAssignment
@@ -187,25 +183,44 @@ resource webApp2 'Microsoft.Web/sites@2022-09-01' = {
     keyVaultReferenceIdentity: appServiceManagedIdentity.id
     hostNamesDisabled: false
     siteConfig: {
-      acrUseManagedIdentityCreds: false
-      functionAppScaleLimit: 0
-      
+      acrUseManagedIdentityCreds: true
+      acrUserManagedIdentityID: appServiceManagedIdentity.id  
       http20Enabled: true
       linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot-main:latest'
-      minimumElasticInstanceCount: 0
       numberOfWorkers: 1
-      cors: {
-        allowedOrigins: [
-          '*'
-        ]
-        supportCredentials: false
-      }
-      publicNetworkAccess: 'Disabled'
       alwaysOn: true
     }
     storageAccountRequired: false
-    vnetContentShareEnabled: false
-    vnetImagePullEnabled: false    
+  }
+  dependsOn: [    
+    blobDataReaderRoleAssignment
+  ]
+}
+
+resource webAppApi 'Microsoft.Web/sites@2022-09-01' = {
+  name: appNameApi
+  location: location
+  kind: 'app,linux,container'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${appServiceManagedIdentity.id}': {}
+    }
+  }
+  properties: {
+    serverFarmId: appServicePlan.id    
+    httpsOnly: false
+    keyVaultReferenceIdentity: appServiceManagedIdentity.id
+    hostNamesDisabled: false
+    siteConfig: {
+      acrUseManagedIdentityCreds: true
+      acrUserManagedIdentityID: appServiceManagedIdentity.id
+      http20Enabled: true
+      linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot-api:latest'
+      numberOfWorkers: 1
+      alwaysOn: true
+    }
+    storageAccountRequired: false
   }
   dependsOn: [    
     blobDataReaderRoleAssignment
@@ -223,6 +238,7 @@ resource appsettings 'Microsoft.Web/sites/config@2022-09-01' = {
     APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
     APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
+    API_BASE_URL: 'https://${appNameApi}.azurewebsites.net'
   }
 }
 
@@ -236,10 +252,23 @@ resource appsettings2 'Microsoft.Web/sites/config@2022-09-01' = {
     // AZURE_SQL_CONNECTIONSTRING: '@Microsoft.KeyVault(SecretUri=https://${keyVault.name}${environment().suffixes.keyvaultDns}/secrets/adWorksConnString)'
     APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
     APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
+    ApplicationInsightsAgent_EXTENSION_VERSION: '~2'    
+    API_BASE_URL: 'https://${appNameApi}.azurewebsites.net'
+  }
+}
+// App Settings
+resource appsettingsApi 'Microsoft.Web/sites/config@2022-09-01' = {
+  name: 'appsettings'
+  parent: webAppApi
+  properties: {
+    // WEBSITE_RUN_FROM_PACKAGE: packageLocation
+    // WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID: appServiceManagedIdentity.id
+    // AZURE_SQL_CONNECTIONSTRING: '@Microsoft.KeyVault(SecretUri=https://${keyVault.name}${environment().suffixes.keyvaultDns}/secrets/adWorksConnString)'
+    APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
+    APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
   }
 }
-
 
 // App service plan diagnostic settings
 resource appServicePlanDiagSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
@@ -319,6 +348,37 @@ resource webAppDiagSettings1 'Microsoft.Insights/diagnosticSettings@2021-05-01-p
   }
 }
 
+resource webAppDiagSettingsApi 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: '${webAppApi.name}-diagnosticSettings'
+  scope: webAppApi
+  properties: {
+    workspaceId: logWorkspace.id
+    logs: [
+      {
+        category: 'AppServiceHTTPLogs'
+        categoryGroup: null
+        enabled: true
+      }
+      {
+        category: 'AppServiceConsoleLogs'
+        categoryGroup: null
+        enabled: true
+      }
+      {
+        category: 'AppServiceAppLogs'
+        categoryGroup: null
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
+  }
+}
+
 // App service plan auto scale settings
 resource appServicePlanAutoScaleSettings 'Microsoft.Insights/autoscalesettings@2022-10-01' = {
   name: '${appServicePlan.name}-autoscale'
@@ -364,10 +424,7 @@ resource appServicePlanAutoScaleSettings 'Microsoft.Insights/autoscalesettings@2
   ]
 }
 
-
-
-
-// create application insights resource
+// Application insights resource
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: appInsightsName
   location: location
@@ -378,233 +435,62 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
+// Only API mounts the Azure Files share
 
-resource ftpPublishingPolicy 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2023-01-01' = {
-  parent: webApp
-  name: 'ftp'
-  // location: location
-  properties: {
-    allow: false
-  }
+var fileshare = {
+  accountName: storageAccount
+  mountPath: '/data'
+  shareName: storageAccount
+  type: 'AzureFiles'
+  accessKey: listKeys(resourceId('Microsoft.Storage/storageAccounts', storageAccount), '2023-01-01').keys[0].value
 }
 
-
-resource ftpPublishingPolicy2 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2023-01-01' = {
-  parent: webApp2
-  name: 'ftp'
-  // location: location
-  properties: {
-    allow: false
-  }
-}
-
-resource scmPublishingPolicy 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2023-01-01' = {
-  parent: webApp
-  name: 'scm'
-  // location: location
-  properties: {
-    allow: true
-  }
-}
-
-
-resource scmPublishingPolicy2 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2023-01-01' = {
-  parent: webApp2
-  name: 'scm'
-  // location: location
-  properties: {
-    allow: true
-  }
-}
-
-
-resource webAppConfig 'Microsoft.Web/sites/config@2023-01-01' = {
-  parent: webApp
+resource webAppConfigApi 'Microsoft.Web/sites/config@2023-01-01' = {
+  parent: webAppApi
   name: 'web'
-  // location: location
-  properties: {
-    acrUseManagedIdentityCreds: false
-    alwaysOn: true
-    autoHealEnabled: false
+  properties: {    
     azureStorageAccounts: {
       fileshare: fileshare
     }
-    cors: {
-      allowedOrigins: [
-        '*'
-      ]
-      supportCredentials: false
-    }
-    defaultDocuments: [
-      'Default.htm','Default.html','Default.asp','index.htm','index.html','iisstart.htm','default.aspx','index.php','hostingstart.html']
-    detailedErrorLoggingEnabled: false
-    elasticWebAppScaleLimit: 0
-    experiments: {
-      rampUpRules: []
-    }
-    ftpsState: 'FtpsOnly'
-    functionsRuntimeScaleMonitoringEnabled: false
-    http20Enabled: false
-    httpLoggingEnabled: true
-    ipSecurityRestrictions: [
-      {
-        action: 'Allow'
-        description: 'Allow all access'
-        ipAddress: 'Any'
-        name: 'Allow all'
-        priority: 2147483647
-      }
-    ]
-    linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot:latest'    
-    loadBalancing: 'LeastRequests'
-    localMySqlEnabled: false
-    logsDirectorySizeLimit: 35
-    managedPipelineMode: 'Integrated'
-    minTlsVersion: '1.2'
-    minimumElasticInstanceCount: 0
-    netFrameworkVersion: 'v4.0'
-    numberOfWorkers: 1
-    preWarmedInstanceCount: 0
-    publicNetworkAccess: 'Enabled'
-    publishingUsername: '$ped-powerpoint-addin'
-    remoteDebuggingEnabled: false
-    remoteDebuggingVersion: 'VS2019'
-    requestTracingEnabled: false
-    scmIpSecurityRestrictions: [
-      {
-        action: 'Allow'
-        description: 'Allow all access'
-        ipAddress: 'Any'
-        name: 'Allow all'
-        priority: 2147483647
-      }
-    ]
-    scmIpSecurityRestrictionsUseMain: false
-    scmMinTlsVersion: '1.2'
-    scmType: 'None'
-    use32BitWorkerProcess: true
-    virtualApplications: [
-      {
-        physicalPath: 'site\\wwwroot'
-        preloadEnabled: true
-        virtualPath: '/'
-      }
-    ]
-    vnetPrivatePortsCount: 0
-    // vnetRouteAllEnabled: true
-    webSocketsEnabled: false
   }
 }
 
-resource webAppConfig2 'Microsoft.Web/sites/config@2023-01-01' = {
-  parent: webApp2
-  name: 'web'
-  // location: location
-  properties: {
-    acrUseManagedIdentityCreds: false
-    alwaysOn: true
-    autoHealEnabled: false
-    azureStorageAccounts: {
-      fileshare: fileshare
-    }
-    cors: {
-      allowedOrigins: [
-        '*'
-      ]
-      supportCredentials: false
-    }
-    defaultDocuments: [
-      'Default.htm','Default.html','Default.asp','index.htm','index.html','iisstart.htm','default.aspx','index.php','hostingstart.html']
-    detailedErrorLoggingEnabled: false
-    elasticWebAppScaleLimit: 0
-    experiments: {
-      rampUpRules: []
-    }
-    ftpsState: 'FtpsOnly'
-    functionsRuntimeScaleMonitoringEnabled: false
-    http20Enabled: false
-    httpLoggingEnabled: true
-    ipSecurityRestrictions: [
-      {
-        action: 'Allow'
-        description: 'Allow all access'
-        ipAddress: 'Any'
-        name: 'Allow all'
-        priority: 2147483647
-      }
-    ]
-    linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot:latest'
-    loadBalancing: 'LeastRequests'
-    localMySqlEnabled: false
-    logsDirectorySizeLimit: 35
-    managedPipelineMode: 'Integrated'
-    minTlsVersion: '1.2'
-    minimumElasticInstanceCount: 0
-    netFrameworkVersion: 'v4.0'
-    numberOfWorkers: 1
-    preWarmedInstanceCount: 0
-    publicNetworkAccess: 'Enabled'
-    publishingUsername: '$ped-powerpoint-addin'
-    remoteDebuggingEnabled: false
-    remoteDebuggingVersion: 'VS2019'
-    requestTracingEnabled: false
-    scmIpSecurityRestrictions: [
-      {
-        action: 'Allow'
-        description: 'Allow all access'
-        ipAddress: 'Any'
-        name: 'Allow all'
-        priority: 2147483647
-      }
-    ]
-    scmIpSecurityRestrictionsUseMain: false
-    scmMinTlsVersion: '1.2'
-    scmType: 'None'
-    use32BitWorkerProcess: true
-    virtualApplications: [
-      {
-        physicalPath: 'site\\wwwroot'
-        preloadEnabled: true
-        virtualPath: '/'
-      }
-    ]
-    vnetPrivatePortsCount: 0
-    // vnetRouteAllEnabled: true
-    webSocketsEnabled: false
-  }
-}
-
+// Web App Hostname Binding
 
 resource webAppHostNameBinding 'Microsoft.Web/sites/hostNameBindings@2023-01-01' = {
   parent: webApp
   name: '${appName}.azurewebsites.net'
-  // location: location
   properties: {
     hostNameType: 'Verified'
     siteName: appName
   }
 }
 
-
 resource webAppHostNameBinding2 'Microsoft.Web/sites/hostNameBindings@2023-01-01' = {
   parent: webApp2
   name: '${appName2}.azurewebsites.net'
-  // location: location
   properties: {
     hostNameType: 'Verified'
     siteName: appName2
   }
 }
 
+resource webAppHostNameBindingApi 'Microsoft.Web/sites/hostNameBindings@2023-01-01' = {
+  parent: webAppApi
+  name: '${appNameApi}.azurewebsites.net'
+  properties: {
+    hostNameType: 'Verified'
+    siteName: appNameApi
+  }
+}
 
+// Output
 
 @description('The name of the app service plan.')
 output appServicePlanName string = appServicePlan.name
-
 @description('The name of the web app.')
 output appName string = webApp.name
 @description('The name of the web app.')
 output appName2 string = webApp2.name
-
-
-
+@description('The name of the web app.')
+output appNameApi string = webAppApi.name

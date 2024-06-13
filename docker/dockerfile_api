@@ -25,6 +25,7 @@ ENV PYTHONUNBUFFERED=1
 
 # Expose the application port
 EXPOSE 80
+WORKDIR /app
 
 # do not change the arguments
-CMD ["chainlit", "run", "./chat.py",  "--port=80"]
+CMD ["uvicorn", "api:app", "--port=80"]

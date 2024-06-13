@@ -166,7 +166,6 @@ class SearchRequest(BaseModel):
     computation_decision: str
     vision_support: bool
     include_master_py: bool
-    vector_directory: str
     vector_type: str
     index_name: str
     full_search_output: bool
@@ -192,7 +191,7 @@ def run_search(request: SearchRequest):
             computation_decision=request.computation_decision, 
             vision_support=request.vision_support, 
             include_master_py=request.include_master_py, 
-            vector_directory=request.vector_directory, 
+            vector_directory=os.path.join(ROOT_PATH_INGESTION, request.index_name), 
             vector_type=request.vector_type, 
             index_name=request.index_name, 
             full_search_output=request.full_search_output, 

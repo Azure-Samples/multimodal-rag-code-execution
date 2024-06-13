@@ -11,10 +11,9 @@ setup_logger()
 import chainlit as cl
 from chainlit import run_sync
 
-ROOT_PATH_INGESTION = os.environ.get("ROOT_PATH_INGESTION")
 INITIAL_INDEX = os.environ.get('INITIAL_INDEX', 'rag-data')
 SEARCH_TOP_N = os.environ.get('SEARCH_TOP_N', '5')
-BUILD_ID = os.environ.get('BUILD_ID')
+BUILD_ID = os.environ.get('BUILD_ID', '1.0.0')
 
 def log_message(message, level = 'info'):
     if level == 'debug':
@@ -495,7 +494,8 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
 
 
 async def app_search(query: str):   
-    log_message(f"Conversation History {conversations[cl.user_session.get("id")]}")
+    session_id = conversations[cl.user_session.get("id")]
+    log_message(f"Conversation History {session_id}")
 
     final_answer, references, output_excel, search_results, files = await cl.make_async(search)(
         query, 
@@ -507,7 +507,6 @@ async def app_search(query: str):
         computation_decision = "LLM", 
         vision_support = False, 
         include_master_py=True, 
-        vector_directory = os.path.join(ROOT_PATH_INGESTION , index_names[cl.user_session.get("id")] ), 
         vector_type = "AISearch", 
         index_name = index_names[cl.user_session.get("id")], 
         count=False, 
@@ -515,12 +514,14 @@ async def app_search(query: str):
 
     final_elements = []
 
+    session_id = conversations[cl.user_session.get("id")]
     conversations[cl.user_session.get("id")].append({"role": "user", "content": query})
     conversations[cl.user_session.get("id")].append({"role": "assistant", "content": final_answer})
-    log_message(f"Conversation History1: {conversations[cl.user_session.get("id")]}")
+    log_message(f"Conversation History1: {session_id}")
     conversations[cl.user_session.get("id")] = conversations[cl.user_session.get("id")][-6:]
-    log_message(f"Conversation History2: {conversations[cl.user_session.get("id")]}")
+    log_message(f"Conversation History2: {session_id}")
 
+    # FIXME
     for f in files:
         if f['type'] == 'assistant_image':
             final_elements.append(cl.Image(name=os.path.basename(f['asset']), path=f['asset'], size='large', display="inline"))

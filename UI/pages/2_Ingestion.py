@@ -6,7 +6,7 @@ from itertools import groupby
 from dotenv import load_dotenv
 
 load_dotenv()
-INITIAL_INDEX = os.getenv("INITIAL_INDEX")
+INITIAL_INDEX = os.getenv("INITIAL_INDEX", 'rag-data')
 
 # Set up logging format
 import logging
