@@ -414,3 +414,46 @@ The `post_process_images` function is integral to refining the output from image
 
 The `post_process_tables` function is designed to handle the refinement of table data extracted from documents. It applies to various document formats, including PDFs and images, where tables are present. The function's role is to enhance the quality of the extracted table information, ensuring that it is accurately represented and formatted for further use. It specifically deals with the 'table' modality, focusing on the post-extraction processing of tables to prepare them for integration into a searchable vector index or for analytical computations.
 
+
+<br/>
+<br/>
+
+# Contributions - Credits
+
+
+**Core Solution Development**:
+* Agustin Mantaras Rodriguez – Core Functionality, Infra and DevOps
+* Angel Sevillano Cabrera - Audio Processor
+* Mohamed Benaichouche – User Interfaces
+* Riccardo Chiodaroli - API Server, Code Refactoring, App Dev
+* Samer El Housseini – Core Functionality 
+* Wolfgang Knupp - Deployment Testing
+<br/>
+<br/>
+
+**Advisors**:
+* Andrew Mackay
+* Fabrizio Ruocco
+* Sergio Gonzalez Jimenez
+<br/>
+<br/>
+
+**Tutorial Notebooks Development**:
+* Ali Soliman - HTML Scraping
+* Evgeny Minkevich - Semantic Chunking
+* Khalil Chouchen - Document Intelligence
+* Sasa Juratovic - Table Splitting and Merging
+<br/>
+<br/>
+
+**Contributing Discussions**:
+* Anna Kubasiak
+* Clemens Siebler
+* Farid El Attaoui
+* Hooriya Anam
+* Masha Stroganova
+* Mooketsi Gaboutloeloe
+* Nabila Charkaoui
+
+<br/>
+<br/>
