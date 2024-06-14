@@ -153,8 +153,8 @@ resource webApp 'Microsoft.Web/sites@2022-09-01' = {
     keyVaultReferenceIdentity: appServiceManagedIdentity.id
     hostNamesDisabled: false
     siteConfig: {
-      acrUseManagedIdentityCreds: true
-      acrUserManagedIdentityID: appServiceManagedIdentity.id      
+      acrUseManagedIdentityCreds: false
+      // acrUserManagedIdentityID: appServiceManagedIdentity.id      
       http20Enabled: true
       linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot:latest'
       numberOfWorkers: 1
@@ -183,8 +183,8 @@ resource webApp2 'Microsoft.Web/sites@2022-09-01' = {
     keyVaultReferenceIdentity: appServiceManagedIdentity.id
     hostNamesDisabled: false
     siteConfig: {
-      acrUseManagedIdentityCreds: true
-      acrUserManagedIdentityID: appServiceManagedIdentity.id  
+      acrUseManagedIdentityCreds: false
+      // acrUserManagedIdentityID: appServiceManagedIdentity.id
       http20Enabled: true
       linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot-main:latest'
       numberOfWorkers: 1
@@ -213,8 +213,8 @@ resource webAppApi 'Microsoft.Web/sites@2022-09-01' = {
     keyVaultReferenceIdentity: appServiceManagedIdentity.id
     hostNamesDisabled: false
     siteConfig: {
-      acrUseManagedIdentityCreds: true
-      acrUserManagedIdentityID: appServiceManagedIdentity.id
+      acrUseManagedIdentityCreds: false
+      // acrUserManagedIdentityID: appServiceManagedIdentity.id
       http20Enabled: true
       linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot-api:latest'
       numberOfWorkers: 1
@@ -226,6 +226,7 @@ resource webAppApi 'Microsoft.Web/sites@2022-09-01' = {
     blobDataReaderRoleAssignment
   ]
 }
+
 
 // App Settings
 resource appsettings 'Microsoft.Web/sites/config@2022-09-01' = {

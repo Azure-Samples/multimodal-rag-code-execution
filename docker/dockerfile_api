@@ -28,4 +28,4 @@ EXPOSE 80
 WORKDIR /app
 
 # do not change the arguments
-CMD ["uvicorn", "api:app", "--port=80"]
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "80"]
