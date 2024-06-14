@@ -1296,7 +1296,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
     if [[ "$DEPLOY_INFRA" = "false" ]]; then
         export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
         export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
-        export_app_settings $WEB_APP_NAME_API $RG_WEBAPP_API
+        export_app_settings $WEB_APP_NAME_API $RG_WEBAPP_NAME
     fi    
 
     # Check if the current directory is multimodal-rag-code-execution
@@ -1478,7 +1478,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
     
     export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
     export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
-    export_app_settings $WEB_APP_NAME_API $RG_WEBAPP_API
+    export_app_settings $WEB_APP_NAME_API $RG_WEBAPP_NAME
 else
     # the script is run with update settings only flag
     # we get the output variables from the main deployment
@@ -1488,6 +1488,7 @@ else
     #exporting the original web app settings to files.    
     export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
     export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
+    export_app_settings $WEB_APP_NAME_API $RG_WEBAPP_NAME
 fi   
 
 
@@ -1631,7 +1632,7 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     if [[ "$BUILD_CHAINLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEB_APP_NAME? (y/n)" "$RED"; then    
             settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
-            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null #FIXME only API_BASE_URL needed
+            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME --settings API_BASE_URL="https://$WEB_APP_NAME_API.azurewebsites.net" > /dev/null
             if [ $? -ne 0 ]; then
                 echo -e "${RED}Error updating the chainlit: $output${RESET}"
             else
@@ -1643,7 +1644,7 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     if [[ "$BUILD_STREAMLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEB_APP_NAME_MAIN? (y/n)" "$RED"; then    
             settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
-            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null #FIXME only API_BASE_URL needed
+            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings API_BASE_URL="https://$WEB_APP_NAME_API.azurewebsites.net" > /dev/null
             if [ $? -ne 0 ]; then
                 echo -e "${RED}Error updating the streamlit: $output${RESET}"
             else    

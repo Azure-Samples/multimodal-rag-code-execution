@@ -96,18 +96,18 @@ resource mlContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@20
 }
 
 // Grant the App Service managed identity access to the container registry
-resource acrPullRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
-  scope: subscription()
-  name: '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull role ID
-}
-resource acrRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
-  name: guid(acr.id, appServiceManagedIdentity.name, 'AcrPull')
-  scope: acr
-  properties: {
-    roleDefinitionId: acrPullRole.id
-    principalId: appServiceManagedIdentity.properties.principalId
-  }
-}
+// resource acrPullRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+//   scope: subscription()
+//   name: '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull role ID
+// }
+// resource acrRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
+//   name: guid(acr.id, appServiceManagedIdentity.name, 'AcrPull')
+//   scope: acr
+//   properties: {
+//     roleDefinitionId: acrPullRole.id
+//     principalId: appServiceManagedIdentity.properties.principalId
+//   }
+// }
 
 
 //App service plan
