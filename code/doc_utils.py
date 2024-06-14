@@ -147,7 +147,7 @@ except:
 AZURE_OPENAI_KEY = os.environ.get('AZURE_OPENAI_KEY')
 AZURE_OPENAI_API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION')
 AZURE_OPENAI_MODEL_VISION = os.environ.get('AZURE_OPENAI_MODEL_VISION')
-OPENAI_API_BASE = f"https://{os.getenv('AZURE_OPENAI_RESOURCE')}.openai.azure.com/"
+OPENAI_API_BASE = f"https://{os.getenv('AZURE_OPENAI_RESOURCE')}.openai.azure.com"
 AZURE_OPENAI_MODEL = os.environ.get('AZURE_OPENAI_MODEL')
 
 AZURE_OPENAI_EMBEDDING_MODEL= os.environ.get('AZURE_OPENAI_EMBEDDING_MODEL')
@@ -4643,38 +4643,38 @@ User Query:
 Based on the query above, please check if computation support is likely needed or not. If the query will result in some numbers computation (numerical result), or generating a numerical graph (pie chart, line chart, bar chart, etc..), or generating a relationship chart with Mermaid or GraphViz DOT like an organizational chart or a process flow, etc.., then please output 'YES'. However if you think that the answer to the user query does not require any computation, then please output 'NO'. 
 
 Example 1:
-"what was the total media net sales in $ millions globally for 2015?"
+QUERY: "what was the total media net sales in $ millions globally for 2015?"
 OUTPUT: YES
 
 Example 2:
-"what is the the required capital for the acquisition of the company?"
+QUERY: "what is the the required capital for the acquisition of the company?"
 OUTPUT: YES
 
 Example 3:
-"what is the name of the CEO of the company?"
+QUERY: "what is the name of the CEO of the company?"
 OUTPUT: NO
 
 Example 4:
-"what is the average stock price between the years 2010-2015?"
+QUERY: "what is the average stock price between the years 2010-2015?"
 OUTPUT: YES
 
 Example 5:
-"what is the color of the logo of the company?"
+QUERY: "what is the color of the logo of the company?"
 OUTPUT: NO
 
 Example 6:
-"Please give me a line chart based on the numbers in the answer."
+QUERY: "Please give me a line chart based on the numbers in the answer."
 OUTPUT: YES
 
 Example 7:
-"Can you please generate a sub-branch of the organizational chart for the company?"
+QUERY: "Can you please generate a sub-branch of the organizational chart for the company?"
 OUTPUT: YES
 
 Example 8:
-"What are the sales by segment? please output a pie chart."
+QUERY: "What are the sales by segment? please output a pie chart."
 OUTPUT: YES
 
-Output:
+You **MUST** reply with only with one word: "YES" or "NO" with no other text or explanation.
 
 """
 
@@ -5019,7 +5019,7 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
             intent = check_if_computation_is_needed(query)
             logc("Computation Intent", intent)
 
-            if intent == "YES":
+            if "YES" in intent:
                 computation_support, files = apply_computation_support(query, assets, computation_approach, conversation_history = conversation_history, user_id = user_id, include_master_py=include_master_py, verbose = verbose)
                 logc("Computation Support Output", computation_support)
                 

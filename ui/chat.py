@@ -15,7 +15,7 @@ import traceback
 import uuid
 import asyncio
 import chainlit as cl
-from chainlit.playground.providers import ChatOpenAI
+# from chainlit.playground.providers import ChatOpenAI
 from chainlit import run_sync
 from time import sleep
 
@@ -203,7 +203,7 @@ async def update_task_list():
     task_password = cl.Task(title=f"PDF Password: {password}", status=cl.TaskStatus.DONE)
     task_approx_tag_limit = cl.Task(title=f"Search Tags Limit: {approx_tag_limit}", status=cl.TaskStatus.DONE)
     task_pdf_extraction_mode = cl.Task(title=f"PDF Extraction Mode: {pdf_extraction_mode}", status=cl.TaskStatus.DONE)
-    task_docx_extraction_mode = cl.Task(title=f"Docx Extractoin Mode: {docx_extraction_mode}", status=cl.TaskStatus.DONE)
+    task_docx_extraction_mode = cl.Task(title=f"Docx Extraction Mode: {docx_extraction_mode}", status=cl.TaskStatus.DONE)
     task_number_of_thread = cl.Task(title=f"Number of Threads: {number_of_thread}", status=cl.TaskStatus.DONE)
     task_delete_existing_output_directories = cl.Task(title=f"Delete Existing Ingestion Directory: {delete_existing_output_directories}", status=cl.TaskStatus.DONE)
     task_code_interpreter = cl.Task(title=f"Code Interpreter: {code_interpreter}", status=cl.TaskStatus.DONE)
