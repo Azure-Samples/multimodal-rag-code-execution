@@ -20,8 +20,6 @@
 #  _( ^)
 # /   ~\
 
-
-
 # AML CHEATSHEET
 # https://azure.github.io/azureml-cheatsheets/docs/cheatsheets/python/v1/compute-targets
 import fitz  # PyMuPDF
@@ -29,69 +27,63 @@ import os
 import glob
 import traceback
 from dotenv import load_dotenv
-import json_repair
-from typing import List, Optional
-# import comtypes.client
 import shutil
 import copy
-import re
-import logging
 import json
 import uuid
 import hashlib
-import openai
-import requests
-import base64
-from PIL import Image
 import pandas as pd
-import openai
-from openai import AzureOpenAI, OpenAI
-import io
-from utils.bcolors import bcolors as bc  
-import sys
-import pickle
+from utils.bcolors import bcolors as bc 
 import tiktoken
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_random_exponential,
-    stop_after_delay,
-    after_log
-)
-from inspect import getsourcefile
-from os.path import abspath 
-import urllib.parse
 from multiprocessing.dummy import Pool as ThreadPool
 import math
 import itertools 
 import time
-from datetime import datetime
 import numpy as np
-import logging
-import sys
+import time
+import random
+from PIL import Image
 
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import AnalyzeResult
-from azure.ai.documentintelligence.models import AnalyzeDocumentRequest, ContentFormat
-
-from azure.storage.fileshare import ShareFileClient, generate_file_sas, FileSasPermissions
-from datetime import datetime, timedelta
-
-logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
-logger = logging.getLogger(__name__)
-
-taskweaver_logger = logging.getLogger('taskweaver.logging')
-taskweaver_logger.setLevel(logging.ERROR)
+from azure.ai.documentintelligence.models import ContentFormat
 
 load_dotenv()
 
 from env_vars import *
+from utils.logc import logc, get_current_time
 from utils.http_helpers import *
-# from utils.cogsearch_helpers import *
 from utils.cogsearch_rest import *
 from utils.sc_sync import *
+from utils.file_utils import (
+    is_file_or_url, 
+    save_to_pickle, 
+    write_to_file, 
+    read_asset_file, 
+    replace_extension, 
+    download_file, 
+    check_replace_extension, 
+    generate_file_sas_full_link)
+from utils.text_utils import (
+    extract_code, get_token_count, limit_token_count, recover_json, extract_markdown, extract_markdown_table, 
+    extract_markdown_table_as_df, extract_extracted_text, remove_extracted_text, remove_code, extract_mermaid, 
+    extract_chunk_number, clean_up_text)
+from utils.openai_utils import (
+    gpt4_models, 
+    get_chat_completion, 
+    get_chat_completion_with_json, 
+    get_embeddings, 
+    ask_LLM, 
+    ask_LLM_with_JSON, 
+    call_gpt4v)
+from utils.code_exec_utils import (
+    execute_python_code_block, 
+    try_code_interpreter_for_tables_using_python_exec, 
+    try_code_interpreter_for_tables_using_taskweaver)
+from utils.assistants_utils import try_code_interpreter_for_tables_using_assistants_api
 
+# Begin main
 
 try:
     from docx import Document
@@ -110,290 +102,11 @@ try:
 except:
     print("WARNING: one of the llama_index module(s) not found. Please install llama_index modules.")
 
-
-# https://techcommunity.microsoft.com/t5/ai-azure-ai-services-blog/gpt-4-turbo-with-vision-is-now-available-on-azure-openai-service/ba-p/4008456#:~:text=GPT%2D4%20Turbo%20with%20Vision%20can%20be%20accessed%20in%20the,Switzerland%20North%2C%20and%20West%20US.
-# 
-#  GPT-4 Turbo with Vision can be accessed in the following Azure regions: Australia East, Sweden Central, Switzerland North, and West US.
-
-
 pool = ThreadPool(20)
 
 
-
-exec_path = os.path.dirname(getsourcefile(lambda:0))
-exec_path = ''
-test_project_path = os.path.join(exec_path, "../test_project/")
-taskweaver_path = os.path.join(exec_path, "../TaskWeaver/")
-default_vector_directory = os.path.join(exec_path, "../doc_ingestion_cases/")
-
-# print("Code file: ", os.path.relpath(getsourcefile(lambda:0)))
-# print("\n\nPython Version: ", sys.version)
-# print("Current Path: ", os.getcwd())
-# print("Execution Path: ", exec_path)
-# print("Test Project Path: ", exec_path)
-# print("Default Vector Directory: ", default_vector_directory)
-# print("Taskweaver Path: ", taskweaver_path, '\n\n')
-
-sys.path.append(taskweaver_path)
-sys.path.append("../TaskWeaver/") 
-
-try:
-    from taskweaver.app.app import TaskWeaverApp
-except:
-    pass
-
-
-
-AZURE_OPENAI_KEY = os.environ.get('AZURE_OPENAI_KEY')
-AZURE_OPENAI_API_VERSION = os.environ.get('AZURE_OPENAI_API_VERSION')
-AZURE_OPENAI_MODEL_VISION = os.environ.get('AZURE_OPENAI_MODEL_VISION')
-OPENAI_API_BASE = f"https://{os.getenv('AZURE_OPENAI_RESOURCE')}.openai.azure.com/"
-AZURE_OPENAI_MODEL = os.environ.get('AZURE_OPENAI_MODEL')
-
-AZURE_OPENAI_EMBEDDING_MODEL= os.environ.get('AZURE_OPENAI_EMBEDDING_MODEL')
-AZURE_OPENAI_EMBEDDING_API_BASE = f"https://{os.getenv('AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE')}.openai.azure.com"
-AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY = os.environ.get('AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY')
-AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION = os.environ.get('AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION')
-
-openai.log = "error"
-
-
-oai_client = AzureOpenAI(
-    azure_endpoint = OPENAI_API_BASE, 
-    api_key= AZURE_OPENAI_KEY,  
-    api_version= AZURE_OPENAI_API_VERSION,
-)
-
-
-oai_emb_client = AzureOpenAI(
-    azure_endpoint = AZURE_OPENAI_EMBEDDING_API_BASE, 
-    api_key= AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY,  
-    api_version= AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION,
-)
-
-
-log_ui_func_hook = None
-
-
-def logc(label, text = None, newline=False, timestamp=False, verbose=True):
-    if newline: nls = "\n" 
-    else: nls = " "
-
-    out_s = ""
-    out_n = ""
-
-    if timestamp:
-        if text is not None:
-            out_s = f"\n{get_current_time()} :: {bc.OKGREEN}{label}:{nls}{bc.OKBLUE}{text}{bc.ENDC}"
-            out_n = f"\n{get_current_time()} :: {label}:{nls}{text}"
-            if verbose: logging.info(out_s)
-        else:
-            out_s = f"\n{get_current_time()} :: {bc.OKGREEN}{label}{nls}{bc.ENDC}"
-            out_n = f"\n{get_current_time()} :: {label}{nls}"
-            if verbose: logging.info(out_s)
-    else:
-        if text is not None:
-            out_s = f"\n{bc.OKGREEN}{label}:{nls}{bc.OKBLUE}{text}{bc.ENDC}"
-            out_n = f"\n{label}:{nls}{text}"
-            if verbose: logging.info(out_s)
-        else:
-            out_s = f"\n{bc.OKGREEN}{label}{nls}{bc.ENDC}"
-            out_n = f"\n{label}{nls}"
-            if verbose: logging.info(out_s)
-
-    if log_ui_func_hook is not None:
-        try:
-            log_ui_func_hook(label, text)
-        except Exception as e:
-            logging.error(f"Error in log_ui_func_hook")
-    else:
-        pass
-        # print("log_ui_func_hook is None")
-
-
-
-def read_pdf(pdf_doc):
-    doc = fitz.open(pdf_doc)
-    print(f"PDF File {os.path.basename(pdf_doc)} has {len(doc)} chunks.")
-    return doc
-
-
-def extract_chunks_as_png_files(doc, work_dir = os.path.join(ROOT_PATH_INGESTION, 'downloads')):
-    os.makedirs(work_dir, exist_ok=True)
-    png_files = []
-
-    for chunk in doc:
-        chunk_num = chunk.number
-        img_path = f"{work_dir}/chunk_{chunk_num}.png"
-        chunk_pix = chunk.get_pixmap(dpi=300)
-        chunk_pix.save(img_path)
-        print(f"Chunk {chunk_num} saved as {img_path}")
-        png_files.append(img_path)
-    
-    return png_files
-
-
-
-def show_json(obj):
-    display(json.loads(obj.model_dump_json()))
-
-
-@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(TENACITY_STOP_AFTER_DELAY), after=after_log(logger, logging.ERROR))             
-def get_chat_completion(messages: List[dict], model = AZURE_OPENAI_MODEL, client = oai_client, temperature = 0.2):
-    print(f"\nCalling OpenAI APIs with {len(messages)} messages - Model: {model} - Endpoint: {oai_client._base_url}\n")
-    return client.chat.completions.create(model = model, temperature = temperature, messages = messages, timeout=TENACITY_TIMEOUT)
-
-
-@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(5), retry_error_callback=lambda e: isinstance(e, requests.exceptions.HTTPError) and e.response.status_code == 429, after=after_log(logger, logging.ERROR))
-def get_chat_completion_with_json(messages: List[dict], model=AZURE_OPENAI_MODEL, client=oai_client, temperature=0.2):
-    try:
-        print(f"\nCalling OpenAI APIs with {len(messages)} messages - Model: {model} - Endpoint: {oai_client._base_url}\n{bc.ENDC}")
-        print(f"Messages: {messages}")
-        return client.chat.completions.create(model=model, temperature=temperature, messages=messages, response_format={"type": "json_object"}, timeout=TENACITY_TIMEOUT)
-    except Exception as e:
-        print(f"Error in get_chat_completion_with_json: {e}")
-        raise e
-
-
-@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_delay(TENACITY_STOP_AFTER_DELAY), after=after_log(logger, logging.ERROR))     
-def get_embeddings(text, embedding_model = AZURE_OPENAI_EMBEDDING_MODEL, client = oai_emb_client):
-    return client.embeddings.create(input=[text], model=embedding_model,timeout=TENACITY_TIMEOUT).data[0].embedding
-
-
-def ask_LLM(prompt, temperature = 0.2, model_info = None):
-
-    if model_info is not None:
-        client = AzureOpenAI(
-                azure_endpoint =  f"https://{model_info['AZURE_OPENAI_RESOURCE']}.openai.azure.com" , 
-                api_key= model_info['AZURE_OPENAI_KEY'],  
-                api_version= AZURE_OPENAI_API_VERSION,
-            )
-    else:
-        client = oai_client
-
-    messages = []
-    messages.append({"role": "system", "content": "You are a helpful assistant, who helps the user with their query."})     
-    messages.append({"role": "user", "content": prompt})     
-
-    result = get_chat_completion(messages, temperature = temperature, client=client)
-
-    return result.choices[0].message.content
-
-
-def ask_LLM_with_JSON(prompt, temperature = 0.2, model_info = None):
-
-    if model_info is not None:
-        client = AzureOpenAI(
-                azure_endpoint =  f"https://{model_info['AZURE_OPENAI_RESOURCE']}.openai.azure.com" , 
-                api_key= model_info['AZURE_OPENAI_KEY'],  
-                api_version= AZURE_OPENAI_API_VERSION,
-            )
-    else:
-        client = oai_client
-
-    messages = []
-    messages.append({"role": "system", "content": "You are a helpful assistant, who helps the user with their query. You are designed to output JSON."})     
-    messages.append({"role": "user", "content": prompt})     
-
-    result = get_chat_completion_with_json(messages, temperature = temperature, client=client)
-
-    return result.choices[0].message.content
-
-
-
-
-
-section_generation_prompt= """You are helpful Prompt Engineer whose task is to write specific sub-sections of a main prompt. 
-
-Description of Sub-Section:
-## START OF DESCRIPTION OF SUB-SECTION
-{section}
-## END OF DESCRIPTION OF SUB-SECTION
-
-Given the description of the sub-section above, you need to generate a sub-section of a prompt that can summarize documents relevant to that section. In the generated sub-section, list all essential topics that can be searched to get contents relevant to that sub-section description. 
-
-Always output a sub-section title first, and then the list of topics or questions that can be searched to get contents relevant to that sub-section description.
-
-Be super concise in your output, just like the examples included below. 
-
-##Examples
-
-#Example 1:
-
-Section:
-# Start Section
-Sales segmentation
-# End section
-
-#Output 1
-###Sales Segmentation or Revenue Split###
-
-* Provide sales segmentation by detailing customer demographics (such as age groups, geographic regions, and buying patterns), sales methods (including online, in-store, and direct sales), and distribution methods (like third-party or direct shipping).
-* If full data is available, synthesize sales segmentation and revenue split data, pinpointing trends.
-* In the absence of complete data, utilize available information to offer a reasoned approximation of these elements.
-#END Output 1
-
-#Example 2:
-
-Section:
-# Start Section
-Key financials
-# End section
-
-#Output 1
-###Key Financials###
-
-* Extract and list key financial metrics such as:
-     - EBITDA,
-     - Profit Margins over the past five years,
-     - Annual Revenue,
-     - Compound Annual Growth Rate (CAGR).
-#END Output 2
-
-#Example 3:
-
-Section:
-# Start Section
-Market Outlook
-# End section
-
-#Output 3
-###Market Outlook###
-    *Market Growth Forecast: Investigate and summarize the projected annual growth rate for the Market up to the year 2026. Emphasize any specific growth trends, such as the impact of post-COVID recovery.
-    *Regional Sales Distribution: Present a breakdown of the  market sales by region. Pay special attention to the growth rates and market sizes in key regions such as Asia, Europe, and the Americas, with a specific focus on the biggest market contribution.
-    *Demographic Shifts:Report on the purchasing trends among different consumer demographics, particularly noting the influence of Generation Z and their expected contribution to market growth.
-    *Digital Transformation: Describe the impact on digital purchasing trends and the shift towards online sales within the market. Forecast the role of omnichannel strategies and direct-to-consumer sales as emerging dominant channels in the market.
-    *Market Dynamics: Highlight the most important country anticipated position in the  market by 2025 and the factors contributing to its significant role in the market's growth.
-
-#END Output 3
-
-#Example 4:
-
-Section:
-# Start Section
-Market Growth
-# End section
-
-#Output 4
-###Market Growth###
-    *Historical Growth Rates: Review and summarize the historical growth rates of the Market. Provide context on how these rates have trended over time, up until the present.
-    *Post Recovery and Projections:    Detail the expected recovery path of the market following the downturn. Highlight any forecasts about the market's growth up to 2026, including expectations for sales levels to surpass recent peaks. Analyze the anticipated Compound Annual Growth Rate (CAGR) for the near future, noting differences between the luxury and super-luxury segments.
-    Segment-Specific Growth:
-    *Identify which segments within the market are expected to see the highest growth. Provide specific CAGR figures for these segments from 2022 to 2026, if available.
-    *Influencing Factors: Discuss any external or internal factors that are expected to influence market growth within the forecast period. This may include technological advancements, shifts in consumer behavior, or economic trends.
-#END Output 4
-##End Examples
-
-
-"""
-
-
-
-def generate_section(section):
-    prompt = section_generation_prompt.format(section=section)
-    return ask_LLM(prompt)
-
-
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 general_prompt_template = """
 
@@ -512,7 +225,6 @@ The JSON dictionary output should include the 3 questions and the answers. The J
 
 """
 
-
 table_prompt_template = """
 
 Context:
@@ -551,7 +263,6 @@ The JSON dictionary output should include the 3 questions and the answers. The J
 }}
 
 """
-
 
 image_prompt_template = """
 
@@ -592,8 +303,6 @@ The JSON dictionary output should include the 3 questions and the answers. The J
 
 """
 
-
-
 rate_answers_prompt_template = """
 
 Below you will find a question and the ground truth answer, as well as the generated answer. Please rate from 0-10 how close the generated answer is to the ground truth answer. 0 means the generated answer is not close at all to the ground truth answer, and 10 means the generated answer is very close to the ground truth answer. Please rate the generated answer based on how well it answers the question, and not based on how well it is written.
@@ -624,72 +333,99 @@ Do **NOT** generate any other text or explanations other than the JSON dictionar
 
 """
 
-
-
-def get_encoder(model = "gpt-4"):
-    if model == "text-search-davinci-doc-001":
-        return tiktoken.get_encoding("p50k_base")
-    elif model == "text-embedding-ada-002":
-        return tiktoken.get_encoding("cl100k_base")
-    elif model == "gpt-35-turbo": 
-        return tiktoken.get_encoding("cl100k_base")
-    elif model == "gpt-35-turbo-16k": 
-        return tiktoken.get_encoding("cl100k_base")        
-    elif model == "gpt-4-32k":
-        return tiktoken.get_encoding("cl100k_base")
-    elif model == "gpt-4":
-        return tiktoken.get_encoding("cl100k_base")                
-    elif model == "text-davinci-003":
-        return tiktoken.get_encoding("p50k_base")           
-    else:
-        return tiktoken.get_encoding("cl100k_base")
-
-
-def get_token_count(text, model = "gpt-4"):
-    enc = get_encoder(model)
-    return len(enc.encode(text))
-
-
-def limit_token_count(text, limit = FULL_TEXT_TOKEN_LIMIT, model = "gpt-4"):
-    enc = get_encoder(model)
-    return enc.decode(enc.encode(text)[:limit])
-
-
-def cosine_similarity(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-
-
-def download_file(url, folder_path):
-    # Extract the filename from the URL
-    filename = url.split('/')[-1]
-
-    # Create the full save path
-    save_path = os.path.join(folder_path, filename)
-
-    # Send a GET request to the URL
-    response = requests.get(url)
-
-    # Check if the request was successful
-    if response.status_code == 200:
-        # Make sure the directory exists
-        os.makedirs(folder_path, exist_ok=True)
-
-        # Write the content to a file
-        with open(save_path, 'wb') as f:
-            f.write(response.content)
-        print(f"File saved to {save_path}")
-        return save_path
-    else:
-        print(f"Failed to retrieve the File from the url: {url}")
-        return None
-
-
 def generate_uuid_from_string(input_string):
     # Create a SHA-1 hash of the input string
     hash_object = hashlib.sha1(input_string.encode())
     # Use the first 16 bytes of the hash to create a UUID
     return str(uuid.UUID(bytes=hash_object.digest()[:16]))
+    
+section_generation_prompt= """You are helpful Prompt Engineer whose task is to write specific sub-sections of a main prompt. 
 
+Description of Sub-Section:
+## START OF DESCRIPTION OF SUB-SECTION
+{section}
+## END OF DESCRIPTION OF SUB-SECTION
+
+Given the description of the sub-section above, you need to generate a sub-section of a prompt that can summarize documents relevant to that section. In the generated sub-section, list all essential topics that can be searched to get contents relevant to that sub-section description. 
+
+Always output a sub-section title first, and then the list of topics or questions that can be searched to get contents relevant to that sub-section description.
+
+Be super concise in your output, just like the examples included below. 
+
+##Examples
+
+#Example 1:
+
+Section:
+# Start Section
+Sales segmentation
+# End section
+
+#Output 1
+###Sales Segmentation or Revenue Split###
+
+* Provide sales segmentation by detailing customer demographics (such as age groups, geographic regions, and buying patterns), sales methods (including online, in-store, and direct sales), and distribution methods (like third-party or direct shipping).
+* If full data is available, synthesize sales segmentation and revenue split data, pinpointing trends.
+* In the absence of complete data, utilize available information to offer a reasoned approximation of these elements.
+#END Output 1
+
+#Example 2:
+
+Section:
+# Start Section
+Key financials
+# End section
+
+#Output 1
+###Key Financials###
+
+* Extract and list key financial metrics such as:
+     - EBITDA,
+     - Profit Margins over the past five years,
+     - Annual Revenue,
+     - Compound Annual Growth Rate (CAGR).
+#END Output 2
+
+#Example 3:
+
+Section:
+# Start Section
+Market Outlook
+# End section
+
+#Output 3
+###Market Outlook###
+    *Market Growth Forecast: Investigate and summarize the projected annual growth rate for the Market up to the year 2026. Emphasize any specific growth trends, such as the impact of post-COVID recovery.
+    *Regional Sales Distribution: Present a breakdown of the  market sales by region. Pay special attention to the growth rates and market sizes in key regions such as Asia, Europe, and the Americas, with a specific focus on the biggest market contribution.
+    *Demographic Shifts:Report on the purchasing trends among different consumer demographics, particularly noting the influence of Generation Z and their expected contribution to market growth.
+    *Digital Transformation: Describe the impact on digital purchasing trends and the shift towards online sales within the market. Forecast the role of omnichannel strategies and direct-to-consumer sales as emerging dominant channels in the market.
+    *Market Dynamics: Highlight the most important country anticipated position in the  market by 2025 and the factors contributing to its significant role in the market's growth.
+
+#END Output 3
+
+#Example 4:
+
+Section:
+# Start Section
+Market Growth
+# End section
+
+#Output 4
+###Market Growth###
+    *Historical Growth Rates: Review and summarize the historical growth rates of the Market. Provide context on how these rates have trended over time, up until the present.
+    *Post Recovery and Projections:    Detail the expected recovery path of the market following the downturn. Highlight any forecasts about the market's growth up to 2026, including expectations for sales levels to surpass recent peaks. Analyze the anticipated Compound Annual Growth Rate (CAGR) for the near future, noting differences between the luxury and super-luxury segments.
+    Segment-Specific Growth:
+    *Identify which segments within the market are expected to see the highest growth. Provide specific CAGR figures for these segments from 2022 to 2026, if available.
+    *Influencing Factors: Discuss any external or internal factors that are expected to influence market growth within the forecast period. This may include technological advancements, shifts in consumer behavior, or economic trends.
+#END Output 4
+##End Examples
+
+
+"""
+
+def generate_section(section):
+    prompt = section_generation_prompt.format(section=section)
+    return ask_LLM(prompt)
 
 def get_solution_path_components(asset_path: str) -> dict:
     stem = os.path.normpath(asset_path)
@@ -704,15 +440,12 @@ def get_solution_path_components(asset_path: str) -> dict:
 
     return dd
 
-
 def copy_ai_search_index(source_index, target_index):
     sc = IndexSync(staging_index_name = source_index, prod_index_name = target_index)
     sc.prod_cs.create_index()
     output = sc.duplicate_index()
     logc("Copy AI Search Index", f"Source Index: {source_index}. Target Index: {target_index}. Status: Copied {len(output)} items.")
     return len(output)
-
-
 
 def update_document_in_index(asset_file, new_doc, index_name):
     index = CogSearchRestAPI(index_name)
@@ -756,224 +489,6 @@ def update_document_in_index(asset_file, new_doc, index_name):
 
     return res
 
-
-    
-def is_file_or_url(s):
-    # Check if the string is a URL
-    parsed = urllib.parse.urlparse(s)
-    is_url = bool(parsed.scheme and parsed.netloc)
-
-    # Check if the string is a local file path
-    is_file = os.path.isfile(s)
-
-    return 'url' if is_url else 'file' if is_file else 'unknown'
-
-
-def save_to_pickle(a, filename):
-    with open(filename, 'wb') as handle:
-        pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-
-def load_from_pickle(filename):
-    with open(filename, 'rb') as handle:
-        b = pickle.load(handle)
-    return b
-
-
-def extract_json(s):
-    code = re.search(r"```json(.*?)```", s, re.DOTALL)
-    if code:
-        return code.group(1)
-    else:
-        return s
-
-def extract_sql(s):
-    code = re.search(r"```sql(.*?)```", s, re.DOTALL)
-    if code:
-        return code.group(1)
-    else:
-        return s
-
-def extract_code(s):
-    code = re.search(r"```python(.*?)```", s, re.DOTALL)
-    if code:
-        return code.group(1)
-    else:
-        return ""
-
-def extract_extracted_text(s):
-    code = re.search(r"```EXTRACTED TEXT(.*?)```", s, re.DOTALL)
-    if code:
-        return code.group(1)
-    else:
-        return ""
-
-
-def extract_markdown(s):
-    code = re.search(r"```markdown(.*?)```", s, re.DOTALL)
-    if code:
-        return code.group(1)
-    else:
-        return ""
-
-
-def extract_mermaid(s):
-    code = re.search(r"```mermaid(.*?)```", s, re.DOTALL)
-    if code:
-        return code.group(1)
-    else:
-        return ""
-
-
-
-def extract_markdown_table(s):
-    try:
-        table_pattern = r"(\|.*\|\s*\n\|[-| ]+\|\s*\n(\|.*\|\s*\n)+)"
-        tables = re.findall(table_pattern, s, re.MULTILINE)
-    except:
-        tables = []
-        logc("Error extracting markdown tables", f"Error extracting markdown tables from text '{s[:50]}'.")
-
-    return tables
-
-
-def extract_table_rows(markdown_table):
-    lines = markdown_table.strip().split('\n')
-    row_data = []
-
-    for line in lines:
-        if re.match(r"\|\s*[-]+\s*\|", line):
-            continue  # Skip separator lines
-        else:
-            cells = re.findall(r"\|\s*([^|\n]+)\s*", line)
-            if cells:
-                row_data.append(tuple(cells))
-    
-    return row_data
-
-
-def extract_markdown_table_as_df(s):
-    try:
-        matches = extract_table_rows(s)
-        header = matches[0]
-        data = matches[1:]
-
-        df = pd.DataFrame(data, columns=header)
-    except Exception as e:
-        df = pd.DataFrame()
-        logc("Warning Only - Error extracting markdown tables as DataFrame", f"Error extracting markdown tables as DataFrame from text '{s[:50]}'. Error: {e}")
-        print(s)
-
-    return df
-
-
-def remove_code(s):
-    return re.sub(r"```python(.*?)```", "", s, flags=re.DOTALL)
-
-
-def remove_markdown(s):
-    return re.sub(r"```markdown(.*?)```", "", s, flags=re.DOTALL)
-
-
-def remove_mermaid(s):
-    return re.sub(r"```mermaid(.*?)```", "", s, flags=re.DOTALL)
-
-
-def remove_extracted_text(s):
-    return re.sub(r"```EXTRACTED TEXT(.*?)```", "", s, flags=re.DOTALL)
-
-
-
-### IMPORTANT FOR WINDOWS USERS TO SUPPORT LONG FILENAME PATHS 
-### IN CASE YOU"RE USING LONG FILENAMES, AND THIS IS CAUSING AN EXCEPTION, FOLLOW THESE 2 STEPS:
-# 1. change a registry setting to allow long path names on this particular Windows system (use regedit.exe): under HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem, set LongPathsEnabled to DWORD value 1
-# 2. Check if the group policy setting is configured to enable long path names. Open the Group Policy Editor (gpedit.msc) and navigate to Local Computer Policy > Computer Configuration > Administrative Templates > System > Filesystem. Look for the "Enable Win32 long paths" policy and make sure it is set to "Enabled".
-def write_to_file(text, text_filename, mode = 'a'):
-    try:
-        text_filename = text_filename.replace("\\", "/")
-        with open(text_filename, mode, encoding='utf-8') as file:
-            file.write(text)
-
-        print(f"Writing file to full path: {os.path.abspath(text_filename)}")
-    except Exception as e:
-        logc(f"SERIOUS ERROR: {bc.RED}Error writing text to file: {e}{bc.ENDC}")
-
-
-
-def get_current_time():
-    return datetime.now().strftime("%d.%m.%Y_%H.%M.%S")
-
-
-
-
-def execute_python_code_block_old(file_path):
-    exception = ""
-
-    try:
-        with open(file_path, 'r') as file:
-            code_block = file.read()
-        output = exec(code_block)
-        result = True
-    except Exception as e:
-        exception = e
-        result = False
-
-    return result, exception, output
-
-
-def execute_python_code_block(file_path, additional_code = ""):
-    exception = ""
-    output = ""
-    ret_dict = {}    
-    result = False
-
-    try:
-        with open(file_path, 'r') as file:
-            code_block = file.read()
-
-        code = code_block + "\n" + additional_code
-        exec(code, globals(), ret_dict)
-        result = True
-    
-        print("Final Answer:", ret_dict.get('final_answer', ""))
-        output = ret_dict.get('final_answer', "")
-    except Exception as e:
-        exception = e
-        
-
-    return result, exception, output
-
-
-
-def read_asset_file(text_filename):
-    try:
-        text_filename = text_filename.replace("\\", "/")
-        with open(text_filename, 'r', encoding='utf-8') as file:
-            text = file.read()
-        status = True
-    except Exception as e:
-        text = ""
-        print(f"WARNING ONLY - reading text file: {e}")
-        status = False
-
-    return text, status
-
-
-def generate_file_sas_full_link(p):
-    try:
-        p = os.path.normpath(os.path.join(ROOT_PATH_INGESTION, p)).replace("\\", "/")
-        logc(f"Generate SAS Token for {p}")
-        if p.startswith('/'): p = p[1:]
-        service = ShareFileClient(account_url=f"https://{AZURE_FILE_SHARE_ACCOUNT}.file.core.windows.net", credential=AZURE_FILE_SHARE_KEY, share_name=AZURE_FILE_SHARE_NAME, file_path=p)
-
-        token = generate_file_sas(AZURE_FILE_SHARE_ACCOUNT, AZURE_FILE_SHARE_NAME, p.split('/'), AZURE_FILE_SHARE_KEY, expiry=datetime.utcnow() + timedelta(hours=20*365*24), permission=FileSasPermissions(read=True))
-        full_path = service.url + '?' + token
-        return full_path
-    except:
-        return ""
-
-
-
 def get_dpi(image):
     try:
         dpi = image.info['dpi']
@@ -991,7 +506,6 @@ def polygon_to_bbox(polygon):
     bottom = max(ys)
     return (left, top, right, bottom)
 
-
 def polygons_to_bbox(polygons):
     xs = [point for polygon in polygons for point in polygon[::2]]
     ys = [point for polygon in polygons for point in polygon[1::2]]
@@ -1001,11 +515,9 @@ def polygons_to_bbox(polygons):
     bottom = max(ys)
     return (left, top, right, bottom)
 
-
 def inches_to_pixels(inches, dpi):
     dpi_x, dpi_y = dpi
     return [int(inches[i] * dpi_x if i % 2 == 0 else inches[i] * dpi_y) for i in range(len(inches))]
-
 
 def extract_figure(image_path, polygons, target_filename):
     bbox_in_inches = polygons_to_bbox(polygons)
@@ -1027,7 +539,6 @@ def extract_figure(image_path, polygons, target_filename):
 
     return target_filename
 
-
 def get_excel_sheet_names(file_path):
     # Load the Excel file
     xls = pd.ExcelFile(file_path, engine='openpyxl')
@@ -1037,15 +548,11 @@ def get_excel_sheet_names(file_path):
 
     return sheet_names
 
-
-
 def read_csv_to_dataframe(file_path):
     # Read a CSV file into a DataFrame
     df = pd.read_csv(file_path)
 
     return {"sheet1": df}
-
-
 
 def read_excel_to_dataframes(file_path):
     xls = pd.ExcelFile(file_path, engine='openpyxl')
@@ -1057,16 +564,6 @@ def read_excel_to_dataframes(file_path):
 
     return dfs
 
-
-def find_certain_files(directory, extension = '.xlsx'):
-    xlsx_files = []
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            if file.endswith(".xlsx"):
-                xlsx_files.append(os.path.join(root, file))
-    return xlsx_files
-
-
 def table_df_cleanup_df(df):
     dfc = copy.deepcopy(df)
     dfc = dfc.dropna(axis=0, how='all')
@@ -1074,8 +571,6 @@ def table_df_cleanup_df(df):
     dfc = dfc.replace(r'\n','   //    ', regex=True) 
     dfc = dfc.replace(r'\|','   ///    ', regex=True) 
     return dfc
-
-
 
 # def save_pptx_as_pdf(pptx_path, output_directory):
 #     comtypes.CoInitialize()
@@ -1162,11 +657,6 @@ def table_df_cleanup_df(df):
 #     print("Status: ", description)
 #     return output_document_path
 
-
-
-
-
-
 code_harvesting_from_text = """You are a helpful AI assistant that helps developers to generate code snippets from text. You have been given a text that contains text. You need to generatecode snippets from the text.
 
 Please do the following as a chain of thought:
@@ -1196,78 +686,6 @@ Output only the generated code and the Markdown table in a Markdown codeblock. D
 
 """
 
-
-
-# gpt4_models = [
-#     {
-#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE'),
-#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY'),
-#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-#     },
-#     {
-#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_1'),
-#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_1'),
-#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-#     },
-#     {
-#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_2'),
-#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_2'),
-#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-#     },
-#     {
-#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_3'),
-#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_3'),
-#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-#     },
-#     {
-#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_4'),
-#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_4'),
-#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-#     },
-#     {
-#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_5'),
-#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_5'),
-#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-#     },
-#     {
-#         'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE_6'),
-#         'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY_6'),
-#         'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-#         'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-#     }
-# ]
-
-
-gpt4_models_init = [
-    {
-        'AZURE_OPENAI_RESOURCE': os.environ.get('AZURE_OPENAI_RESOURCE'),
-        'AZURE_OPENAI_KEY': os.environ.get('AZURE_OPENAI_KEY'),
-        'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-        'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-    }
-]
-    
-addtnl_gpt4_models = [
-    {
-        'AZURE_OPENAI_RESOURCE': os.environ.get(f'AZURE_OPENAI_RESOURCE_{x}'),
-        'AZURE_OPENAI_KEY': os.environ.get(f'AZURE_OPENAI_KEY_{x}'),
-        'AZURE_OPENAI_MODEL_VISION': os.environ.get('AZURE_OPENAI_MODEL_VISION'),
-        'AZURE_OPENAI_MODEL': os.environ.get('AZURE_OPENAI_MODEL'),
-    } 
-    for x in range(1, 20)
-]
-
-gpt4_models = gpt4_models_init + addtnl_gpt4_models
-
-gpt4_models = [m for m in gpt4_models if (m['AZURE_OPENAI_RESOURCE'] is not None) and (m['AZURE_OPENAI_RESOURCE'] != '')]
-
-
 markdown_extract_header_and_summarize_prompt = """
 You are a Data Engineer resonsible for reforming and preserving the quality of Markdown tables. A table will be passed to you in the form of a Markdown string. You are designed to output JSON. 
 
@@ -1295,8 +713,6 @@ You **MUST** generate the below JSON dictionary as your output.
 }}
 
 """
-
-
 
 def chunk_markdown_table_with_overlap(md_table, cols = None, n_tokens = 512, overlap = 128):
 
@@ -1331,8 +747,6 @@ def chunk_markdown_table_with_overlap(md_table, cols = None, n_tokens = 512, ove
 
     return chunks, header
 
-
-
 def chunk_markdown_table(md_table, model_info, n_tokens = 512, overlap = 128):
     prompt = markdown_extract_header_and_summarize_prompt.format(table=md_table.split('\n')[:100])
     output = ask_LLM_with_JSON(prompt, model_info = model_info)
@@ -1355,14 +769,11 @@ def chunk_markdown_table(md_table, model_info, n_tokens = 512, overlap = 128):
 
     return chunks, header, summary
 
-
 def chunk_df_as_markdown_table(df, model_info, n_tokens = 512, overlap = 128):
     df_clean = table_df_cleanup_df(df)
     md_table = df_clean.to_markdown()
     chunks, header, summary = chunk_markdown_table(md_table, model_info, n_tokens = n_tokens, overlap = overlap)
     return chunks, header, summary
-
-
 
 def write_df_to_files(df, tables_folder, table_count):
     table_path_md = os.path.join(tables_folder, f'chunk_{table_count}_table_0.md')
@@ -1374,8 +785,6 @@ def write_df_to_files(df, tables_folder, table_count):
     write_to_file(py_script, table_path_py, 'w')
 
     return table_path, table_path_md, table_path_py
-
-
 
 def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
     doc_path = ingestion_pipeline_dict['document_path'] 
@@ -1419,10 +828,6 @@ def extract_xlsx_using_openpyxl(ingestion_pipeline_dict):
 
     return ingestion_pipeline_dict
 
-
-
-
-
 def sentence_chunk_text_file(file_path, chunk_size=512, chunk_overlap = 80, model='gpt-4', verbose = False):
 
     text_splitter = SentenceSplitter(
@@ -1438,9 +843,6 @@ def sentence_chunk_text_file(file_path, chunk_size=512, chunk_overlap = 80, mode
     nodes = text_splitter.get_nodes_from_documents(documents)
 
     return [n.get_content() for n in nodes]
-
-
-
 
 def semantic_chunk_text_file(file_path, buffer_size=1, breakpoint_percentile_threshold=95, verbose = False):
 
@@ -1459,9 +861,6 @@ def semantic_chunk_text_file(file_path, buffer_size=1, breakpoint_percentile_thr
     if verbose: logc(f"Semantic Chunking Step", f"Number of nodes: {len(nodes)} from file {file_path}")
 
     return [n.get_content() for n in nodes]
-
-
-
 
 def create_text_doc_chunks_with_sentence_chunking(ingestion_pipeline_dict):
 
@@ -1514,9 +913,6 @@ def create_text_doc_chunks_with_sentence_chunking(ingestion_pipeline_dict):
 
     return ingestion_pipeline_dict
 
-
-
-
 def create_image_doc_chunks(ingestion_pipeline_dict):
 
     chunks = ingestion_pipeline_dict.get('chunks', [])
@@ -1553,8 +949,6 @@ def create_image_doc_chunks(ingestion_pipeline_dict):
     ingestion_pipeline_dict['chunks'] = chunks
 
     return ingestion_pipeline_dict
-
-
 
 def create_table_doc_chunks_markdown(ingestion_pipeline_dict):
 
@@ -1650,8 +1044,6 @@ def create_table_doc_chunks_markdown(ingestion_pipeline_dict):
 
     return ingestion_pipeline_dict
 
-
-
 def extract_table_number(filename, verbose=False):
     match = re.search(r"chunk_\d+_table_(\d+).png", filename)
     if match:
@@ -1661,8 +1053,6 @@ def extract_table_number(filename, verbose=False):
         table_number = '0'
 
     return table_number
-
-
 
 def create_table_doc_chunks_with_table_images(ingestion_pipeline_dict):
 
@@ -1697,8 +1087,6 @@ def create_table_doc_chunks_with_table_images(ingestion_pipeline_dict):
     ingestion_pipeline_dict['chunks'] = chunks
 
     return ingestion_pipeline_dict
-
-
 
 def create_doc_chunks_with_doc_int_markdown(ingestion_pipeline_dict):
 
@@ -1861,8 +1249,6 @@ def create_doc_chunks_with_doc_int_markdown(ingestion_pipeline_dict):
 
     return ingestion_pipeline_dict
 
-
-
 def extract_doc_using_doc_int(ingestion_pipeline_dict):
 
     doc_path = ingestion_pipeline_dict['document_path'] 
@@ -1982,10 +1368,6 @@ def extract_doc_using_doc_int(ingestion_pipeline_dict):
     
     return ingestion_pipeline_dict
 
-
-
-
-
 def extract_docx_using_py_docx(ingestion_pipeline_dict):
     """
     This function modifies the 'ingestion_pipeline_dict' dictionary in the following ways:
@@ -2065,8 +1447,6 @@ def extract_docx_using_py_docx(ingestion_pipeline_dict):
 
     return ingestion_pipeline_dict
     
-
-
 def extract_audio_using_whisper(ingestion_pipeline_dict):
 
     ### generate concatenated_text
@@ -2075,7 +1455,6 @@ def extract_audio_using_whisper(ingestion_pipeline_dict):
     write_to_file(concatenated_text, ingestion_pipeline_dict['full_text_file'], 'w')
 
     return ingestion_pipeline_dict
-
 
 def create_pdf_chunks(ingestion_pipeline_dict):
     document_file_path = ingestion_pipeline_dict['document_path']
@@ -2123,9 +1502,6 @@ def create_pdf_chunks(ingestion_pipeline_dict):
         } for index, chunk in enumerate(pdf_document)]
 
     return ingestion_pipeline_dict
-
-
-
 
 def harvest_code_from_text(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
 
@@ -2181,8 +1557,6 @@ def harvest_code_from_text(ingestion_pipeline_dict, chunk_dict, model_info = Non
 
         return [{'codeblock_file':codeblock_file, 'py_file':py_file, 'markdown_file':markdown_file}]
 
-
-
 def harvest_code(ingestion_pipeline_dict):
     harvested_code, _ = execute_multithreaded_funcs(harvest_code_from_text, ingestion_pipeline_dict)
     ingestion_pipeline_dict['harvested_code'] = harvested_code
@@ -2194,9 +1568,6 @@ def harvest_code(ingestion_pipeline_dict):
         ingestion_pipeline_dict['markdown_files'].append(code_dict['markdown_file'])
 
     return ingestion_pipeline_dict
-
-
-
 
 def pdf_extract_high_res_chunk_images(ingestion_pipeline_dict):
 
@@ -2232,9 +1603,6 @@ def pdf_extract_high_res_chunk_images(ingestion_pipeline_dict):
     ingestion_pipeline_dict['high_res_chunk_images']  = high_res_chunk_images
 
     return ingestion_pipeline_dict
-
-
-
 
 def process_images_with_GPT4V(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     
@@ -2272,7 +1640,6 @@ def process_images_with_GPT4V(ingestion_pipeline_dict, chunk_dict, model_info = 
     
     return []
 
-
 def process_images_with_PDF(ingestion_pipeline_dict, chunk_dict):
     image_count = 0
     chunk_number = chunk_dict['chunk_number']
@@ -2291,8 +1658,6 @@ def process_images_with_PDF(ingestion_pipeline_dict, chunk_dict):
         image_files.append(image_filename)
 
     return image_files
-
-
 
 def execute_multithreaded_funcs(func, ingestion_pipeline_dict, args = None):
     return_array = []
@@ -2328,9 +1693,6 @@ def execute_multithreaded_funcs(func, ingestion_pipeline_dict, args = None):
 
     return return_array, ingestion_pipeline_dict
 
-    
-
-
 def pdf_extract_images(ingestion_pipeline_dict):
     image_files = []
 
@@ -2352,9 +1714,6 @@ def pdf_extract_images(ingestion_pipeline_dict):
     ingestion_pipeline_dict['image_files'] = image_files
     return ingestion_pipeline_dict
 
-
-
-
 process_extracted_text_prompt = """
 The Extracted Text below is extracted with OCR, and might have tables in them. The number of tables is unknown. Please reformat all text and re-arrange it. Do not add text from your side, use the Extracted Text verbatim word-for-word. If you detect tables in the Extracted Text, please output them in Markdown format. The objective here to make the Extracted Text more readable and understandable. Do **NOT** any comments, details, explanations or justifications from your part.
 
@@ -2368,8 +1727,6 @@ If a table is present in the text, a Markdown version of the table might be avai
 
 
 """
-
-
 
 def generate_tags_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     
@@ -2404,8 +1761,6 @@ def generate_tags_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info = No
 
     return []
 
-
-
 def generate_tags_for_text(ingestion_pipeline_dict):
     tags_files = []
 
@@ -2423,8 +1778,6 @@ def generate_tags_for_text(ingestion_pipeline_dict):
     ingestion_pipeline_dict['tags_files'] = tags_files
 
     return ingestion_pipeline_dict
-
-
 
 def generate_tags_for_all_chunks(ingestion_pipeline_dict):
     tags_files = []
@@ -2445,9 +1798,6 @@ def generate_tags_for_all_chunks(ingestion_pipeline_dict):
 
     return ingestion_pipeline_dict
 
-
-
-
 chunk_analysis_template = """You are a document processing assistant, and you are helpful in processing and analyzing large documents. 
 
 Full Main Text - Contents of the document '{filename}':
@@ -2466,8 +1816,6 @@ The above Text Chunk is either an excerpt of the full main text, or an addendum 
 Be very concise, do not generate more than 5 or 6 paragraphs with only the most essentials information. In your answer, do **NOT** refer to the Text Chunk as 'Text Chunk' but refer to the Text Chunk as 'Chunk #{chunk_number}'. Please refer to the full main text contents as 'the contents of document {filename}'.
 
 """
-
-
 
 def generate_analsysis_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     
@@ -2509,8 +1857,6 @@ def generate_analsysis_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info
 
     return []
 
-
-
 def generate_analysis_for_text(ingestion_pipeline_dict):
     analysis_files = []
 
@@ -2529,11 +1875,6 @@ def generate_analysis_for_text(ingestion_pipeline_dict):
     ingestion_pipeline_dict['analysis_files'] = analysis_files
 
     return ingestion_pipeline_dict
-
-
-
-
-
 
 def process_text_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     
@@ -2584,8 +1925,6 @@ def process_text_with_GPT4(ingestion_pipeline_dict, chunk_dict, model_info = Non
 
     return []
 
-
-
 def pdf_extract_text(ingestion_pipeline_dict):
     text_files = []
     original_text_files = []
@@ -2621,8 +1960,6 @@ def pdf_extract_text(ingestion_pipeline_dict):
         write_to_file(text + '\n\n', ingestion_pipeline_dict['full_text_file'], mode='a')
 
     return ingestion_pipeline_dict
-
-
 
 def extract_table_from_image(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     #### 2 DETECT AND SAVE TABLES
@@ -2662,18 +1999,12 @@ def extract_table_from_image(ingestion_pipeline_dict, chunk_dict, model_info = N
         return [table_filename]
     return []
 
-
-
 def extract_tables_from_images(ingestion_pipeline_dict):
     args = {'vision_models': True}
 
     tables, _ = execute_multithreaded_funcs(extract_table_from_image, ingestion_pipeline_dict, args=args)
     ingestion_pipeline_dict['tables'] = tables
     return ingestion_pipeline_dict
-
-
-
-
 
 def post_process_images(ingestion_pipeline_dict):
 
@@ -2706,7 +2037,6 @@ def post_process_images(ingestion_pipeline_dict):
         ingestion_pipeline_dict['image_text_files'].extend(image_dict['image_text'])
 
     return ingestion_pipeline_dict
-
 
 extract_text_from_images_prompt = """
 10. In addition to all of the above, you **MUST** extract the entirety of the text present in the image verbatim, and include it under the text block delimited by '```EXTRACTED TEXT' and '```' in the generated output. You **MUST** extract the **FULL** text from the image verbatim word-for-word.
@@ -2826,10 +2156,6 @@ def post_process_chunk_images(ingestion_pipeline_dict, chunk_dict, model_info = 
     # print("Chunk_dict", json.dumps(chunk_dict, indent=4))
     return [{'image_py':image_py_files, 'image_codeblock':image_codeblock_files, 'image_mm':image_mm_files, 'image_text':image_text_files, 'image_markdown':image_markdown}]
 
-    
-
-
-
 def post_process_tables(ingestion_pipeline_dict):
     ingestion_pipeline_dict_ret = copy.deepcopy(ingestion_pipeline_dict)
     # logc("\n\nAssets - Before Deletion", ingestion_pipeline_dict_ret['chunks'])
@@ -2859,7 +2185,6 @@ def post_process_tables(ingestion_pipeline_dict):
         ingestion_pipeline_dict['table_text_files'].extend(table_dict['table_text'])
 
     return ingestion_pipeline_dict
-
 
 def post_process_chunk_table(ingestion_pipeline_dict, chunk_dict, model_info = None, index = 0, args = None, verbose = False):
     chunk_number = chunk_dict['chunk_number']
@@ -2967,9 +2292,6 @@ def post_process_chunk_table(ingestion_pipeline_dict, chunk_dict, model_info = N
 
     return [{'table_py':table_code_py_filenames, 'table_codeblock':table_code_text_filenames, 'table_text':table_text_files, 'table_markdown':table_markdown_filenames}]
 
-
-
-
 def get_ingested_document_text_files(directory, excluded_endings = ['.original.txt', '.tags.txt', '.processed.txt', '.execution_ok.txt', '.execution_errorlog.txt']):
     text_files = []
     image_text_files = []
@@ -2993,8 +2315,6 @@ def get_ingested_document_text_files(directory, excluded_endings = ['.original.t
 
     return text_files, image_text_files, table_text_files
 
-
-
 def get_ingested_document_jpg_images(directory):
     jpg_images = []
 
@@ -3007,8 +2327,6 @@ def get_ingested_document_jpg_images(directory):
 
     return jpg_images
 
-
-
 def get_ingested_document_png_table_images(directory):
     png_images = []
 
@@ -3020,11 +2338,6 @@ def get_ingested_document_png_table_images(directory):
         png_images.append(file)
 
     return png_images
-
-
-
-
-
 
 def create_ingestion_pipeline_dict(ingestion_params_dict): 
 
@@ -3173,14 +2486,11 @@ def create_ingestion_pipeline_dict(ingestion_params_dict):
 
     return ingestion_pipeline_dict
 
-
 def delete_pdf_chunks(ingestion_pipeline_dict):
     # pdf_document chunk
     del ingestion_pipeline_dict['pdf_document']
     for p in ingestion_pipeline_dict['chunks']: del p['chunk']
     return ingestion_pipeline_dict
-
-
 
 def process_pdf(ingestion_pipeline_dict, password = None, extract_text_mode = "GPT", extract_images_mode = "GPT", extract_text_from_images = True, models = gpt4_models, vision_models=gpt4_models, num_threads=4, processing_plan=None, verbose=False):
     # print(ingestion_pipeline_dict)
@@ -3297,106 +2607,6 @@ def process_pdf(ingestion_pipeline_dict, password = None, extract_text_mode = "G
     logc(f"Ingestion Stage of {base_name} Complete", f"{get_current_time()}: Ingestion of document {base_name} resulted in {vec_entries} entries in the Vector Store", verbose=verbose)
     return ingestion_pipeline_dict
 
-
-
-
-# ### OBSOLETE FUNCTION - NOT MAINTAINED - USE PROCESSORS
-# def ingest_docs_directory(directory, ingestion_directory=None, index_name='mm_doc_analysis', password=None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models=gpt4_models, vision_models=gpt4_models, num_threads=7, delete_existing_output_dir=False, processing_plan = None, verbose=False):
-#     assets = []
-
-#     # Walk through the directory
-#     for root, dirs, files in os.walk(directory):
-#         for file in files:
-#             # Check if the file is a PDF
-#             if file.lower().endswith('.pdf'):
-#                 logc(f"Ingesting Document: {file}", f"Ingesting Document: {file}", verbose=verbose)
-#                 # Construct the full file path
-#                 file_path = os.path.join(root, file)
-#                 # Call ingest_doc on the file
-#                 assets.append(ingest_doc(file_path, ingestion_directory, index_name, password, extract_text_mode, extract_images_mode, extract_text_from_images, models, vision_models, num_threads, delete_existing_output_dir, processing_plan, verbose))
-
-#     return assets 
-
-
-
-# ### OBSOLETE FUNCTION - NOT MAINTAINED - USE PROCESSORS
-# def ingest_doc(doc_path, ingestion_directory = None, index_name = 'mm_doc_analysis', password = None, extract_text_mode="GPT", extract_images_mode="GPT", extract_text_from_images=True, models = gpt4_models, vision_models = gpt4_models, num_threads=7, delete_existing_output_dir = False, processing_plan=None, verbose = False):
-
-#     available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
-#     download_directory = os.path.join(ingestion_directory, 'downloads')
-#     os.makedirs(download_directory, exist_ok=True)
-
-#     ingestion_params_dict = {
-#         "download_directory" : download_directory,
-#         "ingestion_directory" : ingestion_directory,
-#         "index_name" : index_name,
-#         'num_threads' : available_models,
-#         "password" : password,
-#         "delete_existing_output_dir" : delete_existing_output_dir,
-#         "processing_mode_pdf" : pdf_extraction_option,
-#         "processing_mode_docx" : docx_extraction_option,
-#         'processing_mode_xlsx' : xlsx_extraction_option,
-#         'models': gpt4_models,
-#         'vision_models': gpt4_models,
-#         'verbose': True
-#     }
-
-#     ingestion_pipeline_dict = create_ingestion_pipeline_dict(ingestion_params_dict)
-
-#     base_name = ingestion_pipeline_dict['basename']
-
-#     # Process the PDF file - document_path is the path to the PDF file
-#     ingestion_pipeline_dict = process_pdf(ingestion_pipeline_dict, password, extract_text_mode=extract_text_mode, extract_images_mode=extract_images_mode, extract_text_from_images=extract_text_from_images, models=models, vision_models=vision_models, num_threads = num_threads, processing_plan=processing_plan, verbose=verbose)
-#     # save_to_pickle(ingestion_pipeline_dict, os.path.join(doc_proc_directory, 'ingestion_pipeline_dict.temp.pickle'))
-
-#     logc(f"Ingestion of {base_name} Complete", f"Ingestion of document {base_name} resulted in {len(ingestion_pipeline_dict['text_files'] + ingestion_pipeline_dict['image_text_files'] + ingestion_pipeline_dict['table_text_files'])} entries in the Vector Store", verbose=verbose)
-
-#     ingestion_pipeline_dict['index_ids'], ingestion_pipeline_dict['vecstore_metadatas'] = commit_assets_to_vector_index(ingestion_pipeline_dict, ingestion_directory, index_name, vector_type = "AISearch")
-
-#     return ingestion_pipeline_dict
-
-
-
-
-def extract_chunk_number(filename, verbose = False):
-    match = re.search(r"chunk_(\d+)", filename)
-    if match:
-        chunk_number = match.group(1)
-        if verbose: logc(f"Extracted chunk number: {chunk_number}")
-    else:
-        chunk_number = 'unknown'
-
-    return chunk_number
-
-
-
-
-
-def convert_png_to_jpg(image_path):
-    if os.path.splitext(image_path)[1].lower() == '.png':
-        # Open the image file
-        with Image.open(image_path) as img:
-            # Convert the image to RGB mode if it is in RGBA mode (transparency)
-            if img.mode == 'RGBA':
-                img = img.convert('RGB')
-            # Define the new filename with .jpg extension
-            new_image_path = os.path.splitext(image_path)[0] + '.jpg'
-            # Save the image with the new filename and format
-            img.save(new_image_path, 'JPEG')
-            return new_image_path
-    else:
-        return None
-
-
-
-
-
-
-
-vision_system_prompt = """You are a helpful assistant that uses its vision capabilities to process images, and answer questions around them. 
-"""
-
-
 detect_num_of_tables_prompt = """
 You are an assistant working on a document processing task that involves detecting and counting the number of data tables in am image file using a vision model. Given an image, your task is determine the number of data tables present. 
 
@@ -3414,7 +2624,6 @@ Output:
 Return a single integer representing the number of visual assets detected in the chunk. Do **NOT** generate any other text or explanation, just the count of . 
 
 """
-
 
 image_description_prompt = """
 Please describe the attached image in full details, with a description of each object in the image. If the attached is a screenshot of a document chunk with multiple images in it, then you **MUST* repeat the below steps per image. 
@@ -3436,7 +2645,6 @@ As previously highlighted and stressed already, if the attached is a screenshot 
 
 """
 
-
 table_code_description_prompt = """
 
 please reproduce the table in python code format, and output the code. As a chain of thought: 
@@ -3453,8 +2661,6 @@ Output only the code.
 
 """
 
-
-
 table_markdown_description_prompt = """
 
 please reproduce the table in Markdown format, and output the code. As a chain of thought: 
@@ -3470,7 +2676,6 @@ Output only the Markdown.
 
 """
 
-
 table_qa_prompt = """
 You are a Quality Assurance assistant that uses its vision capabilities for quality control purposes. You will be provided with an image, and with an extracted text, and you need to validate that the extracted text is indeed accurate and representative of the image. If the image is a table, then you need to validate that the extracted table is indeed accurate and representative of the image. 
 The text was extracted using OCR, and therefore your job is to make sure that any errors or discrepancies detected between the extracted text and the image are corrected. 
@@ -3484,8 +2689,6 @@ Output:
 If you found any mistakes, you will need to generate the **ENTIRE** corrected output again in **FULL**. If you found no mistakes in the extracted text, then just generate one word only "CORRECT" with no other text. 
 
 """
-
-
 
 context_extension = """
 
@@ -3512,126 +2715,6 @@ Next Document Chunk:
 
 """
 
-
-# Function to encode an image file in base64
-def get_image_base64(image_path):
-    with open(image_path, "rb") as image_file: 
-        # Read the file and encode it in base64
-        encoded_string = base64.b64encode(image_file.read())
-        # Decode the base64 bytes into a string
-        return encoded_string.decode('ascii')
-
-
-@retry(wait=wait_random_exponential(min=1, max=30), stop=stop_after_attempt(10), after=after_log(logger, logging.DEBUG))
-def call_gpt4v(imgs, gpt4v_prompt = "describe the attached image", prompt_extension = "", temperature = 0.2, model_info=None, enable_ai_enhancements=False):
-
-    if model_info is None:
-        api_base = OPENAI_API_BASE
-        deployment_name = AZURE_OPENAI_MODEL_VISION
-        api_key = AZURE_OPENAI_KEY
-    else:
-        api_base = f"https://{model_info['AZURE_OPENAI_RESOURCE']}.openai.azure.com/" 
-        deployment_name = model_info['AZURE_OPENAI_MODEL_VISION']
-        api_key = model_info['AZURE_OPENAI_KEY']
-
-    base_url = f"{api_base}openai/deployments/{deployment_name}" 
-    headers = {   
-        "Content-Type": "application/json",   
-        "api-key": api_key 
-    } 
-
-    img_arr = []
-    img_msgs = []
-
-    if isinstance(imgs, str): 
-        img_arr = [imgs]
-        image_path_or_url = imgs
-    else: 
-        img_arr = imgs
-        image_path_or_url = imgs[0]
-
-    logc(f"Start of GPT4V Call to process file(s) {img_arr} with model: {api_base}")        
-
-    for image_path_or_url in img_arr:
-        image_path_or_url = os.path.abspath(image_path_or_url)
-        try:
-            if os.path.splitext(image_path_or_url)[1] == ".png":
-                image_path_or_url = convert_png_to_jpg(image_path_or_url)
-
-            image = f"data:image/jpeg;base64,{get_image_base64(image_path_or_url)}"
-        except:
-            image = image_path_or_url
-
-        img_msgs.append({ 
-            "type": "image_url",
-            "image_url": {
-                "url": image
-            }
-        })
-
-    if prompt_extension != "":
-        final_prompt = gpt4v_prompt +'\n' + prompt_extension +'\n'
-    else:
-        final_prompt = gpt4v_prompt
-
-    content = [
-        { 
-            "type": "text", 
-            "text": final_prompt
-        }
-    ]
-
-    content = content + img_msgs
-    
-
-    
-    data = { 
-        "temperature": temperature,
-        "messages": [ 
-            { "role": "system", "content": vision_system_prompt}, 
-            { "role": "user",   "content": content } 
-        ], 
-        "max_tokens": 4095 
-    }   
-
-    if enable_ai_enhancements:
-        endpoint = f"{base_url}/extensions/chat/completions?api-version={AZURE_OPENAI_VISION_API_VERSION}" 
-
-        data['dataSources'] = [
-            {
-                "type": "AzureComputerVision",
-                "parameters": {
-                    "endpoint": AZURE_VISION_ENDPOINT,
-                    "key": AZURE_VISION_KEY
-                }
-            }]
-        
-        data['enhancements'] = {
-            "ocr": {
-                "enabled": True
-            },
-            "grounding": {
-                "enabled": True
-            }
-        }
-    else:
-        endpoint = f"{base_url}/chat/completions?api-version={AZURE_OPENAI_VISION_API_VERSION}" 
-    
-    print("endpoint", endpoint)
-    # print("Data", data)
-   
-    response = requests.post(endpoint, headers=headers, data=json.dumps(data), timeout=300)   
-    # print(json.dumps(recover_json(response.text), indent=4))
-    result = recover_json(response.text)['choices'][0]['message']['content']
-    description = f"Image was successfully explained, with Status Code: {response.status_code}"
-    logc(f"End of GPT4V Call to process file(s) {img_arr} with model: {api_base}")   
-
-    return result, description
-
-
-
-
-
 def create_metadata(asset_file, file_id, document_path, document_id, asset_type="text", image_file = "", python_block = "", python_code = "", markdown = "", mermaid_code = "", tags = ""):
     metadata = {
         "asset_path": asset_file, 
@@ -3655,16 +2738,6 @@ def create_metadata(asset_file, file_id, document_path, document_id, asset_type=
 
     return metadata
 
-
-
-def check_replace_extension(asset_file, new_extension):
-    if os.path.exists(replace_extension(asset_file, new_extension)):
-        new_file = replace_extension(asset_file, new_extension)
-        return new_file
-    return ""
-
-
-
 optimize_embeddings_prompt = """
 Text:
 ## START OF TEXT
@@ -3683,9 +2756,6 @@ Do not generate any other text other than the comma-separated tag list. Output *
 
 """
 
-
-
-
 def generate_tag_list(text, model = AZURE_OPENAI_MODEL, client = oai_client):
     try:
         messages = [{"role":"system", "content":optimize_embeddings_prompt.format(text=text)}]
@@ -3694,8 +2764,6 @@ def generate_tag_list(text, model = AZURE_OPENAI_MODEL, client = oai_client):
     except Exception as e:
         logc("Error generating tag list: ", e)
         return text
-
-
 
 document_wide_tags = """You are a document processing assistant, and you are helpful in processing and identifying large documents. 
 
@@ -3717,8 +2785,6 @@ Do not generate any other text other than the comma-separated tag list. Output *
 
 """
 
-
-
 def generate_document_wide_tags(ingestion_pipeline_dict):
     doc_proc_directory = ingestion_pipeline_dict['document_processing_directory']
     basename = ingestion_pipeline_dict['basename']
@@ -3736,8 +2802,6 @@ def generate_document_wide_tags(ingestion_pipeline_dict):
 
     return ingestion_pipeline_dict
 
-
-
 document_wide_summary = """You are a document processing assistant, and you are helpful in processing and summarizing large documents. 
 
 Text:
@@ -3748,7 +2812,6 @@ Text:
 Please summarize the above text in not more than a few paragraphs (not more than 6 or 7 paragraphs if the text is really long). Make sure to capture the essential topics being discussed, and to highlight the most essential and important relationships in the text. Do not sacrifice too much details for the sake of conciseness, but be concise as this is a summary. Be balanced between detailed and concise. Make sure to mention the most important entities by name such as important dates, company names, product names, important places and landmarks, industry indicators, and so on.
 
 """
-
 
 def generate_document_wide_summary(ingestion_pipeline_dict):
     doc_proc_directory = ingestion_pipeline_dict['document_processing_directory']
@@ -3766,10 +2829,6 @@ def generate_document_wide_summary(ingestion_pipeline_dict):
     ingestion_pipeline_dict['document_wide_summary'] = summary
 
     return ingestion_pipeline_dict
-
-
-
-
 
 def add_asset_to_vec_store(assets, index, asset_file, document_path, document_id, vector_type = "AISearch"):
 
@@ -3851,7 +2910,6 @@ def add_asset_to_vec_store(assets, index, asset_file, document_path, document_id
 
     return file_id, metadata
 
-
 def check_vecstore_vs_ingestion_dir(index_name):
     files = glob.glob(f'{index_name}/**/*.vecstore.txt', recursive=True)
     cogrequest = CogSearchRestAPI(index_name = index_name)
@@ -3865,8 +2923,6 @@ def check_vecstore_vs_ingestion_dir(index_name):
 
     print(f"In VecStore: {doc_count_in_vecstore}. In Directory: {doc_count_in_dir}. Difference: {doc_count_in_vecstore - doc_count_in_dir}")
     return doc_count_in_vecstore, doc_count_in_dir, (doc_count_in_vecstore - doc_count_in_dir)
-
-
 
 def commit_assets_to_vector_index(assets, ingestion_directory, index_name = 'mm_doc_analysis', vector_type = "AISearch"):
 
@@ -3895,8 +2951,6 @@ def commit_assets_to_vector_index(assets, ingestion_directory, index_name = 'mm_
 
     return index_ids, metadatas
 
-
-
 def get_processed_context_chunks(asset_file, text, chunk_number):
     
     dir_name = os.path.dirname(asset_file)
@@ -3913,7 +2967,6 @@ def get_processed_context_chunks(asset_file, text, chunk_number):
 
     return previous_chunk_text + "\n\n" + text + "\n\n" + next_chunk_text
 
-
 def get_processed_context_chunk(doc_proc_directory, text, chunk_number):
     
     path = os.path.join(doc_proc_directory, f"text/chunk_{chunk_number}.processed.txt")
@@ -3923,10 +2976,6 @@ def get_processed_context_chunk(doc_proc_directory, text, chunk_number):
         current_chunk_text = ""
 
     return text + "\n\n" + current_chunk_text
-
-
-
-    
 
 def get_context_chunks(document_path, chunk_number):
     try:
@@ -3954,16 +3003,6 @@ def get_context_chunks(document_path, chunk_number):
         return previous_chunk, current_chunk, next_chunk
     except:
         return "No chunk retrieved.", "No chunk retrieved.", "No chunk retrieved."
-
-
-
-def replace_extension(asset_path, new_extension):
-    base_name = os.path.splitext(asset_path)[0].strip()
-    extension = os.path.splitext(asset_path)[1].strip()
-
-    return f"{base_name}{new_extension}"
-
-
 
 def get_asset_explanation_gpt4v(asset_file, document_path, gpt4v_prompt = image_description_prompt, prompt_extension = "", with_context = False, extension = None, temperature = 0.2, model_info=None):
 
@@ -4010,85 +3049,12 @@ def get_asset_explanation_gpt4v(asset_file, document_path, gpt4v_prompt = image_
 
 
 
-def recover_json(json_str, verbose = False):
-    decoded_object = {}
-
-    if '{' not in json_str:
-        return json_str
-
-    json_str = extract_json(json_str)
-
-    try:
-        decoded_object = json.loads(json_str)
-        return decoded_object
-    except Exception:
-        try:
-            decoded_object = json.loads(json_str.replace("'", '"'))
-            return decoded_object
-        except Exception:
-            try:
-                decoded_object = json_repair.loads(json_str.replace("'", '"'))
-
-                for k, d in decoded_object.items():
-                    dd = d.replace("'", '"')
-                    decoded_object[k] = json.loads(dd)
-                
-                return decoded_object
-            except:
-                print(f"all json recovery operations have failed for {json_str}")
-        
-            if verbose:
-                if isinstance(decoded_object, dict):
-                    print(f"\n{bc.OKBLUE}>>> Recovering JSON:\n{bc.OKGREEN}{json.dumps(decoded_object, indent=3)}{bc.ENDC}")
-                else:
-                    print(f"\n{bc.OKBLUE}>>> Recovering JSON:\n{bc.OKGREEN}{json_str}{bc.ENDC}")
-
-
-    return json_str
-
 
 
 
 
     # 6. Critique your solution if you get some strange final answers. Does the final answer look ok to you? For example, if you get a zero or a negative number in the end for a sum operation, and the numbers are showing positive the Markdown representation of the table, then re-check your code, and try a different approach to get to the final answer.
     # 7. Try to minimize the number of iterations. If there are multiple steps needed to solve the problem, try to combine them into a single code generation step with a single code block. For example, if you need to filter a dataframe, and then sum the values in a column, try to combine the two steps into a single step. If this didn't work, then try to generate the code and execute it for each step separately.
-
-
-
-# user_query = """
-# {py_files}
-
-# {run_py_files}
-
-# The below are the contents of the information files, which could be a mix of text, Markdown, Mermaid and Python:
-# {py_code}
-
-
-# To answer any question, here's the chain of thought:
-
-# Please analyze the question first, and locate the variables of interests in the question. For each variable, try to locate the relevant dataframes from the above code and the relevant variable assignment statements. Then try to locate the relevant columns or rows in the relevant dataframes. Finally, try to locate the relevant values in the dataframe or in the variable assignment statements. 
-
-# Here is the Chain of Thought and the step-by-step that you should follow:
-
-#     1. You **MUST** import the list of Python files specified by the user above in the "List of Python Files" section if available.
-#     2. Use the Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to identify and print to the output the variables of interest. Include the variable assignment statements in the output. Limit this list to the relevant variables **ONLY**. Generate the Python code that will do this step and execute it.
-#     3. Use the Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to identify and print to the output the relevant dataframes names, and print to the output all their columns. Also print all the variable assignment statements. Include the dataframes assignment statements in the output. Limit this list to the relevant dataframes **ONLY**. Generate the Python code that will do this step and execute it.
-#     4. In the case of dataframes, in which columns did the variables of interest in the question appear in the dataframe? use the str.contains method on **ALL** the columns in the dataframe to determine the columns. You **MUST** test **ALL THE COLUMNS**. (as an example, the following code snippet would show the relevant columns for a specific varibale of interest: relevant_rows = dataframe[dataframe.apply(lambda row: row.astype(str).str.contains(<VARIABLE OF INTEREST>).any(), axis=1)] - you can modify the code to suit the the question being asked). Generate the Python code that will do this step and execute it.
-#     5. If you want to generate RegEx expressions, make sure that the RegEx expression is valid. Do **NOT** generate something like this: str.replace('[extbackslash	extdollar,]', '', regex=True), which is obviously invalid, since the $ sign is spelled as 'extdollar', and the '\\' is spelled as 'extbackslash'.
-#     6. If you have trouble accessing the previously defined variables or the dataframes for any reasons, then use the Python Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to extract the information you need, and then generate the needed Python code.
-#     7. Generate the answer to the query. You **MUST** clarify AND print to the output **ALL** calculation steps leading up to the final answer.
-#     8. You **MUST** detail how you came up with the answer. Please provide a complete description of the calculation steps taken to get to the answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34".
-#     9. If the answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
-#     10. **VERY IMPORTANT**: do **NOT** attempt to create a list of variables or dataframes directly. Instead, you should access the data from the variables and dataframes that were defined in the Python file that was run.
-    
-
-# Question: {query}
-
-# In your final answer, be elaborate in your response. Describe your logic and the calculation steps to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. Describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34". After generating the final response, and if the final answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
-
-# """
-
-
 
 user_query = """
 {py_files}
@@ -4118,8 +3084,6 @@ In your final answer, be elaborate in your response. Describe your logic and the
 
 """
 
-
-
 direct_user_query = """
 
 The below are code contents:
@@ -4145,8 +3109,6 @@ Generate the additional code to run to answer the above question. Do not re-gene
 
 """
 
-
-
 table_info = """
 
 ## START OF INFOBLOCK {number}
@@ -4166,333 +3128,7 @@ Chunk Number: {chunk_number}
 
 """
 
-
 computation_approaches = ["Taskweaver", "LocalPythonExec", "NoComputationTextOnly"]
-max_python_exec_retries = 7
-
-
-class TWHandler():
-
-    role: str = "Planner"
-    buffer: str = ""
-
-    def __init__(self, verbose = False):
-        self.verbose = verbose
-
-    def process_buffer(self, event):
-        if (self.buffer == '') and (event.msg == ''): return   
-
-        if hasattr(event, "extra"):
-            if event.extra is not None: 
-                is_end = event.extra.get("is_end", True)
-            else:
-                is_end = True
-
-        else: 
-            is_end = True
-
-        if not is_end:
-            if isinstance(event.msg, list):
-                self.buffer = "\n".join(event.msg)
-            else:
-                self.buffer += event.msg
-        else:
-            if isinstance(event.msg, list):
-                self.buffer = "\n".join(event.msg)
-            else:
-                self.buffer += event.msg
-
-            if self.buffer not in ["NONE", "No code verification is performed.", "verifying code", "composing prompt", 
-                                   "calling LLM endpoint", "receiving LLM response", "Post created"]:
-                if self.verbose: logc("Taskweaver", f">>> Agent: {self.role}\n>>> Message:\n{self.buffer}")
-            self.buffer = ""
-
-    def handle(self, event):
-        if event.extra is not None: 
-            if event.extra.get('role', None) is not None:
-                self.role = event.extra['role']
-        
-        self.process_buffer(event)
-
-        return event
-
-
-
-py_files_import = """ 
-Do **NOT** forget to import the below py modules in every new code block you generate:
-# Import the list of Python files specified by the user
-List of Python Files:
-## START OF LIST OF PYTHON FILES TO IMPORT
-{run_py_files}
-## END OF LIST OF PYTHON FILES TO IMPORT
-"""
-
-
-
-def prepare_prompt_for_code_interpreter(assets, query, include_master_py=True, limit=False, chars_limit = 32768, verbose = True):
-    global user_query, table_info
-    codeblocks = []
-    added = []
-    # py_code = [os.path.abspath(asset) for asset in assets['python_code']]
-    py_code = []
-
-    if include_master_py:
-        master_files = []
-        for document_path in assets['document_paths']: 
-            master_py = os.path.abspath(replace_extension(document_path, ".py")).replace(' ', '_')
-            if os.path.exists(master_py):
-                master_files.append(master_py)
-        master_files = list(set(master_files))
-        py_code.extend(master_files)
-
-    if verbose: logc("Taskweaver", py_code)
-    run_py_files = ""
-
-    for p in py_code:
-        run_py_files += f"%run {p}\n"
-
-    if verbose: logc("assets", assets)
-    if verbose: logc("run_py_files", run_py_files)
-    if verbose: logc("py_code", py_code)
-    if verbose: logc("codeblocks", codeblocks)
-
-    infoblocks_num = 0
-    for index, asset in enumerate(assets['python_block']):
-        if asset not in added:
-            filename = replace_extension(asset, ".py")
-            filename_field = f"Py Filename: {filename}" if os.path.exists(filename) else ""
-            proc_filename = assets['filenames'][index]
-            chunk_number = extract_chunk_number(assets['asset_filenames'][index])
-            codeblock = read_asset_file(asset)[0]
-            codeblock = f"Here's information in Python format:\n{codeblock}" if codeblock != "" else ""
-            text = read_asset_file(asset)[0]
-            text = f"Here's information in text format:\n{text}" if text != "" else ""
-            markdown = read_asset_file(replace_extension(asset, ".md"))[0]  
-            markdown = f"Here's information in Markdown format:\n{markdown}" if markdown != "" else ""
-            mermaid = read_asset_file(replace_extension(asset, ".mermaid"))[0]
-            mermaid = f"Here's information in Mermaid format:\n{mermaid}" if mermaid != "" else ""
-            added.append(asset)
-
-            if limit and (len('\n'.join(codeblocks)) > (chars_limit - 3000 - len(user_query) - len(run_py_files) - len("\n".join(py_code)))):                          
-                print(f"Limit Reached: {len(codeblocks)} > {chars_limit - len(user_query) - len(run_py_files) - len(py_code) - 3000} | breakdown: {chars_limit} - 3000 - {len(user_query)} - {len(run_py_files)} - {len(py_code)}")
-                break
-
-            codeblocks.append(table_info.format(
-                number = infoblocks_num,
-                filename=filename_field, 
-                proc_filename=proc_filename, 
-                chunk_number=chunk_number, 
-                codeblock=codeblock, 
-                text = text,
-                markdown=markdown, 
-                mermaid=mermaid
-                )
-            )    
-
-            infoblocks_num += 1  
-            if index > limit: break  
-
-    if verbose: logc("Taskweaver", f"Added Codeblocks\n{added}")
-
-    py_code = "\n".join(py_code)
-    py_files_field = f"Refer to the following files. Make sure to import the below modules in every code block you generate:\n{py_code}" if len(py_code) > 0 else ""
-
-    py_files_import_prompt = py_files_import.format(run_py_files=run_py_files) if len(py_code) > 0 else ""
-
-    user_query_prompt = user_query.format(query=query, run_py_files=py_files_import_prompt, py_files = py_files_field, py_code = "\n\n".join(codeblocks))
-
-    if verbose: logc("User Query Token Count", get_token_count(user_query_prompt))    
-    if verbose: logc("User Query: ", user_query_prompt)
-
-    return user_query_prompt
-
-
-
-
-def try_code_interpreter_for_tables_using_taskweaver(assets, query, include_master_py=True, verbose = False):
-    
-    app = TaskWeaverApp(app_dir=test_project_path)
-    session = app.get_session()
-    taskweaver_logger = logging.getLogger('taskweaver.logging')
-    taskweaver_logger.setLevel(logging.ERROR)
-
-    if verbose: logc("Taskweaver", f"Taskweaver Processing Started ...")
-
-    if len(assets['python_code']) == 0: return "No computation results."
-    
-    user_query_prompt = prepare_prompt_for_code_interpreter(assets, query, include_master_py=include_master_py, verbose=verbose)
-    response_round = session.send_message(user_query_prompt, event_handler=TWHandler(verbose=verbose)) 
-    if verbose: logc("Taskweaver", f"Taskweaver Processing Completed ...")
-
-    return response_round.to_dict()['post_list'][-1]['message'], []
-
-
-
-def try_code_interpreter_for_tables_using_python_exec(assets, query, include_master_py=True, verbose = False):
-    global direct_user_query, table_info
-
-    if len(assets['python_code'])  == 0: return "No computation results."
-
-    output = ""
-    exception = ""
-    previous_code = ""
-    previous_error = ""
-
-    retries = 0
-    result = False
-
-    while (not result):
-        text_codeblocks = [table_info.format(filename = os.path.abspath(replace_extension(asset, ".py")), proc_filename=assets['filenames'][index], chunk_number = extract_chunk_number(assets['asset_filenames'][index]), codeblock=read_asset_file(asset)[0], markdown = read_asset_file(replace_extension(asset, ".txt"))[0]) for index, asset in enumerate(assets['python_block'])]
-        
-        py_code = [os.path.abspath(asset) for asset in assets['python_code']]
-
-        if include_master_py:
-            master_files = []
-            for document_path in assets['document_paths']: 
-                master_py = os.path.abspath(replace_extension(document_path, ".py"))
-                if os.path.exists(master_py):
-                    master_files.append(master_py)
-            master_files = list(set(master_files))
-            py_code.extend(master_files)
-
-        user_query = direct_user_query.format(query=query, py_files = "\n".join(py_code), py_code = "\n\n".join(text_codeblocks), previous_code = previous_code, previous_error = previous_error)
-        print("User Query: ", user_query)
-
-        system_prompt = "You are a helpful assistant that helps the user by generating high quality code to answer the user's questions."
-        messages = []
-        messages.append({"role": "system", "content": system_prompt})     
-        messages.append({"role": "user", "content": user_query})     
-
-        result = get_chat_completion(messages)
-        answer_codeblock = extract_code(recover_json(result.choices[0].message.content))
-        print("Answer Codeblock: ", answer_codeblock)
-
-        codeblocks = '\n\n'.join([read_asset_file(asset)[0] for asset in assets['python_code']])
-        result, exception, output = execute_python_code_block(codeblocks, answer_codeblock + "\n" + "final_answer = foo()")
-        previous_code = answer_codeblock
-        previous_error = exception
-        retries += 1
-
-        if retries >= max_python_exec_retries:
-            break
-
-    if result:
-        return output, []
-    else:
-        return exception, []
-
-
-
-load_dotenv()
-threads = {}
-
-
-def process_assistants_api_response(messages, client=oai_client):
-    files = []
-    full_path = ""
-
-    download_dir = os.path.join(ROOT_PATH_INGESTION, "downloads")
-    os.makedirs(download_dir, exist_ok=True)
-
-    md = messages.model_dump()["data"]
-    for j in range(len(md[0]["content"])):
-        if md[0]["content"][j]['type'] == 'text':
-            response = md[0]["content"][j]["text"]["value"]
-            break
-    
-    for i in range(len(md)):
-        msg_id = md[i]["id"]
-        for j in range(len(md[i]["content"])):
-            if md[i]["content"][j]["type"] == 'text':
-                if md[i]["content"][j]["text"].get("annotations", None) is not None:
-                        for annotation in md[i]["content"][j]["text"]["annotations"]:
-                            if annotation.get("type", None) is not None:
-                                if annotation["type"] == "file_path":
-                                    file_data = client.files.content(annotation["file_path"]["file_id"])
-                                    data_bytes = file_data.read()
-                                    full_path = os.path.join(download_dir, os.path.basename(annotation["text"]))
-                                    with open(full_path, "wb") as file:
-                                        file.write(data_bytes)
-                                    response = response.replace(annotation["text"], full_path)
-                                    files.append({'type':'file', 'asset':full_path})
-            elif md[i]["content"][j]["type"] == 'image_file':
-                file_data = client.files.content(md[i]["content"][j]["image_file"]["file_id"])
-                data_bytes = file_data.read()
-                full_path = os.path.join(download_dir, os.path.basename(f'{md[i]["content"][j]["image_file"]["file_id"]}.jpg'))
-                with open(full_path, "wb") as file:
-                    file.write(data_bytes)
-                files.append({'type':'assistant_image', 'asset':full_path})
-
-    return response, files
-
-
-
-def create_assistant(user_id, client=oai_client, model = AZURE_OPENAI_MODEL, name="Math Assistant", instructions="You are an AI assistant that can write code to help answer math questions."):
-    # Create an assistant
-    assistant = client.beta.assistants.create(
-        name=name,
-        instructions=instructions,
-        tools=[{"type": "code_interpreter"}],
-        model=model
-    )
-
-    try:
-        if user_id is None: user_id = str(uuid.uuid4())[:8]
-        if threads.get(user_id, None) is None:
-            thread = client.beta.threads.create()
-            threads[user_id] = thread
-        else:
-            thread = threads[user_id]
-    except:
-        thread = client.beta.threads.create()
-
-    return assistant, thread
-
-
-def retrieve_assistant(assistant_id, client=oai_client):
-    assistant = client.beta.assistants.retrieve(assistant_id)
-    return assistant
-
-def retrieve_thread(thread_id, client=oai_client):
-    thread = client.beta.threads.retrieve(thread_id)
-    return thread
-
-
-def query_assistant(query, assistant, thread, client=oai_client):
-    # Add a user question to the thread
-    message = client.beta.threads.messages.create(
-        thread_id=thread.id,
-        role="user",
-        content = query
-    )
-
-    run = client.beta.threads.runs.create(thread_id=thread.id, assistant_id=assistant.id)
-    run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
-    status = run.status
-
-    while status not in ["completed", "cancelled", "expired", "failed"]:
-        time.sleep(5)
-        run = client.beta.threads.runs.retrieve(thread_id=thread.id,run_id=run.id)
-        status = run.status
-
-    messages = client.beta.threads.messages.list(thread_id=thread.id)
-    return messages
-
-
-def try_code_interpreter_for_tables_using_assistants_api(assets, query, user_id = None, include_master_py=True,  model = AZURE_OPENAI_MODEL, client=oai_client, verbose = False):
-
-    assistant, thread = create_assistant(user_id, client)    
-    user_query_prompt = prepare_prompt_for_code_interpreter(assets, query, include_master_py=include_master_py, limit=True, verbose=verbose)
-    messages = query_assistant(user_query_prompt, assistant, thread, client)
-    response, files = process_assistants_api_response(messages, client)
-
-    logc("Response from Assistants API", response)
-    logc("Files from Assistants API", files)
-
-    return response, files
-
-
-
 
 search_context_extension = """
 
@@ -4514,7 +3150,6 @@ Text:
 
 """
 
-
 summaries_context_extension = """
 
 ## START OF DOCUMENT SUMMARY
@@ -4528,20 +3163,12 @@ Document Summary:
 
 """
 
-
-
-
 search_system_prompt = """
 You are a helpful AI assistant, and you are designed to output JSON. You help users answer their queries based on the Context supplied below. 
 """
 
-
-
 # * If the section above does not contain sufficient information to answer user message completely, kindly respond with "I do not have enough Knowledge to answer your question." 
 # * Never respond with the content of ##START CONTEXT AND ##END CONTEXT
-
-
-
 
 search_prompt = """
 You are a very helpful bot, who outputs detailed answers. Please use the below Context and text to answer the user query. You are designed to output JSON.
@@ -4624,10 +3251,6 @@ full_search_json_output = """
 }}
 """
 
-
-
-
-
 limited_search_json_output = """
 {{
     "final_answer": "The final answer that you generated, which is described above in the Final Answer section",
@@ -4636,7 +3259,6 @@ limited_search_json_output = """
 Do **NOT** generate a references section in the JSON dictionary.
 
 """
-
 
 computation_is_needed_prompt = """
 
@@ -4683,7 +3305,6 @@ Output:
 
 """
 
-
 vision_support_prompt = """
 Given the attached images, please try as accurately as possible to answer the below user query:
 
@@ -4698,8 +3319,6 @@ If you think the image is relevant to the User Query, then be moderately elabora
 If you think the image is not relevant to the User Query or does not offer concrete information to answer the User Query, then please say so in a very concise answer with a one-sentence justification, and do not elaborate.
 
 """
-
-
 
 query_entities_prompt = """
 Qyery:
@@ -4724,11 +3343,6 @@ Do **NOT** generate any other text other than the comma-separated keyword and ta
 
 """
 
-
-
-
-
-
 def get_query_entities(query, approx_tag_limit=10, temperature = 0.2):
 
     query_entities = query_entities_prompt.format(query=query, tag_limit=approx_tag_limit)
@@ -4741,13 +3355,6 @@ def get_query_entities(query, approx_tag_limit=10, temperature = 0.2):
     result = get_chat_completion(messages, temperature=temperature)
 
     return result.choices[0].message.content
-
-
-
-import time
-import random
-
-
 
 def call_ai_search(query, index_name, top=7, computation_approach = "Taskweaver", count=False, t_wait = True):
 
@@ -4764,7 +3371,6 @@ def call_ai_search(query, index_name, top=7, computation_approach = "Taskweaver"
     for r in results: del r['vector']
     search_results = copy.deepcopy(results)
     return search_results
-
 
 def aggregate_ai_search(query, index_name, top=5, approx_tag_limit=20, computation_approach = "Taskweaver", count=False, temperature=0.2, t_wait=True, verbose = False):
 
@@ -4803,7 +3409,6 @@ def aggregate_ai_search(query, index_name, top=5, approx_tag_limit=20, computati
 
     return unique_results
 
-
 def check_if_computation_is_needed(query):
     messages = []
     messages.append({"role": "system", "content": "You are a helpful AI assistant. You help users answer their queries based on the information supplied below."})     
@@ -4812,7 +3417,6 @@ def check_if_computation_is_needed(query):
     result = get_chat_completion(messages)
     return result.choices[0].message.content
      
-
 def apply_computation_support(query, assets, computation_approach="AssistantsAPI", conversation_history = [], user_id = None, include_master_py=True, verbose = False):
     files = []
     if computation_approach == "Taskweaver":
@@ -4826,30 +3430,6 @@ def apply_computation_support(query, assets, computation_approach="AssistantsAPI
 
     return computation_support, files
 
-
-# def clean_up_text(text):
-#     code = extract_code(text)
-#     mrkdwn = extract_markdown(text)
-#     mermaid = extract_mermaid(text)
-#     text = text.replace(code, '')
-#     text = text.replace(mrkdwn, '')
-#     text = text.replace(mermaid, '')
-#     text = text.replace("```python", '')
-#     text = text.replace("```mermaid", '')
-#     text = text.replace("```markdown", '')
-#     text = text.replace("```", '')
-#     return text
-
-
-def clean_up_text(text):
-    code = extract_code(text)
-    text = text.replace(code, '')
-    text = text.replace("```python", '')
-    text = text.replace("```", '')
-    return text
-
-
-
 search_learnings_template ="""
 {user_query}
 
@@ -4860,7 +3440,6 @@ search_learnings_template ="""
 The above are the accumulated Learnings from past iterations of the search results. You **MUST** use them to improve the answer of the Query. Incorporate **ALL** details from the Learnings into the final answer.
 
 """
-
 
 def generate_search_assets(all_results, limit = 1000, verbose=False):
     assets = {}
@@ -4907,7 +3486,6 @@ def generate_search_assets(all_results, limit = 1000, verbose=False):
     
     return assets
 
-
 detect_intent_prompt = """You are a helpful assistant who is an expert in human psychology. You are needed to infer the intent out of a human query. You are needed to output JSON. 
 
 You **MUST** classify the query in one of **ONLY** 3 categories: conversational, search, analytical.
@@ -4946,8 +3524,6 @@ def detect_intent_of_query(query):
     print(answer_dict)
     return answer_dict['category']
     
-
-
 def get_history_as_string(conversation_history):
     history = ''
 
@@ -4956,7 +3532,6 @@ def get_history_as_string(conversation_history):
         history += f"## {c['role']}: {content}\n\n"
 
     return history
-
 
 def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_history = [], user_id = None, computation_approach = "AssistantsAPI", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, verbose = False):
     global search_context_extension, search_system_prompt, search_prompt #FIXME: Remove this global variable
@@ -5154,7 +3729,3 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
     print("Final Answer", final_answer)
 
     return final_answer, references, output_excel, search_results, files
-
-
-
-

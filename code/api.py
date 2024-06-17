@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, Request, HTTPException, UploadFile
+from fastapi import FastAPI, Request, HTTPException, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
 import psutil
@@ -6,6 +6,10 @@ from pydantic import BaseModel
 import re
 import os
 import subprocess
+from typing import List
+import logging
+import shutil
+import json
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -15,19 +19,15 @@ from log_utils import setup_logger
 setup_logger()
 
 import utils.cosmos_helpers as cs
-from doc_utils import search, generate_section
-from processor import ingest_doc_using_processors, read_asset_file, gpt4_models
-from utils.cogsearch_rest import CogSearchHttpRequest
+from doc_utils import search, generate_section, write_to_file
+from processor import read_asset_file, gpt4_models
+from utils.cogsearch_rest import CogSearchHttpRequest, CogSearchRestAPI
 from aml_job import AmlJob
-from doc_utils import *
-from env_vars import *
+from env_vars import ROOT_PATH_INGESTION
 from utils.ingestion_cosmos_helper import IngestionCosmosHelper
 
 # Global setup
-
-ROOT_PATH_INGESTION = os.getenv("ROOT_PATH_INGESTION")
-LOG_CONTAINER_NAME = os.getenv("COSMOS_LOG_CONTAINER")
-DOCX_OPTIONS = os.getenv("DOCX_OPTIONS")
+LOG_CONTAINER_NAME = os.environ.get("COSMOS_LOG_CONTAINER")
 
 app = FastAPI()
 cosmos = cs.SCCosmosClient()
