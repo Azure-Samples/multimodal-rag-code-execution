@@ -67,14 +67,14 @@ class APIClient:
             logging.error(f"Error retrieving prompt {p}: {e}")
             raise
 
-    def ingest_docs(self, ingestion_params):
-        try:
-            response = requests.post(f"{self.base_url}/ingest", json=ingestion_params)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.HTTPError as e:
-            logging.error(f"Error ingesting documents: {e}")
-            raise
+    # def ingest_docs(self, ingestion_params):
+    #     try:
+    #         response = requests.post(f"{self.base_url}/ingest", json=ingestion_params)
+    #         response.raise_for_status()
+    #         return response.json()
+    #     except requests.exceptions.HTTPError as e:
+    #         logging.error(f"Error ingesting documents: {e}")
+    #         raise
 
     def get_file(self, asset_path):
         try:
@@ -124,11 +124,9 @@ init_docx_extraction_modes = 'document-intelligence'
 init_number_of_threads = available_models
 init_delete_existing_output_directory = False
 init_top_n = int(SEARCH_TOP_N)
-init_ingestion_directory = init_index_name
 
 
 user_sessions = {}
-# ingestion_directories = {}
 index_names = {}
 passwords = {}
 approx_tag_limits = {}
@@ -185,7 +183,6 @@ async def update_task_list():
     task_list.status = "Test Configuration"
 
     # Add tasks to the task list
-    # task_ingestion_directory = cl.Task(title=f"Ingestion Directory: {ingestion_directory}", status=cl.TaskStatus.DONE)
     task_build_id = cl.Task(title=f"Build ID: {BUILD_ID}", status=cl.TaskStatus.DONE)
     task_index_name = cl.Task(title=f"Index Name: {index_name}", status=cl.TaskStatus.DONE)
     task_password = cl.Task(title=f"PDF Password: {password}", status=cl.TaskStatus.DONE)
@@ -199,7 +196,6 @@ async def update_task_list():
 
 
     # Add tasks to the task list
-    # await task_list.add_task(task_ingestion_directory)
     await task_list.add_task(task_build_id)
     await task_list.add_task(task_index_name)
     await task_list.add_task(task_password)
@@ -217,7 +213,6 @@ async def update_task_list():
 @cl.on_chat_start
 async def start():
     user_sessions[cl.user_session.get("id")] = {}
-    # ingestion_directories[cl.user_session.get("id")] = init_ingestion_directory
     index_names[cl.user_session.get("id")] = init_index_name
     passwords[cl.user_session.get("id")] = init_password
     approx_tag_limits[cl.user_session.get("id")] = init_approx_tag_limit
@@ -262,11 +257,11 @@ async def generate_prompt(p):
 # async def on_products_overview(action):
 #     await generate_prompt(action.value)
 
-def ingest_docs_directory_using_processors(ingestion_params):
-    try:
-        api_client.ingest_docs(ingestion_params)
-    except Exception as e:
-        log_message(f"Error ingesting documents: {e}", 'error')
+# def ingest_docs_directory_using_processors(ingestion_params):
+#     try:
+#         api_client.ingest_docs(ingestion_params)
+#     except Exception as e:
+#         log_message(f"Error ingesting documents: {e}", 'error')
     
 @cl.on_message
 async def main(message: cl.Message):
@@ -286,13 +281,6 @@ async def main(message: cl.Message):
                 index_name = res['output'].strip()
                 index_names[cl.user_session.get("id")] = index_name
                 await update_task_list()
-
-        # elif cmd == 'ingestion_dir':
-        #     res = await cl.AskUserMessage(content="What is the ingestion directory?", timeout=1000).send()
-        #     if res:
-        #         ingestion_directory = res['output'].strip()
-        #         ingestion_directories[cl.user_session.get("id")] = ingestion_directory
-        #         await update_task_list()
 
         elif cmd == 'password':
             res = await cl.AskUserMessage(content="What is the PDF password?", timeout=1000).send()
@@ -410,35 +398,35 @@ async def main(message: cl.Message):
                 await cl.Message(content=f"File(s) '{fns}' have been uploaded'.").send()
 
 
-        elif cmd == "ingest":      
-            index_name = index_names[cl.user_session.get("id")]
+        # elif cmd == "ingest":      
+        #     index_name = index_names[cl.user_session.get("id")]
             
-            await cl.Message(content=f"Starting ingestion into '{index_name}'.").send()
+        #     await cl.Message(content=f"Starting ingestion into '{index_name}'.").send()
 
-            log_message("\n\nIngestion Variables:")
-            log_message(f"index_name: {index_names[cl.user_session.get('id')]}")
-            log_message(f"password: {passwords[cl.user_session.get('id')]}")
-            log_message(f"approx_tag_limit: {approx_tag_limits[cl.user_session.get('id')]}")
-            log_message(f"pdf_extraction_mode: {pdf_extraction_modes[cl.user_session.get('id')]}")
-            log_message(f"docx_extraction_mode: {docx_extraction_modes[cl.user_session.get('id')]}")
-            log_message(f"number_of_threads: {number_of_threads[cl.user_session.get('id')]}")
-            log_message(f"delete_existing_output_directory: {delete_existing_output_directory[cl.user_session.get('id')]}")
+        #     log_message("\n\nIngestion Variables:")
+        #     log_message(f"index_name: {index_names[cl.user_session.get('id')]}")
+        #     log_message(f"password: {passwords[cl.user_session.get('id')]}")
+        #     log_message(f"approx_tag_limit: {approx_tag_limits[cl.user_session.get('id')]}")
+        #     log_message(f"pdf_extraction_mode: {pdf_extraction_modes[cl.user_session.get('id')]}")
+        #     log_message(f"docx_extraction_mode: {docx_extraction_modes[cl.user_session.get('id')]}")
+        #     log_message(f"number_of_threads: {number_of_threads[cl.user_session.get('id')]}")
+        #     log_message(f"delete_existing_output_directory: {delete_existing_output_directory[cl.user_session.get('id')]}")
 
-            ingestion_params_dict = {
-                "index_name" : index_name,
-                'num_threads' : available_models,
-                "password" : passwords[cl.user_session.get("id")],
-                "delete_existing_output_dir" : delete_existing_output_directory[cl.user_session.get("id")],
-                "processing_mode_pdf" : pdf_extraction_modes[cl.user_session.get("id")],
-                "processing_mode_docx" : docx_extraction_modes[cl.user_session.get("id")],
-                'verbose': True
-            }
-            # FIXME: param required but not passed
-            # ingestion_params_dict['doc_path']
+        #     ingestion_params_dict = {
+        #         "index_name" : index_name,
+        #         'num_threads' : available_models,
+        #         "password" : passwords[cl.user_session.get("id")],
+        #         "delete_existing_output_dir" : delete_existing_output_directory[cl.user_session.get("id")],
+        #         "processing_mode_pdf" : pdf_extraction_modes[cl.user_session.get("id")],
+        #         "processing_mode_docx" : docx_extraction_modes[cl.user_session.get("id")],
+        #         'verbose': True
+        #     }
+        #     # FIXME: param required but not passed
+        #     # ingestion_params_dict['doc_path']
 
-            await cl.make_async(ingest_docs_directory_using_processors)(ingestion_params_dict)
+        #     await cl.make_async(ingest_docs_directory_using_processors)(ingestion_params_dict)
 
-            await cl.Message(content=f"Ingestion into '{index_name}' complete.").send()
+        #     await cl.Message(content=f"Ingestion into '{index_name}' complete.").send()
 
         elif cmd == "gen":
             try:

@@ -271,24 +271,24 @@ class IngestionRequest(BaseModel):
     processing_mode_docx: str
     verbose: bool
     
-# A POST /ingest that takes a JSON with the following structure:
-@app.post("/ingest")
-def run_ingestion(request: IngestionRequest):
-    try:
-        logging.info("Running ingestion")
+# # A POST /ingest that takes a JSON with the following structure:
+# @app.post("/ingest")
+# def run_ingestion(request: IngestionRequest):
+#     try:
+#         logging.info("Running ingestion")
         
-        ingestion_directory, download_directory = ensure_download_dictory(request.index_name)
+#         ingestion_directory, download_directory = ensure_download_dictory(request.index_name)
         
-        dict = request.model_dump()
-        dict['download_directory'] = download_directory
-        dict['ingestion_directory'] = ingestion_directory
-        dict['vision_models'] = gpt4_models
-        dict['models'] = gpt4_models
+#         dict = request.model_dump()
+#         dict['download_directory'] = download_directory
+#         dict['ingestion_directory'] = ingestion_directory
+#         dict['vision_models'] = gpt4_models
+#         dict['models'] = gpt4_models
         
-        return ingest_doc_using_processors(dict)
-    except Exception as e:
-        logging.error(f"Error running ingestion: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+#         return ingest_doc_using_processors(dict)
+#     except Exception as e:
+#         logging.error(f"Error running ingestion: {str(e)}", exc_info=True)
+#         raise HTTPException(status_code=500, detail=str(e))
 
 cogsearch = CogSearchHttpRequest()
 # A GET to return the list of cog_search indexes
