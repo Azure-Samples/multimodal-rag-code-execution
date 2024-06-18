@@ -92,7 +92,7 @@ class IngestionCosmosHelper():
                     logging.info(f"Discarding {file}. Extension not supported.")
                     continue
                 
-                logging.info(os.path.join(root, file + '.ingested'), os.path.exists(os.path.join(root, file + '.ingested')))
+                logging.info(f"{os.path.join(root, file + '.ingested')}, EXISTS {os.path.exists(os.path.join(root, file + '.ingested'))}")
                 if os.path.exists(os.path.join(root, file + '.ingested')):
                     status = 'Ingested'
                 else:
@@ -174,7 +174,7 @@ class IngestionCosmosHelper():
 
     def get_file_index_with_cosmos_update(self, file, index_name, download_directory):
         if document is None: document = self.update_cosmos_with_download_files(index_name, download_directory)
-        return get_file_index(file, document)
+        return self.get_file_index(file, document)
 
     
     def get_file_index(self, file, document):
