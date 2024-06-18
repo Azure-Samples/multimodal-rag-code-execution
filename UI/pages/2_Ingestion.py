@@ -337,7 +337,7 @@ def check_if_indexing_in_progress():
 
             if (job_id != '') and (job_status == 'running'):
                 try:    
-                    status = api_client.get_job_status(st.session_state.aml_job_id)
+                    status = api_client.get_job_status(st.session_state.aml_job_run_id)
                     log_message(f"Checking Run_ID: {job_id}, status {status}")
 
                     if status not in ["Completed", "Failed", "Canceled"]:
@@ -530,7 +530,7 @@ if start_ingestion:
 
             try:
                 if job_execution == "Azure Machine Learning":                    
-                    st.session_state.aml_job_id = api_client.submit_ingestion_job(index_name, ingestion_params_dict)
+                    st.session_state.aml_job_run_id = api_client.submit_ingestion_job(index_name, ingestion_params_dict)
                 
                 elif job_execution == "Subprocess (Local Testing)":
                     process_id = api_client.submit_local_ingestion_job(index_name, ingestion_params_dict)
