@@ -1337,12 +1337,12 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             # build the docker locally
             if [[ "$BUILD_CHAINLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the chainlit app docker locally...${RESET}"
-                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI UI
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI ui
             fi
 
             if [[ "$BUILD_STREAMLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the streamlit app docker locally...${RESET}"
-                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN UI
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN ui
             fi
 
             if [[ "$BUILD_API" = "true" ]]; then
@@ -1355,7 +1355,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             # build the docker using Azure Container Registry
             if [[ "$BUILD_CHAINLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the chainlit app docker using Azure Container Registry...${RESET}"
-                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --file $DOCKERFILE_PATH_UI UI
+                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --file $DOCKERFILE_PATH_UI ui
                 if [ $? -ne 0 ]; then
                     echo "command build failed"
                     read -rp "Press enter to continue..." 
@@ -1368,7 +1368,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
 
             if [[ "$BUILD_STREAMLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the streamlit app docker using Azure Container Registry...${RESET}"
-                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN UI
+                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN ui
                 if [ $? -ne 0 ]; then
                     echo "command build failed"
                     read -rp "Press enter to continue..." 
