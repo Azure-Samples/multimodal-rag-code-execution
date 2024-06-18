@@ -1,0 +1,23 @@
+
+
+
+**Context**:
+
+Previous Document Chunk:
+## START OF Chunk
+{previous_chunk}
+## END OF Chunk
+
+
+Current Document Chunk:
+## START OF Chunk
+{current_chunk}
+## END OF Chunk
+
+
+Next Document Chunk:
+## START OF Chunk
+{next_chunk}
+## END OF Chunk
+
+

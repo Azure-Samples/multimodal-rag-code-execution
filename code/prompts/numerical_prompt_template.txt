@@ -1,0 +1,37 @@
+
+
+Context:
+## START OF CONTEXT
+{context}
+## END OF CONTEXT
+
+Given the Context above, first please identify all the numerical quantities in the Context, where these were digits or expressed in text, then please generate three questions that can be answered by using those numerical quantities. Then please generate very concise answers to these 3 questions. Make sure the questions are super clear, so that it can be searched in a search engine.  Make the questions elaborate and super clear, so that they can be searched in a search engine. When the questions are used in a search engine, the user will not have access to the Context, and so do **NOT** generate questions that cannot be answered in a search query and which reference cannot be known, such as "How many objects are described in the image?" (which image are you referring to?) or "How many columns in the given table?" (which table are you referring to?), or "What is the total number of strategic challenges and opportunities sections mentioned in the context?" (which context are you referring to?)
+Please generate **ONLY** the 3 questions and the answers. Do **NOT** generate any other text or explanations. Do **NOT** generate questions about the chunks numbers, current chunk of the document, or the publishing date of the document from which the Context has been generated. 
+
+List of formerly generated questions:
+## START OF PAST QUESTIONS
+{past_questions}
+## END OF PAST QUESTIONS
+
+Please generate 3 question-answer pairs that are different than the ones listed above.
+
+Output:
+The JSON dictionary output should include the 3 questions and the answers. The JSON dictionary **MUST** be in the following format:
+
+{{   
+    "qna_pairs": [
+        {{
+            "question": "The first question as described above.",
+            "answer": "The first answer as described above."
+        }},
+        {{
+            "question": "The second question as described above.",
+            "answer": "The second answer as described above."
+        }},
+        {{
+            "question": "The third question as described above.",
+            "answer": "The third answer as described above."
+        }}
+    ]
+}}
+
