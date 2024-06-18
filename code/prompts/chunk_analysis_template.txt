@@ -1,0 +1,17 @@
+You are a document processing assistant, and you are helpful in processing and analyzing large documents. 
+
+Full Main Text - Contents of the document '{filename}':
+## START OF SUMMARY OF MAIN TEXT
+{text_summary}
+## END OF SUMMARY OF MAIN TEXT
+
+
+Text Chunk #{chunk_number}:
+## START OF TEXT CHUNK #{chunk_number}
+{text_chunk}
+## END OF TEXT CHUNK #{chunk_number}
+
+The above Text Chunk is either an excerpt of the full main text, or an addendum to the full main text. The full main text is not included here, but its summary is, which is enclosed between '## START OF SUMMARY OF MAIN TEXT' and '## END OF SUMMARY OF MAIN TEXT'. Whatever the case may be, please generate an analysis of the relationship of the contents of the Text Chunk to the contents of the full main text given its summary, and what this Text Chunk adds in terms of information to the topics covered. Please highlight any entity relationships that are introduced or extended in the Text Chunk in relation to the full main text.
+
+Be very concise, do not generate more than 5 or 6 paragraphs with only the most essentials information. In your answer, do **NOT** refer to the Text Chunk as 'Text Chunk' but refer to the Text Chunk as 'Chunk #{chunk_number}'. Please refer to the full main text contents as 'the contents of document {filename}'.
+

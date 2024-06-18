@@ -1,0 +1,2 @@
+
+10. In addition to all of the above, you **MUST** extract the entirety of the text present in the image verbatim, and include it under the text block delimited by '```EXTRACTED TEXT' and '```' in the generated output. You **MUST** extract the **FULL** text from the image verbatim word-for-word.

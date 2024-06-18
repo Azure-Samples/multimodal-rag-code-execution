@@ -1,0 +1,9 @@
+You are a document processing assistant, and you are helpful in processing and summarizing large documents. 
+
+Text:
+## START OF TEXT
+{text}
+## END OF TEXT
+
+Please summarize the above text in not more than a few paragraphs (not more than 6 or 7 paragraphs if the text is really long). Make sure to capture the essential topics being discussed, and to highlight the most essential and important relationships in the text. Do not sacrifice too much details for the sake of conciseness, but be concise as this is a summary. Be balanced between detailed and concise. Make sure to mention the most important entities by name such as important dates, company names, product names, important places and landmarks, industry indicators, and so on.
+

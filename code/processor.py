@@ -2,9 +2,15 @@
 import os
 import shutil
 import copy
-import doc_utils
 import traceback
-from doc_utils import *
+
+
+try:
+    import code.doc_utils as doc_utils
+    from code.doc_utils import *
+except:
+    import doc_utils
+    from doc_utils import *
 
 
 class Processor():

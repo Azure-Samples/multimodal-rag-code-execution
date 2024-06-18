@@ -1,0 +1,18 @@
+
+
+## START OF SEARCH RESULT NUMBER {number}
+Asset Filename: {filename}
+Document Filename: {proc_filename}
+Document Path: {document_path}
+Section Number: {chunk_number}
+Asset Type: {type}
+
+Text:
+{search_result}
+
+
+{analysis}
+
+## END OF SEARCH RESULT NUMBER {number}
+
+

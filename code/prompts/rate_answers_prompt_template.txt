@@ -1,0 +1,28 @@
+
+
+Below you will find a question and the ground truth answer, as well as the generated answer. Please rate from 0-10 how close the generated answer is to the ground truth answer. 0 means the generated answer is not close at all to the ground truth answer, and 10 means the generated answer is very close to the ground truth answer. Please rate the generated answer based on how well it answers the question, and not based on how well it is written.
+
+Question:
+## START OF QUESTION
+{question}
+## END OF QUESTION
+
+Ground Truth Answer:
+## START OF GROUND TRUTH ANSWER
+{ground_truth_answer}
+## END OF GROUND TRUTH ANSWER
+
+Generated Answer:
+## START OF GENERATED ANSWER
+{generated_answer}
+## END OF GENERATED ANSWER
+
+Output:
+The JSON dictionary output should include the rating only. The JSON dictionary **MUST** be in the following format:
+
+{{
+    "rating": "A number between 0 and 10"
+}}
+
+Do **NOT** generate any other text or explanations other than the JSON dictionary with the above format.
+
