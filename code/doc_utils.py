@@ -110,8 +110,8 @@ def cosine_similarity(a, b):
 
 
 
-if os.path.exists("./code/prompts"):
-    prompt_dir = "./code/prompts"
+if os.path.exists("./prompts"):
+    prompt_dir = "./prompts"
 else:
     prompt_dir = "../code/prompts"
 
