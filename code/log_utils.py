@@ -35,6 +35,9 @@ def setup_logger():
 
     # Add the console handler to the logger
     logger.addHandler(console_handler)
+    
+    # Disable the App Insights VERY verbose logger
+    logging.getLogger('azure.monitor').setLevel(logging.WARN)
 
     # Configure OpenTelemetry to use Azure Monitor with the 
     # APPLICATIONINSIGHTS_CONNECTION_STRING environment variable.
