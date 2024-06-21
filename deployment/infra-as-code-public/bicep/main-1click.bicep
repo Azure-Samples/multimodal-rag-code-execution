@@ -7,6 +7,10 @@ param openAIRGName string
 @description('An existing Azure Container Registry resource to pull images from')
 param containerRegistryName string
 
+@description('An existing Azure Container Registry login password')
+@secure()
+param containerRegistryPassword string
+
 @description('Service Principal Id')
 param spId string
 
@@ -56,12 +60,22 @@ module webappModule 'webapp.bicep' = {
     uniqueid: uniqueid            
     storageName: storageModule.outputs.storageName            
     logWorkspaceName: logWorkspace.name
-    containerRegistry: containerRegistryName
+    containerRegistryName: containerRegistryName
+    containerRegistryPassword: containerRegistryPassword
     storageAccount:storageModule.outputs.storageName  
     namePrefix:namePrefix
     mlWorkspaceName: machineLearning.outputs.workspaceName
    }
 }
+
+// module openAiModule 'modules/openai.resources.bicep' = if (openAIName == '') {
+//   name: 'openaiDeploy'
+//   params: {
+//     location: location
+//     uniqueid: uniqueid
+//     namePrefix:namePrefix
+//   }
+// }
 
 
 module azureVisionResource 'vision.bicep' =  {
@@ -120,14 +134,14 @@ module script 'modules/script.bicep' = {
     spId: spId
     spSecret: spSecret
     uniqueid: uniqueid
-    machineLearningName: 'mlws' 
+    machineLearningName: machineLearning.outputs.workspaceName
     storageName: storageModule.outputs.storageName
     chatAppName: webappModule.outputs.appName
     mainAppName: webappModule.outputs.appName2
     apiAppName: webappModule.outputs.appNameApi
   }
   dependsOn: [
-    machineLearning, webappModule
+    machineLearning, webappModule, storageModule
   ]
 }
 

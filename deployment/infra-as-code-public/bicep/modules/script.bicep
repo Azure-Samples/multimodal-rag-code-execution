@@ -83,17 +83,48 @@ resource spScript 'Microsoft.Resources/deploymentScripts@2019-10-01-preview' = {
           $appId = $SP_ID
           $password = $SP_SECRET
         }
-
-        # Assign the role to the service principal to rg
-        $mlScope = "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG_NAME/providers/Microsoft.MachineLearningServices/workspaces/$ML_NAME"
-        New-AzRoleAssignment -ObjectId $appId -RoleDefinitionName "Contributor" -Scope $mlScope
-        New-AzRoleAssignment -ObjectId $appId -RoleDefinitionName "Contributor" -Scope "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG_NAME"
-
+        
         # Output the service principal details
         $DeploymentScriptOutputs = @{}
         $DeploymentScriptOutputs['appId'] = $appId
         $DeploymentScriptOutputs['password'] = $password
       '''
+  }
+}
+
+// Existing Machine Learning workspace
+resource machineLearningWorkspace 'Microsoft.MachineLearningServices/workspaces@2021-04-01' existing = {
+  name: machineLearningName
+}
+
+// Contributor role definitions
+resource mlContributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+  scope: machineLearningWorkspace
+}
+resource rgContributorRoleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
+  scope: resourceGroup()
+}
+
+// Contributor role on the Machine Learning workspace
+resource mlContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: machineLearningWorkspace
+  name: guid(machineLearningWorkspace.id, mlContributorRoleDefinition.id, uniqueid)
+  properties: {
+    roleDefinitionId: mlContributorRoleDefinition.id
+    principalType: 'ServicePrincipal'
+    principalId: spScript.properties.outputs.appId
+  }
+}
+// Contributor role on the resource group
+resource rgContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: machineLearningWorkspace
+  name: guid(resourceGroup().id, rgContributorRoleDefinition.id, uniqueid)
+  properties: {
+    roleDefinitionId: rgContributorRoleDefinition.id
+    principalType: 'ServicePrincipal'
+    principalId: spScript.properties.outputs.appId
   }
 }
 
@@ -148,7 +179,7 @@ resource webAppsFixScript 'Microsoft.Resources/deploymentScripts@2019-10-01-prev
     cleanupPreference: 'OnSuccess'
     retentionInterval: 'P1D'
     forceUpdateTag: currentTime // ensures script will run every time
-    arguments: '\'${chatAppName}\' \'${mainAppName}\' \'${apiAppName}\' \'${resourceGroup().name}\''
+    arguments: '${chatAppName} ${mainAppName} ${apiAppName} ${resourceGroup().name}'
     scriptContent: '''
         az webapp deployment container config --enable-cd true --name $1 --resource-group $4
         az webapp deployment container config --enable-cd true --name $2 --resource-group $4

@@ -7,7 +7,10 @@ param mlWorkspaceName string
 param storageAccount string
 
 @description('The name of the container registry')
-param containerRegistry string
+param containerRegistryName string
+@description('The password of the container registry')
+@secure()
+param containerRegistryPassword string
 
 @description('A prefix that will be prepended to resource names')
 param namePrefix string = 'dev'
@@ -52,7 +55,7 @@ resource azureMlWorkspace 'Microsoft.MachineLearningServices/workspaces@2021-04-
 
 // Existing container registry
 resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
-  name: containerRegistry
+  name: containerRegistryName
 }
 
 // Built-in Azure RBAC role that is applied to a Key storage to grant data reader permissions. 
@@ -156,7 +159,7 @@ resource webApp 'Microsoft.Web/sites@2022-09-01' = {
       acrUseManagedIdentityCreds: false
       // acrUserManagedIdentityID: appServiceManagedIdentity.id      
       http20Enabled: true
-      linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot:latest'
+      linuxFxVersion: 'DOCKER|${containerRegistryName}.azurecr.io/research-copilot:latest'
       numberOfWorkers: 1
       alwaysOn: true
     }
@@ -186,7 +189,7 @@ resource webApp2 'Microsoft.Web/sites@2022-09-01' = {
       acrUseManagedIdentityCreds: false
       // acrUserManagedIdentityID: appServiceManagedIdentity.id
       http20Enabled: true
-      linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot-main:latest'
+      linuxFxVersion: 'DOCKER|${containerRegistryName}.azurecr.io/research-copilot-main:latest'
       numberOfWorkers: 1
       alwaysOn: true
     }
@@ -216,7 +219,7 @@ resource webAppApi 'Microsoft.Web/sites@2022-09-01' = {
       acrUseManagedIdentityCreds: false
       // acrUserManagedIdentityID: appServiceManagedIdentity.id
       http20Enabled: true
-      linuxFxVersion: 'DOCKER|${containerRegistry}.azurecr.io/research-copilot-api:latest'
+      linuxFxVersion: 'DOCKER|${containerRegistryName}.azurecr.io/research-copilot-api:latest'
       numberOfWorkers: 1
       alwaysOn: true
     }
@@ -233,13 +236,13 @@ resource appsettings 'Microsoft.Web/sites/config@2022-09-01' = {
   name: 'appsettings'
   parent: webApp
   properties: {
-    // WEBSITE_RUN_FROM_PACKAGE: packageLocation
-    // WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID: appServiceManagedIdentity.id
-    // AZURE_SQL_CONNECTIONSTRING: '@Microsoft.KeyVault(SecretUri=https://${keyVault.name}${environment().suffixes.keyvaultDns}/secrets/adWorksConnString)'
     APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
     APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
-    DOCKER_ENABLE_CI: 'true'
+    DOCKER_ENABLE_CI: '1'
+    DOCKER_REGISTRY_SERVER_USERNAME: containerRegistryName
+    DOCKER_REGISTRY_SERVER_PASSWORD: containerRegistryPassword
+    DOCKER_REGISTRY_SERVER_URL: 'https://${containerRegistryName}.azurecr.io'
     API_BASE_URL: 'https://${appNameApi}.azurewebsites.net'
   }
 }
@@ -249,13 +252,13 @@ resource appsettings2 'Microsoft.Web/sites/config@2022-09-01' = {
   name: 'appsettings'
   parent: webApp2
   properties: {
-    // WEBSITE_RUN_FROM_PACKAGE: packageLocation
-    // WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID: appServiceManagedIdentity.id
-    // AZURE_SQL_CONNECTIONSTRING: '@Microsoft.KeyVault(SecretUri=https://${keyVault.name}${environment().suffixes.keyvaultDns}/secrets/adWorksConnString)'
     APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
     APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'    
-    DOCKER_ENABLE_CI: 'true'
+    DOCKER_ENABLE_CI: '1'
+    DOCKER_REGISTRY_SERVER_USERNAME: containerRegistryName
+    DOCKER_REGISTRY_SERVER_PASSWORD: containerRegistryPassword
+    DOCKER_REGISTRY_SERVER_URL: 'https://${containerRegistryName}.azurecr.io'
     API_BASE_URL: 'https://${appNameApi}.azurewebsites.net'
   }
 }
@@ -264,13 +267,13 @@ resource appsettingsApi 'Microsoft.Web/sites/config@2022-09-01' = {
   name: 'appsettings'
   parent: webAppApi
   properties: {
-    // WEBSITE_RUN_FROM_PACKAGE: packageLocation
-    // WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID: appServiceManagedIdentity.id
-    // AZURE_SQL_CONNECTIONSTRING: '@Microsoft.KeyVault(SecretUri=https://${keyVault.name}${environment().suffixes.keyvaultDns}/secrets/adWorksConnString)'
     APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
     APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
-    DOCKER_ENABLE_CI: 'true'
+    DOCKER_ENABLE_CI: '1'
+    DOCKER_REGISTRY_SERVER_USERNAME: containerRegistryName
+    DOCKER_REGISTRY_SERVER_PASSWORD: containerRegistryPassword
+    DOCKER_REGISTRY_SERVER_URL: 'https://${containerRegistryName}.azurecr.io'
   }
 }
 
