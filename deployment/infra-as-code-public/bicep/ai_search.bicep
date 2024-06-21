@@ -37,4 +37,6 @@ resource searchService 'Microsoft.Search/searchServices@2023-11-01' = {
   }
 }
 
-output aiSearchName string = searchService.name
+output aiSearchName string = varaiSearchName
+output aiSearchEndpoint string = 'https://${varaiSearchName}.search.windows.net'
+output aiSearchAdminKey string = searchService.listAdminKeys().primaryKey

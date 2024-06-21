@@ -41,3 +41,6 @@ resource cognitiveServicesAccount 'Microsoft.CognitiveServices/accounts@2023-10-
 
 // output containerRegistryName string = containerRegistry_resource.name
 output accountsVisionResTstName string = cognitiveServicesAccount.name
+output accountsVisionEndpoint string = cognitiveServicesAccount.properties.endpoint
+#disable-next-line outputs-should-not-contain-secrets
+output accountsVisionKey string = cognitiveServicesAccount.listKeys().key1

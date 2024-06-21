@@ -103,3 +103,6 @@ resource cosmosdb 'Microsoft.DocumentDB/databaseAccounts@2024-02-15-preview' = {
 }
 
 output cosmosdbName string = cosmosdb.name
+output cosmosDbUri string = cosmosdb.properties.documentEndpoint
+#disable-next-line outputs-should-not-contain-secrets
+output cosmosDbKey string = cosmosdb.listKeys().primaryMasterKey

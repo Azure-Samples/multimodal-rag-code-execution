@@ -239,6 +239,7 @@ resource appsettings 'Microsoft.Web/sites/config@2022-09-01' = {
     APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
     APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
+    DOCKER_ENABLE_CI: 'true'
     API_BASE_URL: 'https://${appNameApi}.azurewebsites.net'
   }
 }
@@ -254,6 +255,7 @@ resource appsettings2 'Microsoft.Web/sites/config@2022-09-01' = {
     APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
     APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'    
+    DOCKER_ENABLE_CI: 'true'
     API_BASE_URL: 'https://${appNameApi}.azurewebsites.net'
   }
 }
@@ -268,6 +270,7 @@ resource appsettingsApi 'Microsoft.Web/sites/config@2022-09-01' = {
     APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
     APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
+    DOCKER_ENABLE_CI: 'true'
   }
 }
 
@@ -377,6 +380,62 @@ resource webAppDiagSettingsApi 'Microsoft.Insights/diagnosticSettings@2021-05-01
         enabled: true
       }
     ]
+  }
+}
+
+resource webappLogs 'Microsoft.Web/sites/config@2022-09-01' = {
+  name: 'logs'
+  parent: webApp
+  properties: {
+    applicationLogs: {
+      fileSystem: {
+        level: 'Information' // Possible values include: 'Off', 'Verbose', 'Information', 'Warning', 'Error'
+      }
+    }
+    httpLogs: {
+      fileSystem: {
+        retentionInMb: 35
+        retentionInDays: 1
+        enabled: true
+      }
+    }
+  }
+}
+resource webapp2Logs 'Microsoft.Web/sites/config@2022-09-01' = {
+  name: 'logs'
+  parent: webApp2
+  properties: {
+    applicationLogs: {
+      fileSystem: {
+        level: 'Information' // Possible values include: 'Off', 'Verbose', 'Information', 'Warning', 'Error'
+      }
+    }
+    httpLogs: {
+      fileSystem: {
+        retentionInMb: 35
+        retentionInDays: 1
+        enabled: true
+      }
+    }
+  }
+}
+
+resource webappApiLogs 'Microsoft.Web/sites/config@2022-09-01' = {
+  name: 'logs'
+  parent: webAppApi
+  properties: {
+    applicationLogs: {
+      fileSystem: {
+        level: 'Information' // Possible values include: 'Off', 'Verbose', 'Information', 'Warning', 'Error'
+      }
+    }
+    httpLogs: {
+      fileSystem: {
+        retentionInMb: 35
+        retentionInDays: 1
+        enabled: true
+      }
+    }
   }
 }
 
@@ -495,3 +554,7 @@ output appName string = webApp.name
 output appName2 string = webApp2.name
 @description('The name of the web app.')
 output appNameApi string = webAppApi.name
+@description('The connection string of the app insights.')
+output appInsightsConnectionString string = appInsights.properties.ConnectionString
+
+output userIdentityId string = appServiceManagedIdentity.properties.principalId
