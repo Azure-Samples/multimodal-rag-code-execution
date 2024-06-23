@@ -334,6 +334,7 @@ def check_if_indexing_in_progress():
             job_id = document['job_id']
             job_status = document['job_status']
             log_message(f"Job ID Found in Cosmos {job_id}")
+            st.session_state.aml_job_run_id = job_id
 
             if (job_id != '') and (job_status == 'running'):
                 try:    
