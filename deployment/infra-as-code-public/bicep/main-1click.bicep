@@ -5,18 +5,11 @@ param openAIName string
 param openAIRGName string
 
 @description('An existing Azure Container Registry resource to pull images from')
-param containerRegistryName string
+param containerRegistryName string?
 
 @description('An existing Azure Container Registry login password')
 @secure()
-param containerRegistryPassword string
-
-@description('Service Principal Id')
-param spId string
-
-@description('Service Principal Secret')
-@secure()
-param spSecret string
+param containerRegistryPassword string?
 
 @description('The location in which all resources should be deployed.')
 param location string = resourceGroup().location
@@ -52,6 +45,25 @@ module storageModule 'storage.bicep' = {
   }
 }
 
+module acr 'registry.bicep' = if (empty(containerRegistryName)) {
+  name: 'acrDeploy'
+  params: {
+    location: location
+    uniqueid: uniqueid
+    namePrefix: namePrefix
+  }
+}
+
+module buildImages 'modules/build-images.bicep' = if (empty(containerRegistryName)) {
+  name: 'buildImages'
+  params: {
+    acrName: acr.outputs.containerRegistryName
+  }
+  dependsOn: [
+    acr
+  ]
+}
+
 // Deploy a web app
 module webappModule 'webapp.bicep' = {
   name: 'webappDeploy'
@@ -60,12 +72,13 @@ module webappModule 'webapp.bicep' = {
     uniqueid: uniqueid            
     storageName: storageModule.outputs.storageName            
     logWorkspaceName: logWorkspace.name
-    containerRegistryName: containerRegistryName
-    containerRegistryPassword: containerRegistryPassword
+    containerRegistryName: containerRegistryName ?? acr.outputs.containerRegistryName
+    containerRegistryPassword: containerRegistryPassword ?? acr.outputs.containerRegistryPassword
     storageAccount:storageModule.outputs.storageName  
     namePrefix:namePrefix
     mlWorkspaceName: machineLearning.outputs.workspaceName
    }
+   dependsOn: [acr]
 }
 
 // module openAiModule 'modules/openai.resources.bicep' = if (openAIName == '') {
@@ -101,7 +114,6 @@ module ai_search 'ai_search.bicep' = {
   params: {
     uniqueid: uniqueid
     aiSearchRegion: aiSearchRegion
-    // location: location
     namePrefix:namePrefix                
   }
 }
@@ -131,8 +143,6 @@ module machineLearning 'machine_learning.bicep' =  {
 module script 'modules/script.bicep' = {
   name: 'script'
   params: {
-    spId: spId
-    spSecret: spSecret
     uniqueid: uniqueid
     machineLearningName: machineLearning.outputs.workspaceName
     storageName: storageModule.outputs.storageName
@@ -164,7 +174,7 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       AML_CLUSTER_NAME: 'mm-doc-cpu-cluster'
       AML_VMSIZE: 'STANDARD_D2_V2'
       PYTHONUNBUFFERED: '1'
-      AML_PASSWORD: script.outputs.password
+      AML_PASSWORD: script.outputs.password // This will be empty since Bicep cannot provision secrets, set-sp-secret.sh will be used to set the secret
       AML_TENANT_ID: script.outputs.tenantId
       AML_SERVICE_PRINCIPAL_ID: script.outputs.appId
       INITIAL_INDEX: 'rag-data'
@@ -223,3 +233,7 @@ module apiAppSettings 'modules/appsettings.bicep' = {
     }
   }
 }
+
+output spId string = script.outputs.appId
+output spName string = script.outputs.appName
+output apiAppName string = webappModule.outputs.appNameApi
