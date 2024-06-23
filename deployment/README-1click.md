@@ -4,7 +4,7 @@ The new way to deploy this solutions is using the 1-click deployment. This is th
 
 ## Known limitations
 
-Due to an upstream Bicep limitations with Service Principals, the 1-click deployment will NOT be able to create a secret. You will need to run a post-deployment script to create the secret and assign it to the API WebApp in order to complete the deployment.
+Due to an [upstream Bicep limitations with Service Principals](https://learn.microsoft.com/en-us/graph/templates/known-issues-graph-bicep?view=graph-bicep-1.0#application-passwords-are-not-supported-for-applications-and-service-principals), the 1-click deployment will NOT be able to create a secret. You will need to run a post-deployment script to create the secret and assign it to the API WebApp in order to complete the deployment.
 
 ## Pre-requisites
 
