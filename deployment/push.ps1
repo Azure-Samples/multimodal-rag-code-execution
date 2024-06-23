@@ -1,18 +1,19 @@
 # PowerShell version of a script to push Docker images to Azure Container Registry
 # Helpful when you just want to add a new tag to an existing image and push it to ACR without all the complexity of a CI/CD pipeline
 
-# define script parameters
 param (
     [string]$RG,
-    [string]$ACR_NAME,
-    [string]$CHAT_WEB_APP_NAME,
-    [string]$MAIN_WEB_APP_NAME,
-    [string]$API_WEB_APP_NAME
+    [string]$ACR_NAME
 )
 
 # Generating a unique build tag using the current date and time
 $BUILD_ID = Get-Date -Format "yyyyMMddHHmmss"
 $TAG = "build-$BUILD_ID"
+
+# If $ACR_NAME is not provived, query the resource group for the ACR name not containing 'ml'
+if (-not $ACR_NAME) {
+    $ACR_NAME = az acr list --resource-group $RG --query "[? !contains(name, 'ml')].name" -o tsv
+}
 
 write-host "Logging in to Azure Container Registry $ACR_NAME" -ForegroundColor Green
 # Logging in to Azure Container Registry and getting a token
@@ -25,9 +26,14 @@ $DOCKERFILE_PATH_UI_MAIN = "docker/dockerfile_streamlit_app"
 $DOCKERFILE_PATH_API = "docker/dockerfile_api"
 
 # Define custom image names with the dynamic tag
-$DOCKER_CUSTOM_IMAGE_NAME_UI = "$ACR_NAME.azurecr.io/research-copilot-chainlit"
+$DOCKER_CUSTOM_IMAGE_NAME_UI = "$ACR_NAME.azurecr.io/research-copilot"
 $DOCKER_CUSTOM_IMAGE_NAME_MAIN = "$ACR_NAME.azurecr.io/research-copilot-main"
 $DOCKER_CUSTOM_IMAGE_NAME_API = "$ACR_NAME.azurecr.io/research-copilot-api"
+
+# Get all the web app names from resource group
+$CHAT_WEB_APP_NAME = az webapp list --resource-group $RG --query "[?contains(name, '-app-chat-')].name" -o tsv
+$MAIN_WEB_APP_NAME = az webapp list --resource-group $RG --query "[?contains(name, '-app-main-')].name" -o tsv
+$API_WEB_APP_NAME = az webapp list --resource-group $RG --query "[?contains(name, '-app-api-')].name" -o tsv
 
 # Ask for confirmation before building
 

@@ -8,7 +8,9 @@ Due to an upstream Bicep limitations with Service Principals, the 1-click deploy
 
 ## Pre-requisites
 
-There no special prequisites for this deployment. You will need to have an Azure subscription and be able to create resources in it. Using Cloud Shell is also recommend to finalize the deployment.
+- You will need to have an Azure subscription and be able to create resources in it. At least a resource group is required, and the user must have `Owner` permissions.
+- Addiitonally, you will need to have privileges to create an app registration/service principal.
+- Using Cloud Shell is also recommend to finalize the deployment.
 
 ## Deployment steps (Azure Portal)
 
