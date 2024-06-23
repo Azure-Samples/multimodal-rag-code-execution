@@ -237,3 +237,4 @@ module apiAppSettings 'modules/appsettings.bicep' = {
 output spId string = script.outputs.appId
 output spName string = script.outputs.appName
 output apiAppName string = webappModule.outputs.appNameApi
+output postDeployScript string = './set-sp-secret.sh ${script.outputs.appId} ${webappModule.outputs.appNameApi} ${resourceGroup().name}'

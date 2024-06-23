@@ -49,7 +49,8 @@ module webappModule 'webapp.bicep' = if (DeployThis) {
     uniqueid: uniqueid            
     storageName: storageModule.outputs.storageName            
     logWorkspaceName: logWorkspace.name
-    containerRegistry: registry.outputs.containerRegistryName
+    containerRegistryName: registry.outputs.containerRegistryName
+    containerRegistryPassword: registry.outputs.containerRegistryPassword
     storageAccount:storageModule.outputs.storageName  
     namePrefix:namePrefix
     mlWorkspaceName: machineLearning.outputs.workspaceName
