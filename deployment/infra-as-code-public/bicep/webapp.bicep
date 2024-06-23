@@ -53,11 +53,6 @@ resource azureMlWorkspace 'Microsoft.MachineLearningServices/workspaces@2021-04-
   name: mlWorkspaceName
 }
 
-// Existing container registry
-resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
-  name: containerRegistryName
-}
-
 // Built-in Azure RBAC role that is applied to a Key storage to grant data reader permissions. 
 resource blobDataReaderRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'

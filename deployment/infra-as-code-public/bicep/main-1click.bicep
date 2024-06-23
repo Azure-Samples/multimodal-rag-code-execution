@@ -196,10 +196,10 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       DI_ENDPOINT: documentInteligence.outputs.documentIntelligenceEndpoint
       DI_KEY: documentInteligence.outputs.documentIntelligenceKey
       DI_API_VERSION: '2024-02-29-preview'
-      AZURE_OPENAI_RESOURCE: ''
-      AZURE_OPENAI_KEY: ''
+      AZURE_OPENAI_RESOURCE: openAI.name
+      AZURE_OPENAI_KEY: openAI.listKeys().key1
       AZURE_OPENAI_MODEL: 'gpt-4'
-      AZURE_OPENAI_RESOURCE_1: ''
+      AZURE_OPENAI_RESOURCE_1: openAI.name
       AZURE_OPENAI_KEY_1: openAI.listKeys().key1
       AZURE_OPENAI_RESOURCE_2: ''
       AZURE_OPENAI_KEY_2: ''
@@ -214,8 +214,8 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       AZURE_OPENAI_TOP_P: '1.0'
       AZURE_OPENAI_MAX_TOKENS: '1000'
       AZURE_OPENAI_STOP_SEQUENCE: ''
-      AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE: ''
-      AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY: ''
+      AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE: openAI.name
+      AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY: openAI.listKeys().key1
       AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION: '2023-12-01-preview'
       COG_SERV_ENDPOINT: ai_search.outputs.aiSearchEndpoint
       COG_SERV_KEY: ai_search.outputs.aiSearchAdminKey

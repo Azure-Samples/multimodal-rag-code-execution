@@ -2,7 +2,6 @@ param acrName string // Azure Container Registry Name
 param gitRepoUrl string = 'https://github.com/Azure-Samples/multimodal-rag-code-execution' // Git Repository URL
 param gitRepoBranch string = 'ricchi/rest-apis' // Git Repository Branch
 param imageTag string = 'latest' // Docker Image Tag
-param currentTime string = utcNow()
 
 resource scriptIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
   name: 'script-identity-build'
