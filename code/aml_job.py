@@ -89,7 +89,7 @@ class AmlJob():
 
         for k, v in os.environ.items():
             azure_ev = False
-            for prefix in ['AZURE', 'COG', 'COSMOS', 'TEXT_CHUNK', 'DI_', 'PYTHONPATH', 'AML', 'OPENAI', 'ROOT_PATH_INGESTION', 'BLOB']:
+            for prefix in ['AZURE', 'APPLICATIONINSIGHTS', 'COG', 'COSMOS', 'TEXT_CHUNK', 'DI_', 'PYTHONPATH', 'AML', 'OPENAI', 'ROOT_PATH_INGESTION', 'BLOB']:
                 if prefix in k:
                     azure_ev = True
 
