@@ -182,7 +182,7 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       AML_CLUSTER_NAME: 'mm-doc-cpu-cluster'
       AML_VMSIZE: 'STANDARD_D2_V2'
       PYTHONUNBUFFERED: '1'
-      AML_PASSWORD: script.outputs.password // This will be empty since Bicep cannot provision secrets, set-sp-secret.sh will be used to set the secret
+      // AML_PASSWORD: script.outputs.password // This will be empty since Bicep cannot provision secrets, set-sp-secret.sh will be used to set the secret
       AML_TENANT_ID: script.outputs.tenantId
       AML_SERVICE_PRINCIPAL_ID: script.outputs.appId
       INITIAL_INDEX: 'rag-data'
