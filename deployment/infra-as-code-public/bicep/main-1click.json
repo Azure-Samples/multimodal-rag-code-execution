@@ -10,20 +10,33 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "2124094580259391360"
+      "templateHash": "1133499231776079940"
     }
   },
   "parameters": {
     "openAIName": {
       "type": "string",
+      "nullable": true,
       "metadata": {
         "description": "An existing Azure OpenAI resource"
       }
     },
     "openAIRGName": {
       "type": "string",
+      "nullable": true,
       "metadata": {
         "description": "An existing Azure OpenAI resource group"
+      }
+    },
+    "openAILocation": {
+      "type": "string",
+      "nullable": true,
+      "allowedValues": [
+        "swedencentral",
+        "eastus"
+      ],
+      "metadata": {
+        "description": "Location for a new Azure OpenAI resource"
       }
     },
     "containerRegistryName": {
@@ -390,7 +403,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.28.1.47646",
-              "templateHash": "13099823942847441326"
+              "templateHash": "169369261005421660"
             }
           },
           "parameters": {
@@ -408,10 +421,6 @@
             "imageTag": {
               "type": "string",
               "defaultValue": "latest"
-            },
-            "currentTime": {
-              "type": "string",
-              "defaultValue": "[utcNow()]"
             }
           },
           "resources": {
@@ -539,7 +548,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.28.1.47646",
-              "templateHash": "6884567871104881011"
+              "templateHash": "8461871736538787462"
             }
           },
           "parameters": {
@@ -626,12 +635,6 @@
               "type": "Microsoft.MachineLearningServices/workspaces",
               "apiVersion": "2021-04-01",
               "name": "[parameters('mlWorkspaceName')]"
-            },
-            "acr": {
-              "existing": true,
-              "type": "Microsoft.ContainerRegistry/registries",
-              "apiVersion": "2023-11-01-preview",
-              "name": "[parameters('containerRegistryName')]"
             },
             "blobDataReaderRole": {
               "existing": true,
@@ -1221,6 +1224,300 @@
         "machineLearning",
         "storageModule"
       ]
+    },
+    "openAIResource": {
+      "condition": "[and(empty(parameters('openAIName')), not(empty(parameters('openAILocation'))))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "openaiDeploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[coalesce(parameters('openAILocation'), 'swedencentral')]"
+          },
+          "envName": {
+            "value": "[parameters('namePrefix')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.1-experimental",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_EXPERIMENTAL_WARNING": "This template uses ARM features that are experimental. Experimental features should be enabled for testing purposes only, as there are no guarantees about the quality or stability of these features. Do not enable these settings for any production usage, or your production environment may be subject to breaking.",
+            "_EXPERIMENTAL_FEATURES_ENABLED": [
+              "Extensibility"
+            ],
+            "_generator": {
+              "name": "bicep",
+              "version": "0.28.1.47646",
+              "templateHash": "12820215756614856658"
+            }
+          },
+          "parameters": {
+            "envName": {
+              "type": "string"
+            },
+            "openAiSkuName": {
+              "type": "string",
+              "defaultValue": "S0"
+            },
+            "aoaiGpt4ModelName": {
+              "type": "string",
+              "defaultValue": "gpt-4"
+            },
+            "aoaiGpt4ModelVersion": {
+              "type": "string",
+              "defaultValue": "1106-Preview"
+            },
+            "aoaiGpt4ModelDeploymentName": {
+              "type": "string",
+              "defaultValue": "gpt-4"
+            },
+            "aoaiEmbedingsName": {
+              "type": "string",
+              "defaultValue": "text-embedding-ada-002"
+            },
+            "aoaiEmbedingsVersion": {
+              "type": "string",
+              "defaultValue": "2"
+            },
+            "aoaiEmbedingsDeploymentName": {
+              "type": "string",
+              "defaultValue": "text-embedding-ada-002"
+            },
+            "aoaiGpt4VisionName": {
+              "type": "string",
+              "defaultValue": "gpt-4v"
+            },
+            "aoaiGpt4VisionVersion": {
+              "type": "string",
+              "defaultValue": "vision-preview"
+            },
+            "aoaiGpt4VisionDeploymentName": {
+              "type": "string",
+              "defaultValue": "gpt-4"
+            },
+            "deployments": {
+              "type": "array",
+              "defaultValue": [
+                {
+                  "name": "[parameters('aoaiGpt4ModelName')]",
+                  "model": {
+                    "format": "OpenAI",
+                    "name": "[parameters('aoaiGpt4ModelDeploymentName')]",
+                    "version": "[parameters('aoaiGpt4ModelVersion')]",
+                    "capacity": 10,
+                    "contentFilter": "Default"
+                  },
+                  "sku": {
+                    "name": "Standard",
+                    "capacity": 30
+                  }
+                },
+                {
+                  "name": "[parameters('aoaiEmbedingsName')]",
+                  "model": {
+                    "format": "OpenAI",
+                    "name": "[parameters('aoaiEmbedingsDeploymentName')]",
+                    "version": "[parameters('aoaiEmbedingsVersion')]",
+                    "capacity": 10,
+                    "contentFilter": "Default"
+                  },
+                  "sku": {
+                    "name": "Standard",
+                    "capacity": 120
+                  }
+                },
+                {
+                  "name": "[parameters('aoaiGpt4VisionName')]",
+                  "model": {
+                    "format": "OpenAI",
+                    "name": "[parameters('aoaiGpt4VisionDeploymentName')]",
+                    "version": "[parameters('aoaiGpt4VisionVersion')]",
+                    "capacity": 10,
+                    "contentFilter": "Default"
+                  },
+                  "sku": {
+                    "name": "Standard",
+                    "capacity": 30
+                  }
+                }
+              ]
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {
+                "Creator": "ServiceAccount",
+                "Service": "OpenAI",
+                "Environment": "[parameters('envName')]"
+              }
+            },
+            "aoaiResourceName": {
+              "type": "string",
+              "defaultValue": "aoai",
+              "metadata": {
+                "description": "The name of the Aopenaut AI (AOAI) resource."
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "The location in which all resources should be deployed."
+              }
+            }
+          },
+          "variables": {
+            "varAoaiCustomDomain": "[parameters('aoaiResourceName')]"
+          },
+          "resources": {
+            "openAi": {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2022-09-01",
+              "name": "[format('openai-{0}', parameters('location'))]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "name": {
+                    "value": "[parameters('aoaiResourceName')]"
+                  },
+                  "customDomainName": {
+                    "value": "[variables('varAoaiCustomDomain')]"
+                  },
+                  "location": {
+                    "value": "[parameters('location')]"
+                  },
+                  "tags": {
+                    "value": "[parameters('tags')]"
+                  },
+                  "sku": {
+                    "value": {
+                      "name": "[parameters('openAiSkuName')]"
+                    }
+                  },
+                  "deployments": {
+                    "value": "[parameters('deployments')]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "languageVersion": "2.1-experimental",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_EXPERIMENTAL_WARNING": "This template uses ARM features that are experimental. Experimental features should be enabled for testing purposes only, as there are no guarantees about the quality or stability of these features. Do not enable these settings for any production usage, or your production environment may be subject to breaking.",
+                    "_EXPERIMENTAL_FEATURES_ENABLED": [
+                      "Extensibility"
+                    ],
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.28.1.47646",
+                      "templateHash": "5707360480422688533"
+                    }
+                  },
+                  "parameters": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "customDomainName": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "tags": {
+                      "type": "object"
+                    },
+                    "deployments": {
+                      "type": "array"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "defaultValue": "OpenAI"
+                    },
+                    "publicNetworkAccess": {
+                      "type": "string",
+                      "defaultValue": "Enabled"
+                    },
+                    "sku": {
+                      "type": "object"
+                    }
+                  },
+                  "resources": {
+                    "account": {
+                      "type": "Microsoft.CognitiveServices/accounts",
+                      "apiVersion": "2022-03-01",
+                      "name": "[parameters('name')]",
+                      "location": "[parameters('location')]",
+                      "tags": "[parameters('tags')]",
+                      "kind": "[parameters('kind')]",
+                      "properties": {
+                        "customSubDomainName": "[parameters('customDomainName')]",
+                        "publicNetworkAccess": "[parameters('publicNetworkAccess')]"
+                      },
+                      "sku": "[parameters('sku')]"
+                    },
+                    "aoaiDeployment": {
+                      "copy": {
+                        "name": "aoaiDeployment",
+                        "count": "[length(parameters('deployments'))]",
+                        "mode": "serial",
+                        "batchSize": 1
+                      },
+                      "type": "Microsoft.CognitiveServices/accounts/deployments",
+                      "apiVersion": "2023-10-01-preview",
+                      "name": "[format('{0}/{1}', parameters('name'), parameters('deployments')[copyIndex()].name)]",
+                      "sku": {
+                        "name": "Standard",
+                        "capacity": 10
+                      },
+                      "properties": {
+                        "model": {
+                          "format": "OpenAI",
+                          "name": "[parameters('deployments')[copyIndex()].model.name]",
+                          "version": "[parameters('deployments')[copyIndex()].model.version]"
+                        },
+                        "versionUpgradeOption": "OnceCurrentVersionExpired",
+                        "currentCapacity": "[parameters('deployments')[copyIndex()].model.capacity]",
+                        "raiPolicyName": "Microsoft.Default"
+                      },
+                      "dependsOn": [
+                        "account"
+                      ]
+                    }
+                  },
+                  "outputs": {
+                    "aoaiResourceId": {
+                      "type": "string",
+                      "value": "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
+                    },
+                    "aoaiResourceName": {
+                      "type": "string",
+                      "value": "[parameters('name')]"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "outputs": {
+            "aoaiResourceId": {
+              "type": "string",
+              "value": "[reference('openAi').outputs.aoaiResourceId.value]"
+            },
+            "aoaiResourceName": {
+              "type": "string",
+              "value": "[reference('openAi').outputs.aoaiResourceName.value]"
+            }
+          }
+        }
+      }
     },
     "azureVisionResource": {
       "type": "Microsoft.Resources/deployments",
@@ -2588,10 +2885,10 @@
               "DI_ENDPOINT": "[reference('documentInteligence').outputs.documentIntelligenceEndpoint.value]",
               "DI_KEY": "[reference('documentInteligence').outputs.documentIntelligenceKey.value]",
               "DI_API_VERSION": "2024-02-29-preview",
-              "AZURE_OPENAI_RESOURCE": "",
-              "AZURE_OPENAI_KEY": "",
+              "AZURE_OPENAI_RESOURCE": "[parameters('openAIName')]",
+              "AZURE_OPENAI_KEY": "[listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1]",
               "AZURE_OPENAI_MODEL": "gpt-4",
-              "AZURE_OPENAI_RESOURCE_1": "",
+              "AZURE_OPENAI_RESOURCE_1": "[parameters('openAIName')]",
               "AZURE_OPENAI_KEY_1": "[listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1]",
               "AZURE_OPENAI_RESOURCE_2": "",
               "AZURE_OPENAI_KEY_2": "",
@@ -2606,8 +2903,8 @@
               "AZURE_OPENAI_TOP_P": "1.0",
               "AZURE_OPENAI_MAX_TOKENS": "1000",
               "AZURE_OPENAI_STOP_SEQUENCE": "",
-              "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE": "",
-              "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY": "",
+              "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE": "[parameters('openAIName')]",
+              "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY": "[listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1]",
               "AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION": "2023-12-01-preview",
               "COG_SERV_ENDPOINT": "[reference('ai_search').outputs.aiSearchEndpoint.value]",
               "COG_SERV_KEY": "[reference('ai_search').outputs.aiSearchAdminKey.value]",
@@ -2692,6 +2989,10 @@
     "apiAppName": {
       "type": "string",
       "value": "[reference('webappModule').outputs.appNameApi.value]"
+    },
+    "postDeployScript": {
+      "type": "string",
+      "value": "[format('./set-sp-secret.sh {0} {1} {2}', reference('script').outputs.appId.value, reference('webappModule').outputs.appNameApi.value, resourceGroup().name)]"
     }
   }
 }

@@ -1,8 +1,12 @@
 @description('An existing Azure OpenAI resource')
-param openAIName string
+param openAIName string?
 
 @description('An existing Azure OpenAI resource group')
-param openAIRGName string
+param openAIRGName string?
+
+@description('Location for a new Azure OpenAI resource')
+@allowed(['swedencentral', 'eastus'])
+param openAILocation string?
 
 @description('An existing Azure Container Registry resource to pull images from')
 param containerRegistryName string?
@@ -81,14 +85,13 @@ module webappModule 'webapp.bicep' = {
    dependsOn: [acr]
 }
 
-// module openAiModule 'modules/openai.resources.bicep' = if (openAIName == '') {
-//   name: 'openaiDeploy'
-//   params: {
-//     location: location
-//     uniqueid: uniqueid
-//     namePrefix:namePrefix
-//   }
-// }
+module openAIResource 'openai.bicep' = if (empty(openAIName) && !empty(openAILocation)) {
+  name: 'openaiDeploy'
+  params: {
+    location: openAILocation ?? 'swedencentral'
+    envName: namePrefix
+  }
+}
 
 
 module azureVisionResource 'vision.bicep' =  {
