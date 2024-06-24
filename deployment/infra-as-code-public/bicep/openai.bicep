@@ -105,4 +105,4 @@ module openAi './modules/openai.resources.bicep' = {
 
 output aoaiResourceId string = openAi.outputs.aoaiResourceId
 output aoaiResourceName string = openAi.outputs.aoaiResourceName
-
+output aoaiResourceKey string = openAi.outputs.aoaiResourceKey

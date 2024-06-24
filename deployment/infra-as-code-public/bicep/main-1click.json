@@ -10,7 +10,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "1133499231776079940"
+      "templateHash": "8396855067767397001"
     }
   },
   "parameters": {
@@ -94,6 +94,7 @@
       }
     },
     "openAI": {
+      "condition": "[and(not(empty(parameters('openAIName'))), not(empty(parameters('openAIRGName'))))]",
       "existing": true,
       "type": "Microsoft.CognitiveServices/accounts",
       "apiVersion": "2022-03-01",
@@ -1255,7 +1256,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.28.1.47646",
-              "templateHash": "12820215756614856658"
+              "templateHash": "7446695799040445752"
             }
           },
           "parameters": {
@@ -1418,7 +1419,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.28.1.47646",
-                      "templateHash": "5707360480422688533"
+                      "templateHash": "2086327842228593675"
                     }
                   },
                   "parameters": {
@@ -1500,6 +1501,10 @@
                     "aoaiResourceName": {
                       "type": "string",
                       "value": "[parameters('name')]"
+                    },
+                    "aoaiResourceKey": {
+                      "type": "string",
+                      "value": "[listKeys(resourceId('Microsoft.CognitiveServices/accounts', parameters('name')), '2022-03-01').key1]"
                     }
                   }
                 }
@@ -1514,6 +1519,10 @@
             "aoaiResourceName": {
               "type": "string",
               "value": "[reference('openAi').outputs.aoaiResourceName.value]"
+            },
+            "aoaiResourceKey": {
+              "type": "string",
+              "value": "[reference('openAi').outputs.aoaiResourceKey.value]"
             }
           }
         }
@@ -2886,10 +2895,10 @@
               "DI_KEY": "[reference('documentInteligence').outputs.documentIntelligenceKey.value]",
               "DI_API_VERSION": "2024-02-29-preview",
               "AZURE_OPENAI_RESOURCE": "[parameters('openAIName')]",
-              "AZURE_OPENAI_KEY": "[listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1]",
+              "AZURE_OPENAI_KEY": "[if(not(empty(parameters('openAIName'))), listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1, reference('openAIResource').outputs.aoaiResourceKey.value)]",
               "AZURE_OPENAI_MODEL": "gpt-4",
-              "AZURE_OPENAI_RESOURCE_1": "[parameters('openAIName')]",
-              "AZURE_OPENAI_KEY_1": "[listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1]",
+              "AZURE_OPENAI_RESOURCE_1": "[if(not(empty(parameters('openAIName'))), parameters('openAIName'), reference('openAIResource').outputs.aoaiResourceName.value)]",
+              "AZURE_OPENAI_KEY_1": "[if(not(empty(parameters('openAIName'))), listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1, reference('openAIResource').outputs.aoaiResourceKey.value)]",
               "AZURE_OPENAI_RESOURCE_2": "",
               "AZURE_OPENAI_KEY_2": "",
               "AZURE_OPENAI_RESOURCE_3": "",
@@ -2903,8 +2912,8 @@
               "AZURE_OPENAI_TOP_P": "1.0",
               "AZURE_OPENAI_MAX_TOKENS": "1000",
               "AZURE_OPENAI_STOP_SEQUENCE": "",
-              "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE": "[parameters('openAIName')]",
-              "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY": "[listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1]",
+              "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE": "[if(not(empty(parameters('openAIName'))), parameters('openAIName'), reference('openAIResource').outputs.aoaiResourceName.value)]",
+              "AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY": "[if(not(empty(parameters('openAIName'))), listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1, reference('openAIResource').outputs.aoaiResourceKey.value)]",
               "AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION": "2023-12-01-preview",
               "COG_SERV_ENDPOINT": "[reference('ai_search').outputs.aiSearchEndpoint.value]",
               "COG_SERV_KEY": "[reference('ai_search').outputs.aiSearchAdminKey.value]",
@@ -2971,6 +2980,7 @@
         "documentInteligence",
         "machineLearning",
         "openAI",
+        "openAIResource",
         "script",
         "storageModule",
         "webappModule"

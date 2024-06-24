@@ -158,10 +158,15 @@ module script 'modules/script.bicep' = {
   ]
 }
 
-resource openAI 'Microsoft.CognitiveServices/accounts@2022-03-01' existing = {
+resource openAI 'Microsoft.CognitiveServices/accounts@2022-03-01' existing = if (!empty(openAIName) && !empty(openAIRGName)) {
   name: openAIName
   scope: resourceGroup(openAIRGName)
 }
+
+// Get the OpenAI resource name and key depending on whether the resource was created or already existed
+var oaiName = !empty(openAIName) ? openAI.name : openAIResource.outputs.aoaiResourceName
+var oaiKey = !empty(openAIName) ? openAI.listKeys().key1 : openAIResource.outputs.aoaiResourceKey
+
 module apiAppSettings 'modules/appsettings.bicep' = {
   name: 'appsettings'
   dependsOn: [script, webappModule, storageModule, cosmosDbModule, machineLearning, documentInteligence, azureVisionResource, ai_search]
@@ -200,10 +205,10 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       DI_KEY: documentInteligence.outputs.documentIntelligenceKey
       DI_API_VERSION: '2024-02-29-preview'
       AZURE_OPENAI_RESOURCE: openAI.name
-      AZURE_OPENAI_KEY: openAI.listKeys().key1
+      AZURE_OPENAI_KEY: oaiKey
       AZURE_OPENAI_MODEL: 'gpt-4'
-      AZURE_OPENAI_RESOURCE_1: openAI.name
-      AZURE_OPENAI_KEY_1: openAI.listKeys().key1
+      AZURE_OPENAI_RESOURCE_1: oaiName
+      AZURE_OPENAI_KEY_1: oaiKey
       AZURE_OPENAI_RESOURCE_2: ''
       AZURE_OPENAI_KEY_2: ''
       AZURE_OPENAI_RESOURCE_3: ''
@@ -217,8 +222,8 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       AZURE_OPENAI_TOP_P: '1.0'
       AZURE_OPENAI_MAX_TOKENS: '1000'
       AZURE_OPENAI_STOP_SEQUENCE: ''
-      AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE: openAI.name
-      AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY: openAI.listKeys().key1
+      AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE: oaiName
+      AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY: oaiKey
       AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION: '2023-12-01-preview'
       COG_SERV_ENDPOINT: ai_search.outputs.aiSearchEndpoint
       COG_SERV_KEY: ai_search.outputs.aiSearchAdminKey
