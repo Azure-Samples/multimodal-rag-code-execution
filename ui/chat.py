@@ -552,8 +552,8 @@ async def app_search(query: str):
                 url = api_client.get_file_url(replace_extension(ref['asset'], '.jpg'), format="binary")
                 # FIXME
                 if os.path.exists(replace_extension(ref['asset'], '.png')):
-                    e.append(cl.Image(name=os.path.basename(ref['asset']), url=url, size='large', display="inline"),
-                        cl.Text(name=f"Text below:", content=text, display="inline"))
+                    e.append(cl.Image(name=os.path.basename(ref['asset']), url=url, size='large', display="inline"))
+                    e.append(cl.Text(name=f"Text below:", content=text, display="inline"))
                 if os.path.exists(ref['asset']):
                     e.append(cl.Text(name=f"Text below:", content=text, display="inline"))
             elif ref['type'] == 'file':

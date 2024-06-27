@@ -2828,7 +2828,7 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
             intent = check_if_computation_is_needed(query)
             logc("Computation Intent", intent)
 
-            if intent == "YES":
+            if "YES" in intent:
                 computation_support, files = apply_computation_support(query, assets, computation_approach, conversation_history = conversation_history, user_id = user_id, include_master_py=include_master_py, verbose = verbose)
                 logc("Computation Support Output", computation_support)
                 
