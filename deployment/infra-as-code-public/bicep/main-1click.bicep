@@ -168,6 +168,8 @@ resource openAI 'Microsoft.CognitiveServices/accounts@2022-03-01' existing = if 
 var oaiName = !empty(openAIName) ? openAI.name : openAIResource.outputs.aoaiResourceName
 var oaiKey = !empty(openAIName) ? openAI.listKeys().key1 : openAIResource.outputs.aoaiResourceKey
 
+var acrNameToUse = containerRegistryName ?? acr.outputs.containerRegistryName
+var acrPasswordToUse = containerRegistryPassword ?? acr.outputs.containerRegistryPassword
 module apiAppSettings 'modules/appsettings.bicep' = {
   name: 'appsettings'
   dependsOn: [script, webappModule, storageModule, cosmosDbModule, machineLearning, documentInteligence, azureVisionResource, ai_search]
@@ -176,6 +178,10 @@ module apiAppSettings 'modules/appsettings.bicep' = {
     allSettings: {
       APPLICATIONINSIGHTS_CONNECTION_STRING: webappModule.outputs.appInsightsConnectionString
       ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
+      // must be set again since chances are existing might be reset
+      DOCKER_REGISTRY_SERVER_USERNAME: acrNameToUse
+      DOCKER_REGISTRY_SERVER_PASSWORD: acrPasswordToUse
+      DOCKER_REGISTRY_SERVER_URL: 'https://${acrNameToUse}.azurecr.io'
       TEXT_CHUNK_SIZE: '800'
       TEXT_CHUNK_OVERLAP: '128'
       TENACITY_TIMEOUT: '200'
