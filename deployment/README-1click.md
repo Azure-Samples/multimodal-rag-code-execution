@@ -67,7 +67,7 @@ The following parameters are available for customization:
     az group create --name multimodal-rag-code-execution --location <location>
     
     ## [OPTION 1] USE AN EXISTING OPENAI RESOURCE
-    ## Existing OpenAI Resource must have one model name 'gpt-4o' and another named 'text-embedding-3-large'
+    ## Existing OpenAI Resource must have one model name 'gpt-4o' and another named 'text-embedding-3-large'. Please provide the name of the OAI resource and the RG name where that resource is
     az deployment group create --resource-group multimodal-rag-code-execution --template-file deployment/infra-as-code-public/bicep/main-1click.bicep --parameters aiSearchRegion=eastus openAIName=<OAI_NAME> openAIRGName=<OAI_RG_NAME>
 
     ## [OPTION 2] CREATE A NEW OPENAI RESOURCE
@@ -79,8 +79,68 @@ The following parameters are available for customization:
 
     After the deployment is complete, you will need to run a post-deployment script to create the secret and assign it to the API WebApp.
     The `<appId>`, `<api-webapp-name>` and `<resource-group-name>` values are found int the deployment output of the previous steps, either when the script is ran locally, or in the Cloud shell, or in the Azure Portal.
+    
+    Make **sure** to run the below in a Git Bash shell, or Cloud shell. This will not work locally in a Powershell.
 
     1. Run `chmod +x set-sp-secret.sh`
     1. Run `./set-sp-secret.sh <appId> <api-webapp-name> <resource-group-name>`.
     
         Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
+
+
+<br/>
+<br/>
+
+### Screenshots of the Deployment
+<br/>
+
+In the Azure portal, go to Deployments:
+
+<br />
+<p align="center">
+<img src="../images/depl-image3.png" width="800" />
+</p>
+<br/>
+
+
+Check all resources being deployed:
+
+<br />
+<p align="center">
+<img src="../images/depl-image2.png" width="800" />
+</p>
+<br/>
+
+Once succeeded, click on the "main-1click":
+
+<br />
+<p align="center">
+<img src="../images/depl-image4.png" width="500" />
+</p>
+<br/>
+
+
+Go to Outputs, and copy the PostDeployScript (this key has been recycled):
+
+<br />
+<p align="center">
+<img src="../images/depl-image5.png" width="800" />
+</p>
+<br/>
+
+
+
+
+
+### Troubleshooting
+
+If you see the below screenshot, please check your API web app, check its Environment Variables, and try to restart it.
+
+
+<br />
+<p align="center">
+<img src="../images/depl-image.png" width="800" />
+</p>
+<br/>
+
+
