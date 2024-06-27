@@ -78,8 +78,9 @@ The following parameters are available for customization:
 1. Finalize deployment
 
     After the deployment is complete, you will need to run a post-deployment script to create the secret and assign it to the API WebApp.
+    The `<appId>`, `<api-webapp-name>` and `<resource-group-name>` values are found int the deployment output of the previous steps, either when the script is ran locally, or in the Cloud shell, or in the Azure Portal.
 
-    1. Run `chmod +x set-sp-script.sh`
-    1. Run `./set-sp-script.sh <appId> <api-webapp-name> <resource-group-name>`.
+    1. Run `chmod +x set-sp-secret.sh`
+    1. Run `./set-sp-secret.sh <appId> <api-webapp-name> <resource-group-name>`.
     
         Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
