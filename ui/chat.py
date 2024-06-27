@@ -88,6 +88,15 @@ class APIClient:
     def get_file_url(self, asset_path, format = "text"):
         return f"{self.base_url}/file?asset_path={asset_path}&format={format}"
 
+    def check_file_exists(self, asset_path):
+        try:
+            response = requests.get(f"{self.base_url}/file_exists", params={'asset_path': asset_path})
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Error checking file {asset_path}: {e}")
+            raise
+
     def search(self, query_params):
         try:
             response = requests.post(f"{self.base_url}/search", json=query_params)
@@ -501,8 +510,8 @@ async def app_search(query: str):
         verbose = False)
     
     if steps:
-        for step in steps:
-            post_message_sync(step['name'], step['output'])
+        for [message, text] in steps:
+            post_message_sync(message, text)
 
     final_elements = []
 
@@ -553,12 +562,12 @@ async def app_search(query: str):
                         cl.Text(name=f"Text below:", content=text, display="inline")]
             elif ref['type'] == 'table':
                 e = []
-                url = api_client.get_file_url(replace_extension(ref['asset'], '.jpg'), format="binary")
-                # FIXME
-                if os.path.exists(replace_extension(ref['asset'], '.png')):
+                pngExists = api_client.check_file_exists(replace_extension(ref['asset'], '.png'))                
+                if pngExists:
+                    url = api_client.get_file_url(replace_extension(ref['asset'], '.png'), format="binary")
                     e.append(cl.Image(name=os.path.basename(ref['asset']), url=url, size='large', display="inline"))
                     e.append(cl.Text(name=f"Text below:", content=text, display="inline"))
-                if os.path.exists(ref['asset']):
+                if api_client.check_file_exists(ref['asset']):
                     e.append(cl.Text(name=f"Text below:", content=text, display="inline"))
             elif ref['type'] == 'file':
                 url = api_client.get_file_url(ref['asset'], format="binary")

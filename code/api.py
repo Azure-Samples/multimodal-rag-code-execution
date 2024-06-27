@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, UploadFile
+from fastapi import FastAPI, Request, HTTPException, UploadFile, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
 import psutil
@@ -25,14 +25,23 @@ from utils.cogsearch_rest import CogSearchHttpRequest, CogSearchRestAPI
 from aml_job import AmlJob
 from env_vars import ROOT_PATH_INGESTION
 from utils.ingestion_cosmos_helper import IngestionCosmosHelper
+import threading
 
-steps = []
-def append_step_message(message, text=None):
-    steps.append([message, text])
+# steps = {}
+# def append_step_message(message, text=None):
+#     current_thread_id = threading.get_ident()
+#     if current_thread_id in steps:
+#         steps[current_thread_id] = []
+#     steps[current_thread_id].append([message, text])
     
 # Ensure all doc_utils.logc calls are redirected to the append_log_message function
 import utils.logc
-utils.logc.log_ui_func_hook = append_step_message
+# utils.logc.log_ui_func_hook = append_step_message
+# Dependency to modify log_ui_func_hook based on request data
+def modify_log_ui_func_hook(request: Request):
+    steps = []
+    utils.logc.log_ui_func_hook = lambda message, text=None: steps.append([message, text])
+    return steps
 
 # Global setup
 LOG_CONTAINER_NAME = os.environ.get("COSMOS_LOG_CONTAINER")
@@ -145,6 +154,9 @@ def get_models():
 @app.get("/file")
 def get_file(asset_path: str, format:str = "text"):
     try:
+        # If asset path begins with ../, replace it with the root path
+        if asset_path.startswith("../"):
+            asset_path = asset_path.replace("../", f"{ROOT_PATH_INGESTION}/")
         logging.info(f"Getting file: {asset_path}")
         
         if format == "binary":
@@ -157,6 +169,19 @@ def get_file(asset_path: str, format:str = "text"):
             return text
     except Exception as e:
         logging.error(f"Error getting file: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Check if the file exists
+@app.get("/file_exists")
+def check_file_exists(asset_path: str):
+    try:
+        # If asset path begins with ../, replace it with the root path
+        if asset_path.startswith("../"):
+            asset_path = asset_path.replace("../", f"{ROOT_PATH_INGESTION}/")
+        logging.info(f"Checking if file exists: {asset_path}")
+        return os.path.exists(asset_path)
+    except Exception as e:
+        logging.error(f"Error checking if file exists: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # a list of objects with role and content as strings
@@ -184,9 +209,8 @@ class SearchRequest(BaseModel):
 
 # A POST /search that takes a JSON with following structure:
 @app.post("/search")
-def run_search(request: SearchRequest):
+def run_search(request: SearchRequest, steps = Depends(modify_log_ui_func_hook)):
     try:
-        steps = []
         # invoke search function matching the signature using the request object
         logging.info(f"Running search with input: {request}")
         final_answer, references, output_excel, search_results, files = search(
