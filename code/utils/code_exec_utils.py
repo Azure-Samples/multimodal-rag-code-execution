@@ -14,6 +14,19 @@ exec_path = ''
 test_project_path = os.path.join(exec_path, "../test_project/")
 default_vector_directory = os.path.join(exec_path, "../doc_ingestion_cases/")
 
+if os.path.exists("../prompts"):
+    prompt_dir = "../prompts"
+elif os.path.exists("./prompts"):
+    prompt_dir = "./prompts"
+else:
+    prompt_dir = "../code/prompts"
+
+user_query = read_asset_file(f'{prompt_dir}/user_query.txt')[0]
+user_query = read_asset_file(f'{prompt_dir}/user_query.txt')[0]
+direct_user_query = read_asset_file(f'{prompt_dir}/direct_user_query.txt')[0]
+table_info = read_asset_file(f'{prompt_dir}/table_info.txt')[0]
+
+
 # print("Code file: ", os.path.relpath(getsourcefile(lambda:0)))
 # print("\n\nPython Version: ", sys.version)
 # print("Current Path: ", os.getcwd())
