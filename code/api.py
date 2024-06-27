@@ -26,6 +26,14 @@ from aml_job import AmlJob
 from env_vars import ROOT_PATH_INGESTION
 from utils.ingestion_cosmos_helper import IngestionCosmosHelper
 
+steps = []
+def append_step_message(message, text=None):
+    steps.append([message, text])
+    
+# Ensure all doc_utils.logc calls are redirected to the append_log_message function
+import utils.logc
+utils.logc.log_ui_func_hook = append_step_message
+
 # Global setup
 LOG_CONTAINER_NAME = os.environ.get("COSMOS_LOG_CONTAINER")
 
@@ -178,6 +186,7 @@ class SearchRequest(BaseModel):
 @app.post("/search")
 def run_search(request: SearchRequest):
     try:
+        steps = []
         # invoke search function matching the signature using the request object
         logging.info(f"Running search with input: {request}")
         final_answer, references, output_excel, search_results, files = search(
@@ -199,7 +208,7 @@ def run_search(request: SearchRequest):
             token_limit=request.token_limit, 
             temperature=request.temperature, 
             verbose=request.verbose)
-        return final_answer, references, output_excel, search_results, files
+        return final_answer, references, output_excel, search_results, files, steps
     except Exception as e:
         logging.error(f"Error running search: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

@@ -10,7 +10,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "17718722155019050204"
+      "templateHash": "101566811343307896"
     }
   },
   "parameters": {
@@ -1261,7 +1261,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.28.1.47646",
-              "templateHash": "15904621242142018683"
+              "templateHash": "3511225595738667998"
             }
           },
           "parameters": {
@@ -1337,20 +1337,6 @@
                   "sku": {
                     "name": "Standard",
                     "capacity": 120
-                  }
-                },
-                {
-                  "name": "[parameters('aoaiGpt4VisionName')]",
-                  "model": {
-                    "format": "OpenAI",
-                    "name": "[parameters('aoaiGpt4VisionDeploymentName')]",
-                    "version": "[parameters('aoaiGpt4VisionVersion')]",
-                    "capacity": 10,
-                    "contentFilter": "Default"
-                  },
-                  "sku": {
-                    "name": "Standard",
-                    "capacity": 30
                   }
                 }
               ]
@@ -2870,7 +2856,10 @@
             "value": {
               "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference('webappModule').outputs.appInsightsConnectionString.value]",
               "ApplicationInsightsAgent_EXTENSION_VERSION": "~2",
-              "TEXT_CHUNK_SIZE": "512",
+              "DOCKER_REGISTRY_SERVER_USERNAME": "[coalesce(parameters('containerRegistryName'), reference('acr').outputs.containerRegistryName.value)]",
+              "DOCKER_REGISTRY_SERVER_PASSWORD": "[coalesce(parameters('containerRegistryPassword'), reference('acr').outputs.containerRegistryPassword.value)]",
+              "DOCKER_REGISTRY_SERVER_URL": "[format('https://{0}.azurecr.io', coalesce(parameters('containerRegistryName'), reference('acr').outputs.containerRegistryName.value))]",
+              "TEXT_CHUNK_SIZE": "800",
               "TEXT_CHUNK_OVERLAP": "128",
               "TENACITY_TIMEOUT": "200",
               "TENACITY_STOP_AFTER_DELAY": "300",
@@ -2900,7 +2889,7 @@
               "DI_API_VERSION": "2024-02-29-preview",
               "AZURE_OPENAI_RESOURCE": "[parameters('openAIName')]",
               "AZURE_OPENAI_KEY": "[if(not(empty(parameters('openAIName'))), listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1, reference('openAIResource').outputs.aoaiResourceKey.value)]",
-              "AZURE_OPENAI_MODEL": "gpt-4",
+              "AZURE_OPENAI_MODEL": "gpt-4o",
               "AZURE_OPENAI_RESOURCE_1": "[if(not(empty(parameters('openAIName'))), parameters('openAIName'), reference('openAIResource').outputs.aoaiResourceName.value)]",
               "AZURE_OPENAI_KEY_1": "[if(not(empty(parameters('openAIName'))), listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('openAIRGName')), 'Microsoft.CognitiveServices/accounts', parameters('openAIName')), '2022-03-01').key1, reference('openAIResource').outputs.aoaiResourceKey.value)]",
               "AZURE_OPENAI_RESOURCE_2": "",
@@ -2909,9 +2898,9 @@
               "AZURE_OPENAI_KEY_3": "",
               "AZURE_OPENAI_RESOURCE_4": "",
               "AZURE_OPENAI_KEY_4": "",
-              "AZURE_OPENAI_EMBEDDING_MODEL": "text-embedding-ada-002",
-              "AZURE_OPENAI_MODEL_VISION": "gpt4v",
-              "AZURE_OPENAI_API_VERSION": "2024-02-15-preview",
+              "AZURE_OPENAI_EMBEDDING_MODEL": "text-embedding-3-large",
+              "AZURE_OPENAI_MODEL_VISION": "gpt-4o",
+              "AZURE_OPENAI_API_VERSION": "2024-05-01-preview",
               "AZURE_OPENAI_TEMPERATURE": "0",
               "AZURE_OPENAI_TOP_P": "1.0",
               "AZURE_OPENAI_MAX_TOKENS": "1000",
@@ -2978,6 +2967,7 @@
         }
       },
       "dependsOn": [
+        "acr",
         "ai_search",
         "azureVisionResource",
         "cosmosDbModule",

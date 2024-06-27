@@ -91,7 +91,7 @@ class APIClient:
     def search(self, query_params):
         try:
             response = requests.post(f"{self.base_url}/search", json=query_params)
-            response.raise_for_status()
+            response.raise_for_status()            
             return response.json()
         except requests.exceptions.HTTPError as e:
             logging.error(f"Error searching: {e}")
@@ -485,7 +485,7 @@ async def app_search(query: str):
     session_id = conversations[cl.user_session.get("id")]
     log_message(f"Conversation History {session_id}")
 
-    final_answer, references, output_excel, search_results, files = await cl.make_async(search)(
+    final_answer, references, output_excel, search_results, files, steps = await cl.make_async(search)(
         query, 
         top=top_ns[cl.user_session.get("id")], 
         approx_tag_limit = approx_tag_limits[cl.user_session.get("id")],
@@ -499,6 +499,10 @@ async def app_search(query: str):
         index_name = index_names[cl.user_session.get("id")], 
         count=False, 
         verbose = False)
+    
+    if steps:
+        for step in steps:
+            post_message_sync(step['name'], step['output'])
 
     final_elements = []
 
@@ -509,17 +513,17 @@ async def app_search(query: str):
     conversations[cl.user_session.get("id")] = conversations[cl.user_session.get("id")][-6:]
     log_message(f"Conversation History2: {session_id}")
 
-    # FIXME
     for f in files:
+        url = api_client.get_file_url(replace_extension(f['asset'], '.jpg'), format="binary")
         if f['type'] == 'assistant_image':
-            final_elements.append(cl.Image(name=os.path.basename(f['asset']), path=f['asset'], size='large', display="inline"))
+            final_elements.append(cl.Image(name=os.path.basename(f['asset']), url=url, size='large', display="inline"))
         elif f['type'] == 'file':
             if f['asset'].endswith('.jpg') or f['asset'].endswith('.png'):
-                final_elements.append(cl.Image(name=os.path.basename(f['asset']), path=f['asset'], size='large', display="inline"))
+                final_elements.append(cl.Image(name=os.path.basename(f['asset']), url=url, size='large', display="inline"))
             elif f['asset'].endswith('.pdf'):
-                final_elements.append(cl.Pdf(name="Results PDF", path=f['asset'], display="inline"))
+                final_elements.append(cl.Pdf(name="Results PDF", url=url, display="inline"))
             else:
-                final_elements.append(cl.File(name="Results File", path=f['asset'], display="inline"))
+                final_elements.append(cl.File(name="Results File", url=url, display="inline"))
         
     id_m = await cl.Message(content=final_answer, elements = final_elements).send()
 
