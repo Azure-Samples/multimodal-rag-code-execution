@@ -16,7 +16,7 @@ Due to an [upstream Bicep limitations with Service Principals](https://learn.mic
 
 1. Click the "Deploy to Azure" button
 
-    [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/?feature.customportal=false#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure-Samples%2Fmultimodal-rag-code-execution%2Fmain%2Fdeployment%2Finfra-as-code-public%2Fbicep%2Fmain-1click.json)
+    [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/?feature.customportal=false#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure-Samples%2Fmultimodal-rag-code-execution%2Fricchi%2Frest-apis%2Fdeployment%2Finfra-as-code-public%2Fbicep%2Fmain-1click.json)
 
 1. Fill in parameters
 
@@ -54,11 +54,25 @@ The following parameters are available for customization:
     ```
 
 1. Run the deployment script
+    
+    You could run the below commands in either a Powershell or a Git Bash.
 
     ```bash
-    az group create --name multimodal-rag-code-execution --location <location>
+    az login
+    
+    az upgrade
 
-    az deployment group create --resource-group multimodal-rag-code-execution --template-file deployment/infra-as-code-public/bicep/main-1click.bicep --parameters <key=value>
+    az bicep upgrade
+
+    az group create --name multimodal-rag-code-execution --location <location>
+    
+    ## [OPTION 1] USE AN EXISTING OPENAI RESOURCE
+    ## Existing OpenAI Resource must have one model name 'gpt-4o' and another named 'text-embedding-3-large'
+    az deployment group create --resource-group multimodal-rag-code-execution --template-file deployment/infra-as-code-public/bicep/main-1click.bicep --parameters aiSearchRegion=eastus openAIName=<OAI_NAME> openAIRGName=<OAI_RG_NAME>
+
+    ## [OPTION 2] CREATE A NEW OPENAI RESOURCE
+    az deployment group create --resource-group multimodal-rag-code-execution --template-file deployment/infra-as-code-public/bicep/main-1click.bicep --parameters aiSearchRegion=eastus
+
     ```
 
 1. Finalize deployment

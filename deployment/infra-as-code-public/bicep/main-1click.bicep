@@ -19,7 +19,8 @@ param containerRegistryPassword string?
 param location string = resourceGroup().location
 
 @description('The region for the Azure AI Search service')
-param aiSearchRegion string = resourceGroup().location
+@allowed(['francecentral', 'eastus', 'japaneast'])
+param aiSearchRegion string = 'eastus'
 
 @description('A prefix that will be prepended to resource names')
 param namePrefix string = 'dev'
@@ -175,7 +176,7 @@ module apiAppSettings 'modules/appsettings.bicep' = {
     allSettings: {
       APPLICATIONINSIGHTS_CONNECTION_STRING: webappModule.outputs.appInsightsConnectionString
       ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
-      TEXT_CHUNK_SIZE: '512'
+      TEXT_CHUNK_SIZE: '800'
       TEXT_CHUNK_OVERLAP: '128'
       TENACITY_TIMEOUT: '200'
       TENACITY_STOP_AFTER_DELAY: '300'
@@ -206,7 +207,7 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       DI_API_VERSION: '2024-02-29-preview'
       AZURE_OPENAI_RESOURCE: openAI.name
       AZURE_OPENAI_KEY: oaiKey
-      AZURE_OPENAI_MODEL: 'gpt-4'
+      AZURE_OPENAI_MODEL: 'gpt-4o'
       AZURE_OPENAI_RESOURCE_1: oaiName
       AZURE_OPENAI_KEY_1: oaiKey
       AZURE_OPENAI_RESOURCE_2: ''
@@ -215,9 +216,9 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       AZURE_OPENAI_KEY_3: ''
       AZURE_OPENAI_RESOURCE_4: ''
       AZURE_OPENAI_KEY_4: ''
-      AZURE_OPENAI_EMBEDDING_MODEL: 'text-embedding-ada-002'
-      AZURE_OPENAI_MODEL_VISION: 'gpt4v'
-      AZURE_OPENAI_API_VERSION: '2024-02-15-preview'
+      AZURE_OPENAI_EMBEDDING_MODEL: 'text-embedding-3-large'
+      AZURE_OPENAI_MODEL_VISION: 'gpt-4o'
+      AZURE_OPENAI_API_VERSION: '2024-05-01-preview'
       AZURE_OPENAI_TEMPERATURE: '0'
       AZURE_OPENAI_TOP_P: '1.0'
       AZURE_OPENAI_MAX_TOKENS: '1000'

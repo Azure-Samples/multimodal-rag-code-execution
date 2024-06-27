@@ -10,7 +10,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "8396855067767397001"
+      "templateHash": "17718722155019050204"
     }
   },
   "parameters": {
@@ -62,7 +62,12 @@
     },
     "aiSearchRegion": {
       "type": "string",
-      "defaultValue": "[resourceGroup().location]",
+      "defaultValue": "eastus",
+      "allowedValues": [
+        "francecentral",
+        "eastus",
+        "japaneast"
+      ],
       "metadata": {
         "description": "The region for the Azure AI Search service"
       }
@@ -1256,7 +1261,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.28.1.47646",
-              "templateHash": "7446695799040445752"
+              "templateHash": "15904621242142018683"
             }
           },
           "parameters": {
@@ -1269,39 +1274,39 @@
             },
             "aoaiGpt4ModelName": {
               "type": "string",
-              "defaultValue": "gpt-4"
+              "defaultValue": "gpt-4o"
             },
             "aoaiGpt4ModelVersion": {
               "type": "string",
-              "defaultValue": "1106-Preview"
+              "defaultValue": "2024-05-01-preview"
             },
             "aoaiGpt4ModelDeploymentName": {
               "type": "string",
-              "defaultValue": "gpt-4"
+              "defaultValue": "gpt-4o"
             },
             "aoaiEmbedingsName": {
               "type": "string",
-              "defaultValue": "text-embedding-ada-002"
+              "defaultValue": "text-embedding-3-large"
             },
             "aoaiEmbedingsVersion": {
               "type": "string",
-              "defaultValue": "2"
+              "defaultValue": "1"
             },
             "aoaiEmbedingsDeploymentName": {
               "type": "string",
-              "defaultValue": "text-embedding-ada-002"
+              "defaultValue": "text-embedding-3-large"
             },
             "aoaiGpt4VisionName": {
               "type": "string",
-              "defaultValue": "gpt-4v"
+              "defaultValue": "gpt-4o"
             },
             "aoaiGpt4VisionVersion": {
               "type": "string",
-              "defaultValue": "vision-preview"
+              "defaultValue": "2024-05-01-preview"
             },
             "aoaiGpt4VisionDeploymentName": {
               "type": "string",
-              "defaultValue": "gpt-4"
+              "defaultValue": "gpt-4o"
             },
             "deployments": {
               "type": "array",
@@ -2872,7 +2877,6 @@
               "AML_CLUSTER_NAME": "mm-doc-cpu-cluster",
               "AML_VMSIZE": "STANDARD_D2_V2",
               "PYTHONUNBUFFERED": "1",
-              "AML_PASSWORD": "[reference('script').outputs.password.value]",
               "AML_TENANT_ID": "[reference('script').outputs.tenantId.value]",
               "AML_SERVICE_PRINCIPAL_ID": "[reference('script').outputs.appId.value]",
               "INITIAL_INDEX": "rag-data",
