@@ -10,7 +10,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "10778908558579436310"
+      "templateHash": "13390619778082857500"
     }
   },
   "parameters": {
@@ -609,12 +609,8 @@
           "logWorkspaceName": {
             "value": "[variables('logWorkspaceName')]"
           },
-          "containerRegistryName": {
-            "value": "[coalesce(parameters('containerRegistryName'), reference('acr').outputs.containerRegistryName.value)]"
-          },
-          "containerRegistryPassword": {
-            "value": "[coalesce(parameters('containerRegistryPassword'), reference('acr').outputs.containerRegistryPassword.value)]"
-          },
+          "containerRegistryName": "[if(not(empty(parameters('containerRegistryName'))), createObject('value', parameters('containerRegistryName')), createObject('value', reference('acr').outputs.containerRegistryName.value))]",
+          "containerRegistryPassword": "[if(not(empty(parameters('containerRegistryPassword'))), createObject('value', parameters('containerRegistryPassword')), createObject('value', reference('acr').outputs.containerRegistryPassword.value))]",
           "storageAccount": {
             "value": "[reference('storageModule').outputs.storageName.value]"
           },
@@ -1325,9 +1321,7 @@
         },
         "mode": "Incremental",
         "parameters": {
-          "location": {
-            "value": "[coalesce(parameters('openAILocation'), 'swedencentral')]"
-          },
+          "location": "[if(not(empty(parameters('openAILocation'))), createObject('value', parameters('openAILocation')), createObject('value', 'swedencentral'))]",
           "envName": {
             "value": "[parameters('namePrefix')]"
           }
@@ -2835,9 +2829,9 @@
             "value": {
               "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference('webappModule').outputs.appInsightsConnectionString.value]",
               "ApplicationInsightsAgent_EXTENSION_VERSION": "~2",
-              "DOCKER_REGISTRY_SERVER_USERNAME": "[coalesce(parameters('containerRegistryName'), reference('acr').outputs.containerRegistryName.value)]",
-              "DOCKER_REGISTRY_SERVER_PASSWORD": "[coalesce(parameters('containerRegistryPassword'), reference('acr').outputs.containerRegistryPassword.value)]",
-              "DOCKER_REGISTRY_SERVER_URL": "[format('https://{0}.azurecr.io', coalesce(parameters('containerRegistryName'), reference('acr').outputs.containerRegistryName.value))]",
+              "DOCKER_REGISTRY_SERVER_USERNAME": "[if(not(empty(parameters('containerRegistryName'))), parameters('containerRegistryName'), reference('acr').outputs.containerRegistryName.value)]",
+              "DOCKER_REGISTRY_SERVER_PASSWORD": "[if(not(empty(parameters('containerRegistryPassword'))), parameters('containerRegistryPassword'), reference('acr').outputs.containerRegistryPassword.value)]",
+              "DOCKER_REGISTRY_SERVER_URL": "[format('https://{0}.azurecr.io', if(not(empty(parameters('containerRegistryName'))), parameters('containerRegistryName'), reference('acr').outputs.containerRegistryName.value))]",
               "TEXT_CHUNK_SIZE": "800",
               "TEXT_CHUNK_OVERLAP": "128",
               "TENACITY_TIMEOUT": "200",

@@ -69,6 +69,9 @@ module buildImages 'modules/build-images.bicep' = if (empty(containerRegistryNam
   ]
 }
 
+var acrNameToUse = !empty(containerRegistryName) ? containerRegistryName : acr.outputs.containerRegistryName
+var acrPasswordToUse = !empty(containerRegistryPassword) ? containerRegistryPassword : acr.outputs.containerRegistryPassword
+
 // Deploy a web app
 module webappModule 'webapp.bicep' = {
   name: 'webappDeploy'
@@ -77,8 +80,8 @@ module webappModule 'webapp.bicep' = {
     uniqueid: uniqueid            
     storageName: storageModule.outputs.storageName            
     logWorkspaceName: logWorkspace.name
-    containerRegistryName: containerRegistryName ?? acr.outputs.containerRegistryName
-    containerRegistryPassword: containerRegistryPassword ?? acr.outputs.containerRegistryPassword
+    containerRegistryName: acrNameToUse
+    containerRegistryPassword: acrPasswordToUse
     storageAccount:storageModule.outputs.storageName  
     namePrefix:namePrefix
     mlWorkspaceName: machineLearning.outputs.workspaceName
@@ -89,7 +92,7 @@ module webappModule 'webapp.bicep' = {
 module openAIResource 'openai.bicep' = if (empty(openAIName) && !empty(openAILocation)) {
   name: 'openaiDeploy'
   params: {
-    location: openAILocation ?? 'swedencentral'
+    location: !empty(openAILocation) ? openAILocation : 'swedencentral'
     envName: namePrefix
   }
 }
@@ -168,8 +171,6 @@ resource openAI 'Microsoft.CognitiveServices/accounts@2022-03-01' existing = if 
 var oaiName = !empty(openAIName) ? openAI.name : openAIResource.outputs.aoaiResourceName
 var oaiKey = !empty(openAIName) ? openAI.listKeys().key1 : openAIResource.outputs.aoaiResourceKey
 
-var acrNameToUse = containerRegistryName ?? acr.outputs.containerRegistryName
-var acrPasswordToUse = containerRegistryPassword ?? acr.outputs.containerRegistryPassword
 module apiAppSettings 'modules/appsettings.bicep' = {
   name: 'appsettings'
   dependsOn: [script, webappModule, storageModule, cosmosDbModule, machineLearning, documentInteligence, azureVisionResource, ai_search]
