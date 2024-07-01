@@ -1,19 +1,19 @@
 @description('An existing Azure OpenAI resource')
-param openAIName string?
+param openAIName string = ''
 
 @description('An existing Azure OpenAI resource group')
-param openAIRGName string?
+param openAIRGName string = ''
 
 @description('Location for a new Azure OpenAI resource')
-@allowed(['swedencentral', 'eastus'])
-param openAILocation string?
+@allowed(['swedencentral', 'eastus', ''])
+param openAILocation string = ''
 
 @description('An existing Azure Container Registry resource to pull images from')
-param containerRegistryName string?
+param containerRegistryName string = ''
 
 @description('An existing Azure Container Registry login password')
 @secure()
-param containerRegistryPassword string?
+param containerRegistryPassword string = ''
 
 @description('The location in which all resources should be deployed.')
 param location string = resourceGroup().location
@@ -190,8 +190,8 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       AML_VMSIZE: 'STANDARD_D2_V2'
       PYTHONUNBUFFERED: '1'
       // AML_PASSWORD: script.outputs.password // This will be empty since Bicep cannot provision secrets, set-sp-secret.sh will be used to set the secret
-      AML_TENANT_ID: script.outputs.tenantId
-      AML_SERVICE_PRINCIPAL_ID: script.outputs.appId
+      // AML_TENANT_ID: script.outputs.tenantId // Set in post deployment
+      // AML_SERVICE_PRINCIPAL_ID: script.outputs.appId // Set in post deployment
       INITIAL_INDEX: 'rag-data'
       AML_SUBSCRIPTION_ID: subscription().subscriptionId
       AML_RESOURCE_GROUP: resourceGroup().name
@@ -249,7 +249,7 @@ module apiAppSettings 'modules/appsettings.bicep' = {
   }
 }
 
-output spId string = script.outputs.appId
+// output spId string = script.outputs.appId
 output spName string = script.outputs.appName
 output apiAppName string = webappModule.outputs.appNameApi
-output postDeployScript string = './set-sp-secret.sh ${script.outputs.appId} ${webappModule.outputs.appNameApi} ${resourceGroup().name}'
+output postDeployScript string = './set-sp-secret.sh ${script.outputs.appName} ${webappModule.outputs.appNameApi} ${machineLearning.outputs.workspaceName} ${resourceGroup().name}'

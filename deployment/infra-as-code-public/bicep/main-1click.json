@@ -10,30 +10,31 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "101566811343307896"
+      "templateHash": "10778908558579436310"
     }
   },
   "parameters": {
     "openAIName": {
       "type": "string",
-      "nullable": true,
+      "defaultValue": "",
       "metadata": {
         "description": "An existing Azure OpenAI resource"
       }
     },
     "openAIRGName": {
       "type": "string",
-      "nullable": true,
+      "defaultValue": "",
       "metadata": {
         "description": "An existing Azure OpenAI resource group"
       }
     },
     "openAILocation": {
       "type": "string",
-      "nullable": true,
+      "defaultValue": "",
       "allowedValues": [
         "swedencentral",
-        "eastus"
+        "eastus",
+        ""
       ],
       "metadata": {
         "description": "Location for a new Azure OpenAI resource"
@@ -41,14 +42,14 @@
     },
     "containerRegistryName": {
       "type": "string",
-      "nullable": true,
+      "defaultValue": "",
       "metadata": {
         "description": "An existing Azure Container Registry resource to pull images from"
       }
     },
     "containerRegistryPassword": {
       "type": "securestring",
-      "nullable": true,
+      "defaultValue": "",
       "metadata": {
         "description": "An existing Azure Container Registry login password"
       }
@@ -409,7 +410,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.28.1.47646",
-              "templateHash": "169369261005421660"
+              "templateHash": "1571461734624849096"
             }
           },
           "parameters": {
@@ -456,10 +457,10 @@
                 "scriptIdentity"
               ]
             },
-            "deploymentScript": {
+            "buildChat": {
               "type": "Microsoft.Resources/deploymentScripts",
               "apiVersion": "2019-10-01-preview",
-              "name": "cloneAndBuild",
+              "name": "buildChat",
               "location": "[resourceGroup().location]",
               "kind": "AzureCLI",
               "identity": {
@@ -491,7 +492,89 @@
                     "value": "[parameters('imageTag')]"
                   }
                 ],
-                "scriptContent": "      #!/bin/bash\r\n      \r\n      set -e\r\n\r\n      apk add --no-cache git\r\n      \r\n      # Clone the Git repository\r\n      repoDir=\"$HOME/repo\"\r\n      git clone $GIT_REPO_URL $repoDir\r\n      cd $repoDir\r\n      git checkout $GIT_REPO_BRANCH\r\n      \r\n      # Build and push the Docker image to ACR\r\n      az acr build --registry $ACR_NAME --image \"research-copilot-api:${IMAGE_TAG}\" --file \"docker/dockerfile_api\" code >/dev/null\r\n      az acr build --registry $ACR_NAME --image \"research-copilot:${IMAGE_TAG}\" --file \"docker/dockerfile_chainlit_app\" ui >/dev/null\r\n      az acr build --registry $ACR_NAME --image \"research-copilot-main:${IMAGE_TAG}\" --file \"docker/dockerfile_streamlit_app\" ui >/dev/null\r\n    "
+                "scriptContent": "      #!/bin/bash\r\n      \r\n      set -e\r\n\r\n      apk add --no-cache git\r\n      \r\n      # Clone the Git repository\r\n      repoDir=\"$HOME/repo\"\r\n      git clone $GIT_REPO_URL $repoDir\r\n      cd $repoDir\r\n      git checkout $GIT_REPO_BRANCH\r\n      \r\n      # Build and push the Docker image to ACR\r\n      az acr build --registry $ACR_NAME --image \"research-copilot:${IMAGE_TAG}\" --file \"docker/dockerfile_chainlit_app\" ui >/dev/null\r\n    "
+              },
+              "dependsOn": [
+                "scriptIdentity"
+              ]
+            },
+            "buildMain": {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2019-10-01-preview",
+              "name": "buildMain",
+              "location": "[resourceGroup().location]",
+              "kind": "AzureCLI",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'script-identity-build'))]": {}
+                }
+              },
+              "properties": {
+                "azCliVersion": "2.61.0",
+                "cleanupPreference": "OnSuccess",
+                "retentionInterval": "P1D",
+                "forceUpdateTag": "[parameters('imageTag')]",
+                "environmentVariables": [
+                  {
+                    "name": "ACR_NAME",
+                    "value": "[parameters('acrName')]"
+                  },
+                  {
+                    "name": "GIT_REPO_URL",
+                    "value": "[parameters('gitRepoUrl')]"
+                  },
+                  {
+                    "name": "GIT_REPO_BRANCH",
+                    "value": "[parameters('gitRepoBranch')]"
+                  },
+                  {
+                    "name": "IMAGE_TAG",
+                    "value": "[parameters('imageTag')]"
+                  }
+                ],
+                "scriptContent": "      #!/bin/bash\r\n      \r\n      set -e\r\n\r\n      apk add --no-cache git\r\n      \r\n      # Clone the Git repository\r\n      repoDir=\"$HOME/repo\"\r\n      git clone $GIT_REPO_URL $repoDir\r\n      cd $repoDir\r\n      git checkout $GIT_REPO_BRANCH\r\n      \r\n      # Build and push the Docker image to ACR\r\n      az acr build --registry $ACR_NAME --image \"research-copilot-main:${IMAGE_TAG}\" --file \"docker/dockerfile_streamlit_app\" ui >/dev/null\r\n    "
+              },
+              "dependsOn": [
+                "scriptIdentity"
+              ]
+            },
+            "buildApi": {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2019-10-01-preview",
+              "name": "buildApi",
+              "location": "[resourceGroup().location]",
+              "kind": "AzureCLI",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'script-identity-build'))]": {}
+                }
+              },
+              "properties": {
+                "azCliVersion": "2.61.0",
+                "cleanupPreference": "OnSuccess",
+                "retentionInterval": "P1D",
+                "forceUpdateTag": "[parameters('imageTag')]",
+                "environmentVariables": [
+                  {
+                    "name": "ACR_NAME",
+                    "value": "[parameters('acrName')]"
+                  },
+                  {
+                    "name": "GIT_REPO_URL",
+                    "value": "[parameters('gitRepoUrl')]"
+                  },
+                  {
+                    "name": "GIT_REPO_BRANCH",
+                    "value": "[parameters('gitRepoBranch')]"
+                  },
+                  {
+                    "name": "IMAGE_TAG",
+                    "value": "[parameters('imageTag')]"
+                  }
+                ],
+                "scriptContent": "      #!/bin/bash\r\n      \r\n      set -e\r\n\r\n      apk add --no-cache git\r\n      \r\n      # Clone the Git repository\r\n      repoDir=\"$HOME/repo\"\r\n      git clone $GIT_REPO_URL $repoDir\r\n      cd $repoDir\r\n      git checkout $GIT_REPO_BRANCH\r\n      \r\n      # Build and push the Docker image to ACR\r\n      az acr build --registry $ACR_NAME --image \"research-copilot-api:${IMAGE_TAG}\" --file \"docker/dockerfile_api\" code >/dev/null\r\n    "
               },
               "dependsOn": [
                 "scriptIdentity"
@@ -2598,7 +2681,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.28.1.47646",
-              "templateHash": "6275144505942325826"
+              "templateHash": "8081029918950256014"
             }
           },
           "parameters": {
@@ -2661,102 +2744,6 @@
                 "scriptIdentity"
               ]
             },
-            "appReg": {
-              "import": "microsoftGraph",
-              "type": "Microsoft.Graph/applications@v1.0",
-              "properties": {
-                "displayName": "[variables('spName')]",
-                "uniqueName": "[variables('spName')]"
-              }
-            },
-            "sp": {
-              "import": "microsoftGraph",
-              "type": "Microsoft.Graph/servicePrincipals@v1.0",
-              "properties": {
-                "displayName": "[variables('spName')]",
-                "appId": "[reference('appReg').appId]"
-              },
-              "dependsOn": [
-                "appReg"
-              ]
-            },
-            "machineLearningWorkspace": {
-              "existing": true,
-              "type": "Microsoft.MachineLearningServices/workspaces",
-              "apiVersion": "2021-04-01",
-              "name": "[parameters('machineLearningName')]"
-            },
-            "mlContributorRoleDefinition": {
-              "existing": true,
-              "type": "Microsoft.Authorization/roleDefinitions",
-              "apiVersion": "2022-04-01",
-              "scope": "[format('Microsoft.MachineLearningServices/workspaces/{0}', parameters('machineLearningName'))]",
-              "name": "b24988ac-6180-42a0-ab88-20f7382dd24c",
-              "dependsOn": [
-                "machineLearningWorkspace"
-              ]
-            },
-            "rgContributorRoleDefinition": {
-              "existing": true,
-              "type": "Microsoft.Authorization/roleDefinitions",
-              "apiVersion": "2022-04-01",
-              "name": "b24988ac-6180-42a0-ab88-20f7382dd24c"
-            },
-            "mlContributorRoleAssignment": {
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2022-04-01",
-              "scope": "[format('Microsoft.MachineLearningServices/workspaces/{0}', parameters('machineLearningName'))]",
-              "name": "[guid(resourceId('Microsoft.MachineLearningServices/workspaces', parameters('machineLearningName')), extensionResourceId(resourceId('Microsoft.MachineLearningServices/workspaces', parameters('machineLearningName')), 'Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c'), variables('spName'))]",
-              "properties": {
-                "roleDefinitionId": "[extensionResourceId(resourceId('Microsoft.MachineLearningServices/workspaces', parameters('machineLearningName')), 'Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
-                "principalType": "ServicePrincipal",
-                "principalId": "[reference('sp').id]"
-              },
-              "dependsOn": [
-                "machineLearningWorkspace",
-                "mlContributorRoleDefinition",
-                "sp"
-              ]
-            },
-            "rgContributorRoleAssignment": {
-              "type": "Microsoft.Authorization/roleAssignments",
-              "apiVersion": "2022-04-01",
-              "name": "[guid(resourceGroup().id, resourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c'), variables('spName'))]",
-              "properties": {
-                "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
-                "principalType": "ServicePrincipal",
-                "principalId": "[reference('sp').id]"
-              },
-              "dependsOn": [
-                "rgContributorRoleDefinition",
-                "sp"
-              ]
-            },
-            "spScript": {
-              "condition": false,
-              "type": "Microsoft.Resources/deploymentScripts",
-              "apiVersion": "2019-10-01-preview",
-              "name": "ensure-sp",
-              "kind": "AzurePowerShell",
-              "identity": {
-                "type": "UserAssigned",
-                "userAssignedIdentities": {
-                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('script-identity-{0}', parameters('uniqueid'))))]": {}
-                }
-              },
-              "location": "[resourceGroup().location]",
-              "properties": {
-                "azPowerShellVersion": "7.0",
-                "cleanupPreference": "OnSuccess",
-                "retentionInterval": "P1D",
-                "forceUpdateTag": "[parameters('currentTime')]",
-                "arguments": "[format('-appName \"{0}\"', variables('spName'))]",
-                "scriptContent": "        param(\r\n          $appName\r\n        )\r\n        $sp = Get-AzADServicePrincipal -DisplayName $appName\r\n        $password = New-AzADSpCredential -ObjectId $sp.Id | Select-Object -ExpandProperty SecretValue\r\n        \r\n        # Output the service principal details\r\n        $DeploymentScriptOutputs = @{}\r\n        $DeploymentScriptOutputs['appId'] = $appId\r\n        $DeploymentScriptOutputs['password'] = $password\r\n      "
-              },
-              "dependsOn": [
-                "scriptIdentity"
-              ]
-            },
             "storageAccount": {
               "existing": true,
               "type": "Microsoft.Storage/storageAccounts",
@@ -2814,17 +2801,9 @@
             }
           },
           "outputs": {
-            "appId": {
-              "type": "string",
-              "value": "[reference('appReg').appId]"
-            },
             "appName": {
               "type": "string",
-              "value": "[reference('appReg').displayName]"
-            },
-            "password": {
-              "type": "string",
-              "value": ""
+              "value": "[variables('spName')]"
             },
             "tenantId": {
               "type": "string",
@@ -2866,8 +2845,6 @@
               "AML_CLUSTER_NAME": "mm-doc-cpu-cluster",
               "AML_VMSIZE": "STANDARD_D2_V2",
               "PYTHONUNBUFFERED": "1",
-              "AML_TENANT_ID": "[reference('script').outputs.tenantId.value]",
-              "AML_SERVICE_PRINCIPAL_ID": "[reference('script').outputs.appId.value]",
               "INITIAL_INDEX": "rag-data",
               "AML_SUBSCRIPTION_ID": "[subscription().subscriptionId]",
               "AML_RESOURCE_GROUP": "[resourceGroup().name]",
@@ -2982,10 +2959,6 @@
     }
   },
   "outputs": {
-    "spId": {
-      "type": "string",
-      "value": "[reference('script').outputs.appId.value]"
-    },
     "spName": {
       "type": "string",
       "value": "[reference('script').outputs.appName.value]"
@@ -2996,7 +2969,7 @@
     },
     "postDeployScript": {
       "type": "string",
-      "value": "[format('./set-sp-secret.sh {0} {1} {2}', reference('script').outputs.appId.value, reference('webappModule').outputs.appNameApi.value, resourceGroup().name)]"
+      "value": "[format('./set-sp-secret.sh {0} {1} {2} {3}', reference('script').outputs.appName.value, reference('webappModule').outputs.appNameApi.value, reference('machineLearning').outputs.workspaceName.value, resourceGroup().name)]"
     }
   }
 }

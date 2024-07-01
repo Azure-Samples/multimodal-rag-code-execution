@@ -31,7 +31,7 @@ Due to an [upstream Bicep limitations with Service Principals](https://learn.mic
     1. Open the **Azure Cloud Shell (Bash)**
     1. Upload the `set-sp-script.sh` script to the Cloud Shell
     1. Run `chmod +x set-sp-script.sh`
-    1. Run `./set-sp-script.sh <appId> <api-webapp-name> <resource-group-name>`.
+    1. Run `./set-sp-script.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
     
         Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
 
@@ -83,7 +83,7 @@ The following parameters are available for customization:
     Make **sure** to run the below in a Git Bash shell, or Cloud shell. This will not work locally in a Powershell.
 
     1. Run `chmod +x set-sp-secret.sh`
-    1. Run `./set-sp-secret.sh <appId> <api-webapp-name> <resource-group-name>`.
+    1. Run `./set-sp-secret.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
     
         Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
 
