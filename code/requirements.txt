@@ -59,7 +59,7 @@ urllib3
 json_repair
 # pysqlite3 #required for chroma
 # chromadb
-chainlit
+chainlit==1.0.502
 mermaid-python
 # pygraphviz
 streamlit>=1.31.1
