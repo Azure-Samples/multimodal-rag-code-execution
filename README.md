@@ -247,11 +247,11 @@ The .env file is used for:
 The API web app **must** run first before the other two web apps. It provides API infrastructure for the other two web apps. To run the web app locally, please execute in your conda environment the following:
 
 ```bash
-# cd into the ui folder
+# cd into the code folder
 cd code
 
 # run the chainlit app
-chainlit run chat.py
+python -m uvicorn api:app --reload --port 9000
 
 # go back to the project root folder
 cd ..
