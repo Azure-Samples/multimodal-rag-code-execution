@@ -31,6 +31,7 @@ Due to an [upstream Bicep limitations with Service Principals](https://learn.mic
     1. Open the **Azure Cloud Shell (Bash)**
     1. Upload the [`set-sp-secret.sh`](deployment/infra-as-code-public/bicep/set-sp-secret.sh) script to the Cloud Shell
     1. Run `chmod +x ./set-sp-secret.sh`
+    1. Run `dos2unix ./set-sp-secret.sh`
     1. Run `./set-sp-secret.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
 
     Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
