@@ -11,8 +11,36 @@ Multimodal Document Analysis with RAG and Code Execution: using Text, Images and
 1. **Content Generation**: The solution can be used to output most of the contents needed for standardized formats, such as memos or PowerPoint presentations that highlights essential facts about the ingested data
 1. **Analytical Queries with OpenAI Assistants API and Taskweaver**: Develop an advanced feature allowing analysts to interact with the multimodal data using a chat interface integrated with a Code Interpreter. This tool will support complex analytical queries, including calculations and on-the-fly graph and file generation.
 
+
+
+## Deployment steps (Azure Portal)
+
+1. Click the "Deploy to Azure" button
+
+    [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/?feature.customportal=false#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure-Samples%2Fmultimodal-rag-code-execution%2Fmain%2Fdeployment%2Finfra-as-code-public%2Fbicep%2Fmain-1click.json)
+
+1. Fill in parameters
+
+    There no special parameters for this deployment. Optional parameters are available to customize the deployment (see below). Typically, only `openAIName` and `openAIRGName` are used to reuse an existing Azure OpenAI resource.
+
+    Average deployment time is 10 minutes when no existing container registry is set.
+
+1. Finalize deployment
+
+    After the deployment is complete, you will need to run a post-deployment script to create the secret and assign it to the API WebApp.
+
+    1. Open the **Azure Cloud Shell (Bash)**
+    1. Upload the `set-sp-script.sh` script to the Cloud Shell
+    1. Run `chmod +x set-sp-script.sh`
+    1. Run `./set-sp-script.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
+    
+        Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
+
+### Customization
+For additional deployment customization, follow the detailed instructions available in the [Deployment README](deployment/README.md) guide.
+
 <br/>
-<br />
+<br/>
 
 ## Research Copilot YouTube Video
 <p align="center">
@@ -297,23 +325,6 @@ streamlit run main.py
 <br/>
 <br/>
 
-
-## Deploying on Azure
-
-We are currently building an ARM template for a one-click deployment. In the meantime, please use the below script to deploy on the Azure cloud. Please make sure to fill in your `.env` file properly **before** running the deployment script. The below script has to run in a `Git Bash` shell, and will not run in Powershell bash. Visit the deployment section [here](https://github.com/Azure-Samples/multimodal-rag-code-execution/blob/main/deployment/README.md) to get detailed instructions and advance deployment options. 
-
-```bash
-# cd into the deployment folder
-cd deployment
-
-# run the deployment script
-./deploy_public.sh
-```
-
-
-
-<br/>
-<br/>
 
 ### Local Development for Azure Cloud
 

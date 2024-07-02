@@ -1,177 +1,146 @@
-# Deployment Script for Azure Resources in a sandbox subscription
+# 1-click deployment
 
-This repository contains a Bash script (`deploy_public.sh`) that automates the deployment of Azure resources. It does so by deploying everything public, to simplifying prototying and de deployment of POC's in SandBox Subscriptions. 
+The new way to deploy this solutions is using the 1-click deployment. This is the recommended way to deploy this solution.
 
-We are preparing and enterprise deployment version as well but, in the meantime, you can use this for exploration, demos and POCs.
+## Known limitations
 
-## Environment Compatibility
+Due to an [upstream Bicep limitations with Service Principals](https://learn.microsoft.com/en-us/graph/templates/known-issues-graph-bicep?view=graph-bicep-1.0#application-passwords-are-not-supported-for-applications-and-service-principals), the 1-click deployment will NOT be able to create a secret. You will need to run a post-deployment script to create the secret and assign it to the API WebApp in order to complete the deployment.
 
-This script has been tested and confirmed to work on Git Bash on Windows. If you're using a different shell or operating system, the script may not work as expected.
+## Pre-requisites
 
-### Requirements for Git Bash
+- You will need to have an Azure subscription and be able to create resources in it. At least a resource group is required, and the user must have `Owner` permissions.
+- Addiitonally, you will need to have privileges to create an app registration/service principal.
+- Using Cloud Shell is also recommend to finalize the deployment.
 
-- **Git Bash**: The script uses features specific to Bash, so it needs to be run in Git Bash or a similar Bash-compatible shell.
+## Deployment steps (Azure Portal)
 
-- **Azure CLI**: The script uses the Azure CLI to manage Azure resources. You can install the Azure CLI from the [official website](https://docs.microsoft.com/cli/azure/install-azure-cli).
+1. Click the "Deploy to Azure" button
 
-- **Docker**: The script requires Docker to build and push Docker images. You can install Docker from the [official website](https://docs.docker.com/get-docker/).
+    [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/?feature.customportal=false#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure-Samples%2Fmultimodal-rag-code-execution%2Fmain%2Fdeployment%2Finfra-as-code-public%2Fbicep%2Fmain-1click.json)
 
-- **jq**: The script uses jq to parse JSON data. You can install jq from the [official website](https://stedolan.github.io/jq/download/).
+1. Fill in parameters
 
-- **Chocolatey**: The script uses Chocolatey to install software on Windows. You can install Chocolatey from the [official website](https://chocolatey.org/install).
+    There no special parameters for this deployment. Optional parameters are available to customize the deployment (see below). Typically, only `openAIName` and `openAIRGName` are used to reuse an existing Azure OpenAI resource.
 
-Please ensure that all these requirements are met before running the script in Git Bash.
+    Average deployment time is 10 minutes when no existing container registry is set.
 
-## Prerequisites
+1. Finalize deployment
 
+    After the deployment is complete, you will need to run a post-deployment script to create the secret and assign it to the API WebApp.
 
-The script will veify that you have the following requirements installed. 
-- [Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli)
-- [Docker](https://docs.docker.com/get-docker/)
-- [jq](https://stedolan.github.io/jq/download/)
-- [Chocolatey](https://chocolatey.org/install) (Only for Windows users)
+    1. Open the **Azure Cloud Shell (Bash)**
+    1. Upload the `set-sp-script.sh` script to the Cloud Shell
+    1. Run `chmod +x set-sp-script.sh`
+    1. Run `./set-sp-script.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
+    
+        Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
 
-These applications can be installed in severall ways, if the script fails, you will need to troubleshoot the deployment. Or just do it manually.
+## Customization
 
+The following parameters are available for customization:
 
-## Configuration
+- `openAIName` and `openAIRGName`: Name and resource group for the Azure OpenAI resource to reuse, instead of creating a new one.
+- `containerRegistryName` and `containerRegistryPassword`: Name and password for an existing Azure Container Registry to reuse, instead of creating a new one. When not set, a new container registry will be created and images will be built pushed to it via cloning the GitHub repository.
+- `namePrefix`: Prefix for all resources created by the deployment. Default is `dev`.
 
-Before running the script, you need to set up a few configuration variables:
+## Deployment steps (local)
 
-- `SUBSCRIPTION`: This is your Azure subscription ID. The script will use this subscription to deploy the resources. You can find your subscription ID in the Azure portal, or by running the `az account show --query id --output tsv` command in the Azure CLI.
+1. Clone the GitHub repository
 
-- `RG_WEBAPP_NAME`: This is the name of the Azure resource group where the web app will be deployed. A resource group is a logical container for resources deployed on Azure. Make sure to choose a unique name for your resource group.
+    ```bash
+    git clone https://github.com/Azure-Samples/multimodal-rag-code-execution
 
-You can set these variables in your env file environment (recommended), or you can set them directly in the script before running it.
-
-The repo contains a sample .env.sample file. Copy it and adapt it to your needs.
-
-## Argument Parameters
-
-The script supports various parameters to control its behavior during deployment, although we recommend deploying first without any paramters. Later on, if you want to control future deployments you can explore the options that these parameters will enable. 
-These parameters can be passed as command-line arguments when executing the script. Below is an explanation of each parameter and examples of how to use them.
-
-### General Parameters
-
-- **`force_redeploy`**: Accepts `true` or `false`. Forces the redeployment of the infrastructure. Use this parameter to trigger a full redeployment even if the infrastructure already exists.
-- **`update_webapp_settings`**: Accepts `true` or `false`. Updates the web app settings to the default configuration specified within the script. By default the script will always update the settings. This is useful when you do not want the update them so you will be setting this to false.
-- **`force_build_on_cloud`**: Accepts `true` or `false`. Forces the build process to occur on Azure Container Registry (ACR) in the cloud, bypassing local Docker builds. This is useful in stuations where the terminal running the script does not have access to a running docker such as the Azure Cloud Shell (keep in mind that docker CLI is still required). If you local docker is also performing slow you can set this parameter to true, and the build and push will be triggered in the ACR by creating a dinamic build & push ACR task.
-- **`update_settings_only`**: Accepts `true` or `false`. If set to `true`, the script will only update the web app settings without building containers or deploying infrastructure. This is useful when you want to refresh the settings to the original state. 
-
-### Web App Build Parameters
-This two settings are useful when you just want to rebuild one of the web apps.
-- **`build_chainlit`**: Accepts `true` or `false`. Determines whether to update the Chainlit web app. This is the web app that exposes the chat functionality
-- **`build_streamlit`**: Accepts `true` or `false`. Determines whether to update the Streamlit web app. This is the web app that exposes the ingestion and prompt management functionalities.
-
-### Azure Integration Parameters
-
-- **`login_to_azure`**: Accepts `true` or `false`. Determines whether the script should automatically handle Azure login. Set this to `false` if already logged in or running in an environment like Azure Cloud Shell.
-- **`azure_resources_file`**: Specifies the file name that contains the output variables from Azure deployment. This is crucial for scripts that rely on specific Azure resource configurations.
-
-### Usage Examples
-
-Here are a few examples of how to run the script with these parameters:
-
-```bash
-# Update only the settings of web apps without redeploying infrastructure or building containers
-./deploy.sh update_settings_only=true
-
-# Force a redeployment of the infrastructure and update the Chainlit web app
-./deploy.sh force_redeploy=true build_chainlit=true
-
-# Perform a cloud-based build and update the Streamlit app without updating settings
-./deploy.sh force_build_on_cloud=true build_streamlit=true update_webapp_settings=false
-```
-
-## `Force Redeployment` Parameter
-
-### Overview
-By default the script checks if the target resource group is empty and, if it is, it will go an attempt deploying all the infrastucture. If the resource group is not empty, it assumes that you want to deploy a new version of the application (CI/CD) and it will do the following: 
-- Build the Docker images.
-- Push them to the Azure Container Registry (ACR).
-- :exclamation: **Important**: it will set the web app settings to default values and you will loose any customization to the environment variables in both web apps.
-
-The `deploy_public.sh` script accepts an optional `force_redeploy` parameter. This parameter controls whether the script should force a redeployment of the resources, even if they're already present in the resource group. 
-
-To use the `force_redeploy` parameter, pass `true` or `false` as an argument when running the script:
-
-```shellscript
-./deploy_public.sh force_redeploy true
-```
-
-## `azure_resources_file` Parameter
-
-### Overview
-You should use this **only** on custom deployments (where Azure resources were not deployed by this script)  This method forces the script to read the resources names from the passed file. and will ignore any ouptuts generated as part of a generated deployment template at resource group level. 
-The `azure_resources_file` parameter allows you to specify a JSON file that contains output variables from an Azure deployment. This file is critical when the script needs to obtain Azure resource configurations dynamically, especially in custom deployments where resource names or settings may vary between executions.
-
-### How It Works
-
-When provided, the script will attempt to read this file and extract Azure resource configuration details necessary for subsequent operations, such as setting up web app configurations or integrating services. If the file does not exist or is misconfigured, the script will default to attempting to retrieve the same information directly from the live Azure resource group, ensuring robustness in handling various deployment scenarios.
-As an example we are providing the azure_resources_file_example.json file that you can use to pupulate it with your custome deployments, and pass it through as an argument so that all the web app settings are generated with the right values. 
-
-### Script Processing Logic
-
-Here's a breakdown of how the script processes the `azure_resources_file`:
-
-1. **File Reading**: The script reads the JSON file specified by the `azure_resources_file` parameter.
-2. **Error Handling**: If the file cannot be read (either because it does not exist or due to permission issues), the script defaults to fetching configuration details from the Azure resource group.
-3. **Variable Assignment**: The script assigns values from the JSON file to variables that are used throughout the deployment process.
-
-## `get_variables_from_live_rg` Parameter
-
-### Overview
-Avoid using this method if you created all the infrastucture using this script. This option is provided for clients with complex hybrid deployments generated manually. The script will detect if the current deployment is custom or generated with the script, and will automatically use this setting when manual deployments detected.
-
-The `get_variables_from_live_rg` (Get Variables from Live Resource Group) parameter allows the script to dynamically fetch configuration details directly from an existing Azure Resource Group. This is particularly useful in scenarios where the deployment configuration needs to adapt to the current state of Azure resources, ensuring that the script operates with the most up-to-date information.
-
-### How It Works
-
-When set to `true`, this parameter instructs the script to bypass static configurations or predefined JSON files for resource details. Instead, it retrieves the current settings directly from the Azure services within the specified Resource Group. This method ensures that the script uses the latest configurations and is especially critical in dynamic environments where resource settings might change frequently.
-
-### Script Processing Logic
-
-Here's a summary of how the script processes the `get_variables_from_live_rg`:
-
-1. **Check Parameter**: The script first checks if `get_variables_from_live_rg` is set to `true`.
-2. **Fetch Configurations**: If true, the script fetches live configurations such as web app settings, container registry details, and other necessary parameters directly from the Azure Resource Group.
-3. **Error Handling**: Proper error checks are implemented to handle situations where the script might fail to retrieve some or all of the configuration details.
-
-
-## Running the Script
-
-1. Clone this repository to your local machine:
-
-2. Navigate to the directory containing the script:
-
-    ```shellscript
-    cd deployment
+    cd multimodal-rag-code-execution
     ```
 
-3. Make the script executable:
+1. Run the deployment script
+    
+    You could run the below commands in either a Powershell or a Git Bash.
 
-    ```shellscript
-    chmod +x deploy_public.sh
+    ```bash
+    az login
+    
+    az upgrade
+
+    az bicep upgrade
+
+    az group create --name multimodal-rag-code-execution --location <location>
+    
+    ## [OPTION 1] USE AN EXISTING OPENAI RESOURCE
+    ## Existing OpenAI Resource must have one model name 'gpt-4o' and another named 'text-embedding-3-large'. Please provide the name of the OAI resource and the RG name where that resource is
+    az deployment group create --resource-group multimodal-rag-code-execution --template-file deployment/infra-as-code-public/bicep/main-1click.bicep --parameters aiSearchRegion=eastus openAIName=<OAI_NAME> openAIRGName=<OAI_RG_NAME>
+
+    ## [OPTION 2] CREATE A NEW OPENAI RESOURCE
+    az deployment group create --resource-group multimodal-rag-code-execution --template-file deployment/infra-as-code-public/bicep/main-1click.bicep --parameters aiSearchRegion=eastus
+
     ```
 
-4. Run the script:
+1. Finalize deployment
 
-    ```shellscript
-    ./deploy_public.sh
-    ```
+    After the deployment is complete, you will need to run a post-deployment script to create the secret and assign it to the API WebApp.
+    The `<appId>`, `<api-webapp-name>` and `<resource-group-name>` values are found int the deployment output of the previous steps, either when the script is ran locally, or in the Cloud shell, or in the Azure Portal.
+    
+    Make **sure** to run the below in a Git Bash shell, or Cloud shell. This will not work locally in a Powershell.
 
-If all the requirements are in place,  the sript will then proceed with the deployment of Azure resources.
-
-## Troubleshooting
-
-If you encounter any issues while running the script, the script will log the errors, and continue if the errors are related to the deployment 
-
+    1. Run `chmod +x set-sp-secret.sh`
+    1. Run `./set-sp-secret.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
+    
+        Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
 
 
-## Contributing
+<br/>
+<br/>
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### Screenshots of the Deployment
+<br/>
 
-## License
+In the Azure portal, go to Deployments:
 
-This project is licensed under the terms of the MIT license.
+<br />
+<p align="center">
+<img src="../images/depl-image3.png" width="800" />
+</p>
+<br/>
+
+
+Check all resources being deployed:
+
+<br />
+<p align="center">
+<img src="../images/depl-image2.png" width="800" />
+</p>
+<br/>
+
+Once succeeded, click on the "main-1click":
+
+<br />
+<p align="center">
+<img src="../images/depl-image4.png" width="500" />
+</p>
+<br/>
+
+
+Go to Outputs, and copy the PostDeployScript (this key has been recycled):
+
+<br />
+<p align="center">
+<img src="../images/depl-image5.png" width="800" />
+</p>
+<br/>
+
+
+
+
+
+### Troubleshooting
+
+If you see the below screenshot, please check your API web app, check its Environment Variables, and try to restart it.
+
+
+<br />
+<p align="center">
+<img src="../images/depl-image.png" width="800" />
+</p>
+<br/>
+
+

@@ -10,7 +10,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "13390619778082857500"
+      "templateHash": "2456108236751513745"
     }
   },
   "parameters": {
@@ -410,7 +410,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.28.1.47646",
-              "templateHash": "1571461734624849096"
+              "templateHash": "15482608912490382603"
             }
           },
           "parameters": {
@@ -423,7 +423,7 @@
             },
             "gitRepoBranch": {
               "type": "string",
-              "defaultValue": "ricchi/rest-apis"
+              "defaultValue": "main"
             },
             "imageTag": {
               "type": "string",
