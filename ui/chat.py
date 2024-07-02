@@ -127,7 +127,7 @@ init_code_interpreter = "Taskweaver"
 init_code_interpreter = "AssistantsAPI"
 
 init_password = ''
-init_approx_tag_limit = '15'
+init_approx_tag_limit = '5'
 init_pdf_extraction_mode = 'hybrid'
 init_docx_extraction_modes = 'document-intelligence'
 init_number_of_threads = available_models
@@ -465,7 +465,7 @@ def get_asset_file(asset):
     except Exception as e:
         log_message(f"Error reading asset file: {e}", 'error')    
 
-def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_history = [], user_id = None, computation_approach = "AssistantsAPI", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, verbose = False):
+def search(query, learnings = None, top=3, approx_tag_limit=3, conversation_history = [], user_id = None, computation_approach = "AssistantsAPI", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, verbose = False):
     try:
         return api_client.search({
             "query": query,
