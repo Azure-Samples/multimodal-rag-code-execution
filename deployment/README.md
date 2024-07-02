@@ -35,11 +35,24 @@ Due to an [upstream Bicep limitations with Service Principals](https://learn.mic
 
     Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
 
+
+<br />
+
+**Note**: Upload script to cloud shell.
+<br />
+<p align="center">
+<img src="../images/depl-image6.png" width="800" />
+</p>
+<br/>
+
+
+**Note**: Copy and paste the script call with the correct values.
 <br />
 <p align="center">
 <img src="../images/depl-image5.png" width="800" />
 </p>
 <br/>
+
 
 
 
