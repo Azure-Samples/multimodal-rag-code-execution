@@ -10,7 +10,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.28.1.47646",
-      "templateHash": "2456108236751513745"
+      "templateHash": "18411889653728151899"
     }
   },
   "parameters": {
@@ -26,32 +26,6 @@
       "defaultValue": "",
       "metadata": {
         "description": "An existing Azure OpenAI resource group"
-      }
-    },
-    "openAILocation": {
-      "type": "string",
-      "defaultValue": "",
-      "allowedValues": [
-        "swedencentral",
-        "eastus",
-        ""
-      ],
-      "metadata": {
-        "description": "Location for a new Azure OpenAI resource"
-      }
-    },
-    "containerRegistryName": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "An existing Azure Container Registry resource to pull images from"
-      }
-    },
-    "containerRegistryPassword": {
-      "type": "securestring",
-      "defaultValue": "",
-      "metadata": {
-        "description": "An existing Azure Container Registry login password"
       }
     },
     "location": {
@@ -79,10 +53,24 @@
       "metadata": {
         "description": "A prefix that will be prepended to resource names"
       }
+    },
+    "newOpenAILocation": {
+      "type": "string",
+      "defaultValue": "",
+      "allowedValues": [
+        "swedencentral",
+        "eastus",
+        ""
+      ],
+      "metadata": {
+        "description": "Location for a new Azure OpenAI resource. Leave openAIName and openAIRGName empty to deploy a new resource."
+      }
     }
   },
   "variables": {
     "uniqueid": "[uniqueString(resourceGroup().id)]",
+    "containerRegistryName": "",
+    "containerRegistryPassword": "",
     "di_location": "westeurope",
     "logWorkspaceName": "[format('log-{0}', variables('uniqueid'))]"
   },
@@ -258,7 +246,7 @@
       }
     },
     "acr": {
-      "condition": "[empty(parameters('containerRegistryName'))]",
+      "condition": "[empty(variables('containerRegistryName'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "acrDeploy",
@@ -384,7 +372,7 @@
       }
     },
     "buildImages": {
-      "condition": "[empty(parameters('containerRegistryName'))]",
+      "condition": "[empty(variables('containerRegistryName'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "buildImages",
@@ -609,8 +597,8 @@
           "logWorkspaceName": {
             "value": "[variables('logWorkspaceName')]"
           },
-          "containerRegistryName": "[if(not(empty(parameters('containerRegistryName'))), createObject('value', parameters('containerRegistryName')), createObject('value', reference('acr').outputs.containerRegistryName.value))]",
-          "containerRegistryPassword": "[if(not(empty(parameters('containerRegistryPassword'))), createObject('value', parameters('containerRegistryPassword')), createObject('value', reference('acr').outputs.containerRegistryPassword.value))]",
+          "containerRegistryName": "[if(not(empty(variables('containerRegistryName'))), createObject('value', variables('containerRegistryName')), createObject('value', reference('acr').outputs.containerRegistryName.value))]",
+          "containerRegistryPassword": "[if(not(empty(variables('containerRegistryPassword'))), createObject('value', variables('containerRegistryPassword')), createObject('value', reference('acr').outputs.containerRegistryPassword.value))]",
           "storageAccount": {
             "value": "[reference('storageModule').outputs.storageName.value]"
           },
@@ -1311,7 +1299,7 @@
       ]
     },
     "openAIResource": {
-      "condition": "[and(empty(parameters('openAIName')), not(empty(parameters('openAILocation'))))]",
+      "condition": "[and(empty(parameters('openAIName')), not(empty(parameters('newOpenAILocation'))))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "openaiDeploy",
@@ -1321,7 +1309,7 @@
         },
         "mode": "Incremental",
         "parameters": {
-          "location": "[if(not(empty(parameters('openAILocation'))), createObject('value', parameters('openAILocation')), createObject('value', 'swedencentral'))]",
+          "location": "[if(not(empty(parameters('newOpenAILocation'))), createObject('value', parameters('newOpenAILocation')), createObject('value', 'swedencentral'))]",
           "envName": {
             "value": "[parameters('namePrefix')]"
           }
@@ -2829,9 +2817,9 @@
             "value": {
               "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference('webappModule').outputs.appInsightsConnectionString.value]",
               "ApplicationInsightsAgent_EXTENSION_VERSION": "~2",
-              "DOCKER_REGISTRY_SERVER_USERNAME": "[if(not(empty(parameters('containerRegistryName'))), parameters('containerRegistryName'), reference('acr').outputs.containerRegistryName.value)]",
-              "DOCKER_REGISTRY_SERVER_PASSWORD": "[if(not(empty(parameters('containerRegistryPassword'))), parameters('containerRegistryPassword'), reference('acr').outputs.containerRegistryPassword.value)]",
-              "DOCKER_REGISTRY_SERVER_URL": "[format('https://{0}.azurecr.io', if(not(empty(parameters('containerRegistryName'))), parameters('containerRegistryName'), reference('acr').outputs.containerRegistryName.value))]",
+              "DOCKER_REGISTRY_SERVER_USERNAME": "[if(not(empty(variables('containerRegistryName'))), variables('containerRegistryName'), reference('acr').outputs.containerRegistryName.value)]",
+              "DOCKER_REGISTRY_SERVER_PASSWORD": "[if(not(empty(variables('containerRegistryPassword'))), variables('containerRegistryPassword'), reference('acr').outputs.containerRegistryPassword.value)]",
+              "DOCKER_REGISTRY_SERVER_URL": "[format('https://{0}.azurecr.io', if(not(empty(variables('containerRegistryName'))), variables('containerRegistryName'), reference('acr').outputs.containerRegistryName.value))]",
               "TEXT_CHUNK_SIZE": "800",
               "TEXT_CHUNK_OVERLAP": "128",
               "TENACITY_TIMEOUT": "200",

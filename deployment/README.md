@@ -40,8 +40,9 @@ Due to an [upstream Bicep limitations with Service Principals](https://learn.mic
 The following parameters are available for customization:
 
 - `openAIName` and `openAIRGName`: Name and resource group for the Azure OpenAI resource to reuse, instead of creating a new one.
-- `containerRegistryName` and `containerRegistryPassword`: Name and password for an existing Azure Container Registry to reuse, instead of creating a new one. When not set, a new container registry will be created and images will be built pushed to it via cloning the GitHub repository.
+registry will be created and images will be built pushed to it via cloning the GitHub repository.
 - `namePrefix`: Prefix for all resources created by the deployment. Default is `dev`.
+- `newOpenAILocation`: Location for the new Azure OpenAI resource. Default is empty and will be ignored unless `openAIName` is blank.
 
 ## Deployment steps (local)
 

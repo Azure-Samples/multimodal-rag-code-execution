@@ -4,17 +4,6 @@ param openAIName string = ''
 @description('An existing Azure OpenAI resource group')
 param openAIRGName string = ''
 
-@description('Location for a new Azure OpenAI resource')
-@allowed(['swedencentral', 'eastus', ''])
-param openAILocation string = ''
-
-@description('An existing Azure Container Registry resource to pull images from')
-param containerRegistryName string = ''
-
-@description('An existing Azure Container Registry login password')
-@secure()
-param containerRegistryPassword string = ''
-
 @description('The location in which all resources should be deployed.')
 param location string = resourceGroup().location
 
@@ -25,7 +14,14 @@ param aiSearchRegion string = 'eastus'
 @description('A prefix that will be prepended to resource names')
 param namePrefix string = 'dev'
 
+@description('Location for a new Azure OpenAI resource. Leave openAIName and openAIRGName empty to deploy a new resource.')
+@allowed(['swedencentral', 'eastus', ''])
+param newOpenAILocation string = ''
+
 var uniqueid = uniqueString(resourceGroup().id)
+// Fixed for now
+var containerRegistryName = ''
+var containerRegistryPassword = ''
 var di_location = 'westeurope'
 
 // ---- Log Analytics workspace ----
@@ -89,10 +85,10 @@ module webappModule 'webapp.bicep' = {
    dependsOn: [acr]
 }
 
-module openAIResource 'openai.bicep' = if (empty(openAIName) && !empty(openAILocation)) {
+module openAIResource 'openai.bicep' = if (empty(openAIName) && !empty(newOpenAILocation)) {
   name: 'openaiDeploy'
   params: {
-    location: !empty(openAILocation) ? openAILocation : 'swedencentral'
+    location: !empty(newOpenAILocation) ? newOpenAILocation : 'swedencentral'
     envName: namePrefix
   }
 }
