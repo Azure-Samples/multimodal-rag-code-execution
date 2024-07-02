@@ -30,11 +30,30 @@ Multimodal Document Analysis with RAG and Code Execution: using Text, Images and
     After the deployment is complete, you will need to run a post-deployment script to create the secret and assign it to the API WebApp.
 
     1. Open the **Azure Cloud Shell (Bash)**
-    1. Upload the `set-sp-script.sh` script to the Cloud Shell
-    1. Run `chmod +x set-sp-script.sh`
-    1. Run `./set-sp-script.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
+    1. Upload the [`set-sp-secret.sh`](deployment/infra-as-code-public/bicep/set-sp-secret.sh) script to the Cloud Shell
+    1. Run `chmod +x ./set-sp-secret.sh`
+    1. Run `./set-sp-secret.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
     
-        Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
+    Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
+
+<br />
+
+**Note**: Upload script to cloud shell.
+<br />
+<p align="center">
+<img src="images/depl-image6.png" width="800" />
+</p>
+<br/>
+
+
+**Note**: Copy and paste the script call with the correct values.
+<br />
+<p align="center">
+<img src="images/depl-image5.png" width="800" />
+</p>
+<br/>
+
+
 
 ### Customization
 For additional deployment customization, follow the detailed instructions available in the [Deployment README](deployment/README.md) guide.
