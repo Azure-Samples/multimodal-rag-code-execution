@@ -32,7 +32,7 @@ Due to an [upstream Bicep limitations with Service Principals](https://learn.mic
     1. Upload the `set-sp-script.sh` script to the Cloud Shell
     1. Run `chmod +x set-sp-script.sh`
     1. Run `./set-sp-script.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
-    
+
         Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
 
 ## Customization
@@ -54,7 +54,7 @@ The following parameters are available for customization:
     ```
 
 1. Run the deployment script
-    
+
     You could run the below commands in either a Powershell or a Git Bash.
 
     ```bash
@@ -79,19 +79,19 @@ The following parameters are available for customization:
 
     After the deployment is complete, you will need to run a post-deployment script to create the secret and assign it to the API WebApp.
     The `<appId>`, `<api-webapp-name>` and `<resource-group-name>` values are found int the deployment output of the previous steps, either when the script is ran locally, or in the Cloud shell, or in the Azure Portal.
-    
+
     Make **sure** to run the below in a Git Bash shell, or Cloud shell. This will not work locally in a Powershell.
 
     1. Run `chmod +x set-sp-secret.sh`
     1. Run `./set-sp-secret.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
-    
-        Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
 
+        Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
 
 <br/>
 <br/>
 
 ### Screenshots of the Deployment
+
 <br/>
 
 In the Azure portal, go to Deployments:
@@ -101,7 +101,6 @@ In the Azure portal, go to Deployments:
 <img src="../images/depl-image3.png" width="800" />
 </p>
 <br/>
-
 
 Check all resources being deployed:
 
@@ -119,7 +118,6 @@ Once succeeded, click on the "main-1click":
 </p>
 <br/>
 
-
 Go to Outputs, and copy the PostDeployScript (this key has been recycled):
 
 <br />
@@ -128,14 +126,20 @@ Go to Outputs, and copy the PostDeployScript (this key has been recycled):
 </p>
 <br/>
 
-
-
-
-
 ### Troubleshooting
 
 If you see the below screenshot, please check your API web app, check its Environment Variables, and try to restart it.
 
+Variables to check are:
+
+- DOCKER_REGISTRY_SERVER_URL
+- DOCKER_REGISTRY_SERVER_USERNAME
+- DOCKER_REGISTRY_SERVER_PASSWORD
+
+If problem persists, go to WebApp Deployment Center, and make sure:
+
+- The container registry is connected via Admin credentials
+- The "Continuous Deployment" option is enabled
 
 <br />
 <p align="center">
@@ -143,4 +147,46 @@ If you see the below screenshot, please check your API web app, check its Enviro
 </p>
 <br/>
 
+## Updating web app images
 
+There are two ways to update the web app images:
+
+- **Option 1**: Rebuilding from remote git repository
+- **Option 2**: Rebuilding from local
+
+### Option 1: Rebuilding from remote git repository
+
+This is the recommended approach if you simply need to get the latest features and bug fixes.
+
+1. Go to the Azure Portal and open a Cloud Shell (Bash)
+1. Copy the `update_webapps_from_github.sh` script to the Cloud Shell
+1. Run `chmod +x update_webapps_from_github.sh`
+1. Run `./update_webapps_from_github.sh <resource-group-name>`
+
+Please note images will be built and pushed to the container registry sequentially. This process will take about 10 minutes. Additionally, the script will restart the API WebApp to use the new images.
+
+### Option 2: Rebuilding from local
+
+This is the recommended way to update the images if you have made changes to the code.
+
+1. Clone the GitHub repository
+
+    ```bash
+    git clone https://github.com/Azure-Samples/multimodal-rag-code-execution
+
+    cd multimodal-rag-code-execution
+    ```
+
+1. Make all required changes to the code
+1. Run the `push.ps1` script using PowerShell
+
+    ```powershell
+    # Make sure to run from root of the repository
+    .\deployment\push.ps1 -RG <resource-group-name>
+    ```
+
+    **NOTES**
+    - script assumes you have the Azure CLI installed and logged in to the correct subscription
+    - target resorce group must have been created by the deployment script
+    - images will be built and pushed to the container registry sequentially. This process will take about 10 minutes.
+    - All WebApps will restart to use the new images
