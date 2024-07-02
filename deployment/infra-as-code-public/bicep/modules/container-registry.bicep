@@ -9,7 +9,7 @@ param containerRegistryName string = ''
 param uniqueid string
 
 @description('The location in which all resources should be deployed.')
-param location string
+param location string = resourceGroup().location
 
 var varcontainerRegistry = '${namePrefix}${containerRegistryName}${uniqueid}'
 
@@ -53,7 +53,6 @@ resource containerRegistry_resource 'Microsoft.ContainerRegistry/registries@2023
   }
   sku: {
     name: 'Premium'
-    // tier: 'Standard'
   }
 }
 

@@ -1,0 +1,21 @@
+
+Qyery:
+## START OF QUERY
+{query}
+## END OF QUERY
+
+
+From the above Query, please perform the following tasks:
+    1. You **MUST** extract the most important and ultra-descriptive tags. These tags will be used to generate embeddings and then used for search purposes. You **MUST** be exhaustive and comprehensive in generating the most essential tags. Do NOT LEAVE OUT any details in the Query, and do NOT generate tags that are not in the Query. 
+    2. Be **VERY** details-oriented, **make sure** you capture ALL the details of the Query in the form of tags. Do **NOT** make up or generate tags that are not in the Query. Try to reduce the number of tags, and **DO NOT** generate semantically redundant tags.
+    3. The tags needs to be ultra-descriptive, elaborate and detailed. Each tag needs to capture and relay all the relationships and connections in the Query. For example, when the Query says "the actual and estimated revenues of company X", then the ideal tags would be "actual revenues of company X" and "estimated revenues of company X". For this example and instance, do **NOT** generate tags such as "actual", "estimated" and "revenues" which do not capture the full relationships and connections of the tag.
+    4. Each tag needs to have enough information so that the user would understand it without knowing the original Query or the context.
+    5. You **MUST** ignore any embedded Python code. 
+    6. You **MUST NOT** generate tags that include example-specific information from any few-shot examples included in the Query. These are usually delimited by either ###Example###, or by ### START OF EXAMPLE and ### END OF EXAMPLE, or some similar delimiters.
+    7. If the Query include entity names, dates, numbers or money amounts, you **MUST** include them in the list of tags. 
+    8. Do **NOT** generate tags about Self-Evaluation Guidelines. 
+    9. Finally, you **MUST** refactor the list of tags to make sure that there are no redundancies, and to remove the less relevant tags, and to reduce the number of elements in the list so that the list is optimized. 
+    10. Try to reduce the number of tags to the **MOST ESSENTIAL ONES ONLY**, and minimize the overall number of tags. Only if the Query is very long, has lots details, and is absolutely needed, only then you can generate tags up to {tag_limit} tags. You **MUST** limit the total number of tags to no more than {tag_limit} tags.These **MUST BE THE MOST ESSENTIAL {tag_limit} TAGS.**
+
+Do **NOT** generate any other text other than the comma-separated keyword and tag list. Do **NOT** exceed the number of tags to more than {tag_limit} tags.
+

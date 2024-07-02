@@ -51,6 +51,7 @@ export UPDATE_WEBAPP_SETTINGS="true" #by default we  update the webapp settings
 export DEPLOY_INFRA="false" #by default we do not deploy the infra
 export BUILD_CHAINLIT="true"
 export BUILD_STREAMLIT="true"
+export BUILD_API="true"
 export FORCE_BUILD_ON_CLOUD="false"
 export UPDATE_SETTINGS_ONLY="false"
 export LOGIN_TO_AZURE="true"
@@ -73,6 +74,9 @@ do
             ;;
         build_streamlit=false)
             export BUILD_STREAMLIT="false"
+            ;;
+        build_api=false)
+            export BUILD_API="false"
             ;;
         force_build_on_cloud=true)
             export FORCE_BUILD_ON_CLOUD="true"
@@ -197,6 +201,7 @@ printf "${GREEN}%-30s %-30s${RESET}\n" "force_redeploy" "$DEPLOY_INFRA"
 printf "${GREEN}%-30s %-30s${RESET}\n" "update_webapp_settings" "$UPDATE_WEBAPP_SETTINGS"
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_chainlit" "$BUILD_CHAINLIT"
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_streamlit" "$BUILD_STREAMLIT"
+printf "${GREEN}%-30s %-30s${RESET}\n" "build_api" "$BUILD_API"
 printf "${GREEN}%-30s %-30s${RESET}\n" "build_on_cloud" "$FORCE_BUILD_ON_CLOUD"
 printf "${GREEN}%-30s %-30s${RESET}\n" "update_settings_only" "$UPDATE_SETTINGS_ONLY"
 printf "${GREEN}%-30s %-30s${RESET}\n" "get_variables_from_live_rg" "$GET_VARIABLES_FROM_LIVE_RG"
@@ -638,6 +643,7 @@ function populate_output_variables() {
         export output_variables=$(jq -n \
                             --arg webAppNameChainlit "$webAppNameChainlit" \
                             --arg webAppNameStreamlit "$webAppNameStreamlit" \
+                            --arg webAppNameApi "$webAppNameApi" \
                             --arg appServiceName "$appServiceName" \
                             --arg storageAccountName "$storageAccountName" \
                             --arg cosmosDbName "$cosmosDbName" \
@@ -652,6 +658,7 @@ function populate_output_variables() {
                             '{
                                 webAppNameChainlit: {type: "String", value: $webAppNameChainlit},
                                 webAppNameStreamlit: {type: "String", value: $webAppNameStreamlit},
+                                webAppNameApi: {type: "String", value: $webAppNameApi},
                                 appServiceName: {type: "String", value: $appServiceName},
                                 storageAccount: {type: "String", value: $storageAccountName},
                                 cosmosDbName: {type: "String", value: $cosmosDbName},
@@ -680,6 +687,7 @@ function parse_output_variables() {
     # Parse the output variables and load them into bash variables
     export WEB_APP_NAME=$(echo $output_variables | jq -r '.webAppNameChainlit.value')
     export WEB_APP_NAME_MAIN=$(echo $output_variables | jq -r '.webAppNameStreamlit.value')
+    export WEB_APP_NAME_API=$(echo $output_variables | jq -r '.webAppNameApi.value')
     export STORAGE_ACCOUNT_NAME=$(echo $output_variables | jq -r '.storageAccount.value')
     export APP_SERVICE_NAME=$(echo $output_variables | jq -r '.appServiceName.value')
     export ACR_NAME=$(echo $output_variables | jq -r '.containerRegistry.value')
@@ -1168,6 +1176,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
 
     echo "webAppName: $WEB_APP_NAME"
     echo "webAppName main (Streamlit) : $WEB_APP_NAME_MAIN"
+    echo "webAppName main (API) : $WEB_APP_NAME_API"
     echo "storageAccount: $STORAGE_ACCOUNT_NAME"
     echo "appServiceName: $APP_SERVICE_NAME"
     echo "containerRegistry: $ACR_NAME"
@@ -1209,9 +1218,11 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
     # Use the build ID to tag your Docker images
     DOCKER_CUSTOM_IMAGE_NAME_UI="$ACR_NAME.azurecr.io/research-copilot-chainlit:$BUILD_ID"
     DOCKER_CUSTOM_IMAGE_NAME_MAIN="$ACR_NAME.azurecr.io/research-copilot-streamlit:$BUILD_ID"
+    DOCKER_CUSTOM_IMAGE_NAME_API="$ACR_NAME.azurecr.io/research-copilot-api:$BUILD_ID"
 
     DOCKERFILE_PATH_UI="docker/dockerfile_chainlit_app"
     DOCKERFILE_PATH_UI_MAIN="docker/dockerfile_streamlit_app"
+    DOCKERFILE_PATH_API="docker/dockerfile_api"
 
 
     DOCKER_REGISTRY_URL="https://$ACR_NAME.azurecr.io"
@@ -1242,10 +1253,16 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
     echo "| 3. Build the streamlit app |"
     echo "|              |             |"
     echo "|              V             |"
-    echo "| 4. Update chainlit app     |"
+    echo "| 4. Build the API app       |"
     echo "|              |             |"
     echo "|              V             |"
-    echo "| 5. Update streamlit apps   |"
+    echo "| 5. Update chainlit app     |"
+    echo "|              |             |"
+    echo "|              V             |"
+    echo "| 6. Update streamlit apps   |"
+    echo "|              |             |"
+    echo "|              V             |"
+    echo "| 6. Update API app          |"
     echo "|                            |"
     echo "-----------------------------"
     echo -e "${YELLOW}****Make sure you have the docker started...otherwise docker build will fail! ${RESET}"
@@ -1279,6 +1296,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
     if [[ "$DEPLOY_INFRA" = "false" ]]; then
         export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
         export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
+        export_app_settings $WEB_APP_NAME_API $RG_WEBAPP_NAME
     fi    
 
     # Check if the current directory is multimodal-rag-code-execution
@@ -1319,12 +1337,17 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             # build the docker locally
             if [[ "$BUILD_CHAINLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the chainlit app docker locally...${RESET}"
-                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI . 
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_UI -f $DOCKERFILE_PATH_UI ui
             fi
 
             if [[ "$BUILD_STREAMLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the streamlit app docker locally...${RESET}"
-                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN . 
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_UI_MAIN ui
+            fi
+
+            if [[ "$BUILD_API" = "true" ]]; then
+                echo -e "${GREEN}Building the API app docker locally...${RESET}"
+                docker build -t $DOCKER_CUSTOM_IMAGE_NAME_MAIN -f $DOCKERFILE_PATH_API code
             fi
             #echo -e "${GREEN}Waiting for the docker build(s) to complete...${RESET}"
             #wait
@@ -1332,7 +1355,7 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             # build the docker using Azure Container Registry
             if [[ "$BUILD_CHAINLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the chainlit app docker using Azure Container Registry...${RESET}"
-                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --file $DOCKERFILE_PATH_UI . 
+                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_UI --file $DOCKERFILE_PATH_UI ui
                 if [ $? -ne 0 ]; then
                     echo "command build failed"
                     read -rp "Press enter to continue..." 
@@ -1345,7 +1368,19 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
 
             if [[ "$BUILD_STREAMLIT" = "true" ]]; then
                 echo -e "${GREEN}Building the streamlit app docker using Azure Container Registry...${RESET}"
-                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN .
+                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_MAIN --file $DOCKERFILE_PATH_UI_MAIN ui
+                if [ $? -ne 0 ]; then
+                    echo "command build failed"
+                    read -rp "Press enter to continue..." 
+                    # handle the error
+                else    
+                    echo "command build OK"
+                fi
+            fi
+
+            if [[ "$BUILD_API" = "true" ]]; then
+                echo -e "${GREEN}Building the API app docker using Azure Container Registry...${RESET}"
+                az acr build --registry $ACR_NAME --image $DOCKER_CUSTOM_IMAGE_NAME_API --file $DOCKERFILE_PATH_API code
                 if [ $? -ne 0 ]; then
                     echo "command build failed"
                     read -rp "Press enter to continue..." 
@@ -1368,6 +1403,11 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             if [[ "$BUILD_STREAMLIT" = "true" ]]; then
                 echo -e "${GREEN}Pushing the streamlit app docker to Azure Container Registry...${RESET}"
                 docker push $DOCKER_CUSTOM_IMAGE_NAME_MAIN
+                IMAGES_PUSHED="true"
+            fi
+            if [[ "$BUILD_API" = "true" ]]; then
+                echo -e "${GREEN}Pushing the API app docker to Azure Container Registry...${RESET}"
+                docker push $DOCKER_CUSTOM_IMAGE_NAME_API
                 IMAGES_PUSHED="true"
             fi
             #echo -e "${GREEN}Waiting for the docker push(es) to complete...${RESET}"
@@ -1421,9 +1461,24 @@ if [[ "$UPDATE_SETTINGS_ONLY" = "false" ]]; then
             WEBAPP_UPDATED="False"
         fi       
     fi 
+
+    if [[ "$BUILD_API" = "true" ]]; then
+        WEBAPP_UPDATED="False"    
+        # Load the settings from the JSON file    
+        # MAKING SURE THE CONTAINER IS ENABLED FOR CONTINUOUS DEPLOYMENT
+        az webapp deployment container config --enable-cd true --name $WEB_APP_NAME_API --resource-group $RG_WEBAPP_NAME > /dev/null
+        output=$(az webapp config container set --name $WEB_APP_NAME_API --resource-group $RG_WEBAPP_NAME --docker-custom-image-name $DOCKER_CUSTOM_IMAGE_NAME_API --docker-registry-server-url $DOCKER_REGISTRY_URL --docker-registry-server-user $DOCKER_USER_ID --docker-registry-server-password $DOCKER_USER_PASSWORD 2>&1)  
+        echo -e "${GREEN}****Container updated into the API web app. Give it some time to load it!${RESET}"	    
+        WEBAPP_UPDATED="true"
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Error updating the API: $output${RESET}"
+            WEBAPP_UPDATED="False"
+        fi       
+    fi 
     
     export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
     export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
+    export_app_settings $WEB_APP_NAME_API $RG_WEBAPP_NAME
 else
     # the script is run with update settings only flag
     # we get the output variables from the main deployment
@@ -1433,6 +1488,7 @@ else
     #exporting the original web app settings to files.    
     export_app_settings $WEB_APP_NAME $RG_WEBAPP_NAME
     export_app_settings $WEB_APP_NAME_MAIN $RG_WEBAPP_NAME
+    export_app_settings $WEB_APP_NAME_API $RG_WEBAPP_NAME
 fi   
 
 
@@ -1576,7 +1632,7 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     if [[ "$BUILD_CHAINLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEB_APP_NAME? (y/n)" "$RED"; then    
             settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
-            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null
+            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME --resource-group $RG_WEBAPP_NAME --settings API_BASE_URL="https://$WEB_APP_NAME_API.azurewebsites.net" > /dev/null
             if [ $? -ne 0 ]; then
                 echo -e "${RED}Error updating the chainlit: $output${RESET}"
             else
@@ -1588,11 +1644,23 @@ if [ "$UPDATE_WEBAPP_SETTINGS" = "true" ]; then
     if [[ "$BUILD_STREAMLIT" = "true" ]]; then
         if confirm "update the web app settings in $WEB_APP_NAME_MAIN? (y/n)" "$RED"; then    
             settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
-            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null
+            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_MAIN --resource-group $RG_WEBAPP_NAME --settings API_BASE_URL="https://$WEB_APP_NAME_API.azurewebsites.net" > /dev/null
             if [ $? -ne 0 ]; then
                 echo -e "${RED}Error updating the streamlit: $output${RESET}"
             else    
                 echo -e "${GREEN}****Web app (Streamlit) $WEB_APP_NAME_MAIN settings updated successfully!${RESET}"
+            fi
+        fi
+    fi 
+
+    if [[ "$BUILD_API" = "true" ]]; then
+        if confirm "update the web app settings in $WEB_APP_NAME_API? (y/n)" "$RED"; then    
+            settings=$(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|join(" ")' <<< "$app_settings")
+            MSYS_NO_PATHCONV=1 az webapp config appsettings set --name $WEB_APP_NAME_API --resource-group $RG_WEBAPP_NAME --settings $settings > /dev/null
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}Error updating the API: $output${RESET}"
+            else    
+                echo -e "${GREEN}****Web app (API) $WEB_APP_NAME_API settings updated successfully!${RESET}"
             fi
         fi
     fi

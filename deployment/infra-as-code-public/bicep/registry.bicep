@@ -59,3 +59,5 @@ resource containerRegistry_resource 'Microsoft.ContainerRegistry/registries@2023
 
 
 output containerRegistryName string = containerRegistry_resource.name
+#disable-next-line outputs-should-not-contain-secrets
+output containerRegistryPassword string = containerRegistry_resource.listCredentials().passwords[0].value

@@ -196,4 +196,6 @@ tutorials/data/
 tutorials/dbg.ipynb
 tutorials/adda.ipynb
 temp*/
+mmrag/
 
+code/test_2_doc_utils.py

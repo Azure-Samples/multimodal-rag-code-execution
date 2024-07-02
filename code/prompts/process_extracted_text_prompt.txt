@@ -1,0 +1,12 @@
+
+The Extracted Text below is extracted with OCR, and might have tables in them. The number of tables is unknown. Please reformat all text and re-arrange it. Do not add text from your side, use the Extracted Text verbatim word-for-word. If you detect tables in the Extracted Text, please output them in Markdown format. The objective here to make the Extracted Text more readable and understandable. Do **NOT** any comments, details, explanations or justifications from your part.
+
+Extracted Text:
+## START OF EXTRACTED TEXT
+{text}
+## END OF EXTRACTED TEXT
+
+If a table is present in the text, a Markdown version of the table might be available below. Use it as your guidance to reconstruct the "Extracted Text":
+{markdown}
+
+

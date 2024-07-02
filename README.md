@@ -237,7 +237,25 @@ The .env file is used for:
 
 1. Local Development if needed
 1. The deployment script will read values from the `.env` file and will population the Configuration Variables for both web apps. 
+1. To run the solution locally, add to the .env the following line: 
+    `API_BASE_URL=http://localhost:9000`
 
+<br/>
+
+## Running the API Web App
+
+The API web app **must** run first before the other two web apps. It provides API infrastructure for the other two web apps. To run the web app locally, please execute in your conda environment the following:
+
+```bash
+# cd into the code folder
+cd code
+
+# run the chainlit app
+python -m uvicorn api:app --reload --port 9000
+
+# go back to the project root folder
+cd ..
+```
 <br/>
 
 
@@ -246,7 +264,7 @@ The .env file is used for:
 The Chainlit web app is the main web app to chat with your data. To run the web app locally, please execute in your conda environment the following:
 
 ```bash
-# cd into the ui folder
+# Makre sure you're in the project root folder, then cd into the ui folder
 cd ui
 
 # run the chainlit app

@@ -97,3 +97,6 @@ resource storageAccountFileServiceShare 'Microsoft.Storage/storageAccounts/fileS
 
 @description('The name of the storage account.')
 output storageName string = storageAccountResource.name
+@description('The key of the storage account.')
+#disable-next-line outputs-should-not-contain-secrets
+output storageKey string = storageAccountResource.listKeys().keys[0].value

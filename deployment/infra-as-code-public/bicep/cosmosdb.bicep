@@ -82,20 +82,6 @@ resource cosmosdb 'Microsoft.DocumentDB/databaseAccounts@2024-02-15-preview' = {
     diagnosticLogSettings: {
       enableFullTextQuery: 'None'
     }
-    keysMetadata: {
-      primaryMasterKey: {
-        generationTime: '2024-03-28T09:44:28.367756Z'
-      }
-      secondaryMasterKey: {
-        generationTime: '2024-03-28T09:44:28.367756Z'
-      }
-      primaryReadonlyMasterKey: {
-        generationTime: '2024-03-28T09:44:28.367756Z'
-      }
-      secondaryReadonlyMasterKey: {
-        generationTime: '2024-03-28T09:44:28.367756Z'
-      }
-    }
   }
   identity: {
     type: 'None'
@@ -103,3 +89,6 @@ resource cosmosdb 'Microsoft.DocumentDB/databaseAccounts@2024-02-15-preview' = {
 }
 
 output cosmosdbName string = cosmosdb.name
+output cosmosDbUri string = cosmosdb.properties.documentEndpoint
+#disable-next-line outputs-should-not-contain-secrets
+output cosmosDbKey string = cosmosdb.listKeys().primaryMasterKey

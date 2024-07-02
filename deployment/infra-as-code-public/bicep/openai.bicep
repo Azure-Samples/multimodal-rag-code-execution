@@ -6,17 +6,17 @@ param envName string
 param openAiSkuName string = 'S0'
 
 
-param aoaiGpt4ModelName string= 'gpt-4'
-param aoaiGpt4ModelVersion string = '1106-Preview'
-param aoaiGpt4ModelDeploymentName string = 'gpt-4'
+param aoaiGpt4ModelName string= 'gpt-4o'
+param aoaiGpt4ModelVersion string = '2024-05-01-preview'
+param aoaiGpt4ModelDeploymentName string = 'gpt-4o'
 
-param aoaiEmbedingsName string = 'text-embedding-ada-002'
-param aoaiEmbedingsVersion string  = '2'
-param aoaiEmbedingsDeploymentName string = 'text-embedding-ada-002'
+param aoaiEmbedingsName string = 'text-embedding-3-large'
+param aoaiEmbedingsVersion string  = '1'
+param aoaiEmbedingsDeploymentName string = 'text-embedding-3-large'
 
-param aoaiGpt4VisionName string = 'gpt-4v'
-param aoaiGpt4VisionVersion string = 'vision-preview'
-param aoaiGpt4VisionDeploymentName string = 'gpt-4'
+param aoaiGpt4VisionName string = 'gpt-4o'
+param aoaiGpt4VisionVersion string = '2024-05-01-preview'
+param aoaiGpt4VisionDeploymentName string = 'gpt-4o'
 
 
 // Array of deployments, currently just one deployment will be used
@@ -50,20 +50,20 @@ param deployments array = [
       capacity: 120
   }
   }
-  {
-    name: aoaiGpt4VisionName
-    model: {
-      format: 'OpenAI'
-      name: aoaiGpt4VisionDeploymentName
-      version: aoaiGpt4VisionVersion
-      capacity: 10
-      contentFilter: 'Default'
-    }
-    sku: {
-      name: 'Standard'
-      capacity: 30
-  }
-  }
+  // {
+  //   name: aoaiGpt4VisionName
+  //   model: {
+  //     format: 'OpenAI'
+  //     name: aoaiGpt4VisionDeploymentName
+  //     version: aoaiGpt4VisionVersion
+  //     capacity: 10
+  //     contentFilter: 'Default'
+  //   }
+  //   sku: {
+  //     name: 'Standard'
+  //     capacity: 30
+  // }
+  // }
 ]
 // Tags for the resource group
 param tags object = {
@@ -105,4 +105,4 @@ module openAi './modules/openai.resources.bicep' = {
 
 output aoaiResourceId string = openAi.outputs.aoaiResourceId
 output aoaiResourceName string = openAi.outputs.aoaiResourceName
-
+output aoaiResourceKey string = openAi.outputs.aoaiResourceKey

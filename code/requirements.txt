@@ -1,0 +1,78 @@
+numpy>=1.24.2
+pandas>=2.0.0
+matplotlib>=3.4
+# seaborn>=0.11
+python-dotenv>=1.0.0
+openai>=1.2.4
+pyyaml>=6.0
+# scikit-learn>=1.2.2
+click>=8.0.1
+urllib3>=1.26.17
+jsonschema==4.20.0
+injector>=0.21.0
+ijson>=3.2.3
+requests>=2.31.0
+
+# Code Execution related
+ipykernel==6.26.0
+pre-commit>=2.19.0
+tenacity>=8.2.2
+plotly>=5.14.1
+pytest>=7.0.0
+vcrpy>=5.0.0
+colorama>=0.4.6
+# opencv-python
+pdfplumber
+pdf2image
+pdfminer.six
+pymupdf
+pikepdf
+ipywidgets
+pypdf
+Pillow
+# chainlit
+openpyxl
+pyperclip
+
+# APIs
+uvicorn
+fastapi
+python-multipart
+colorlog
+invoke
+azure-monitor-opentelemetry
+
+## Use 2023-10-31-preview
+azure-core
+azure-ai-formrecognizer
+azure-ai-documentintelligence>=1.0.0b2
+azure-search-documents
+azureml-core>=1.55.0
+azure-ai-ml>=1.15.0
+azure-identity>=1.15.0
+azure-storage-file-share>=12.15.0
+
+python-pptx
+python-docx 
+comtypes
+urllib3
+json_repair
+# pysqlite3 #required for chroma
+# chromadb
+chainlit==1.0.502
+mermaid-python
+# pygraphviz
+streamlit>=1.31.1
+# accelerate
+tiktoken
+# pyautogen
+# langchain
+debugpy
+#numexpr required for Langchain
+numexpr 
+# langchain_openai
+tabulate
+azure-cosmos
+## Llama-Index
+llama-index==0.10.23
+llama-index-embeddings-azure-openai==0.1.6

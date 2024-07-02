@@ -1,0 +1,9 @@
+
+{user_query}
+
+## START OF LEARNINGS
+{learnings}
+## END OF LEARNINGS
+
+The above are the accumulated Learnings from past iterations of the search results. You **MUST** use them to improve the answer of the Query. Incorporate **ALL** details from the Learnings into the final answer.
+

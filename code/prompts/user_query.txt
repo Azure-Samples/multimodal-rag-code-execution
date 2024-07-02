@@ -1,0 +1,26 @@
+
+{py_files}
+
+{run_py_files}
+
+The below are the contents of the information files, which could be a mix of text, Markdown, Mermaid and Python:
+{py_code}
+
+Here is the Chain of Thought and the step-by-step that you should follow:
+
+    1. Please analyze the question first, and locate the variables of interests in the question. For each variable, try to locate the relevant dataframes in the Infoblocks above (delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK') and the relevant variable assignment statements.
+    2. You **MUST** import the list of Python files specified by the user above in the "List of Python Files" section, if the section is available.
+    3. Use all the information provided in whatever format in the Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to identify and print to the output the variables of interest. Include the variable assignment statements in the output. Limit this list to the relevant variables **ONLY**. If Python code is included in the Infoblock, then generate the custom Python code that will do this step and execute it.
+    4. Use the Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to identify and print to the output the relevant dataframes names if provided, and print to the output all their columns. Also print all the variable assignment statements. Include the dataframes assignment statements in the output. Limit this list to the relevant dataframes **ONLY**. Generate the custom Python code that will do this step and execute it.
+    5. If you have trouble accessing the previously defined variables or the dataframes for any reasons, then use the Python Infoblocks delimited by '## START OF INFOBLOCK' and '## END OF INFOBLOCK' to extract the information you need, and then generate the needed Python code.
+    6. Generate the answer to the query. You **MUST** clarify AND print to the output **ALL** calculation steps leading up to the final answer.
+    7. You **MUST** detail how you came up with the answer. Please provide a complete description of the calculation steps taken to get to the answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34".
+    8. Generate in **FULL** the answer with all explanations and calculations steps associated with it, and share it with the user in text. **MAKE SURE** to mention the final numbers or quantities in the answer.
+    9. If the answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
+    10. **VERY IMPORTANT**: do **NOT** attempt to create a list of variables or dataframes directly. Instead, you should access the data from the variables and dataframes that were defined in the Python file that was run.
+    
+
+Question: {query}
+
+In your final answer, be elaborate in your response. Describe your logic and the calculation steps to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. Describe in details the computation steps you took, quote values and quantities, describe equations as if you are explaining a solution of a math problem to a 12-year old student. Please relay all steps to the user, and clarify how you got to the final answer. Please reference the PDF Document and the chunk number you got the answer from, e.g. "This answer was derived from document 'Sales_Presentation.pdf', chunk 34". After generating the final response, and if the final answer contains numerical data, then you **MUST** create an Excel file with an extension .xlsx with the data, you **MUST** include inside the Excel the steps of the calculations, the justification, and **ALL** the reference and source numbers and tables that you used to come up with a final answer in addition to the final answer (this Excel is meant for human consumption, do **NOT** use programming variable names as column or row headers, instead use names that are fully meaningful to humans), you **MUST** be elaborate in your comments and rows and column names inside the Excel, you **MUST** save it to the working directory, and then you **MUST** print the full path of the Excel sheet with the final answer - use os.path.abs() to print the full path.
+

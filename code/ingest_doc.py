@@ -2,13 +2,14 @@ import argparse
 import os
 import sys
 import json
-import time
-sys.path.append("./")
+import logging
 from doc_utils import *
 from processor import *
-import doc_utils
-
+import utils.logc
 from utils.ingestion_cosmos_helper import *
+from log_utils import setup_logger
+
+sys.path.append("./")
 
 #Cosmos will be used to store the indexing process
 import utils.cosmos_helpers as cs
@@ -23,6 +24,7 @@ parser = argparse.ArgumentParser(description='Ingest documents.')
 # Add the required arguments
 parser.add_argument('--ingestion_params_dict', type=str, help='Ingestion params dictionary')
 
+setup_logger()
 
 # Parse the command-line arguments
 args = parser.parse_args()
@@ -58,8 +60,8 @@ if datastore_mount is not None:
     os.environ['ROOT_PATH_INGESTION'] = datastore_mount
     ROOT_PATH_INGESTION = datastore_mount
 
-    print(f"\n\nROOT_PATH_INGESTION is now {ROOT_PATH_INGESTION}")
-    # print(f"Changing Current Working Directory in Python to {os.path.dirname(datastore_mount)}\n\n")
+    logging.info(f"\n\nROOT_PATH_INGESTION is now {ROOT_PATH_INGESTION}")
+    # logging.info(f"Changing Current Working Directory in Python to {os.path.dirname(datastore_mount)}\n\n")
     os.chdir(os.path.join(datastore_mount, ingestion_params_dict["index_name"]))
 
 else:
@@ -76,9 +78,9 @@ processing_mode_docx = ingestion_params_dict['processing_mode_docx']
 processing_mode_xlsx = ingestion_params_dict['processing_mode_xlsx']
 
 
-print("\n\nIngestion Directory", ingestion_directory)
-print("Download Directory", download_directory)
-print(f"Current Working Directory {os.getcwd()}\n\n")
+logging.info("\n\nIngestion Directory: %s", ingestion_directory)
+logging.info("Download Directory: %s", download_directory)
+logging.info("Current Working Directory: %s\n\n", os.getcwd())
 
 
 processing_logs = []
@@ -97,8 +99,8 @@ def append_log_message(message, text=None):
         document['log_entries'] = processing_logs
         cosmos.upsert_document(document, index_name)
     
-
-doc_utils.log_ui_func_hook = append_log_message
+# Ensure all doc_utils.logc calls are redirected to the append_log_message function
+utils.logc.log_ui_func_hook = append_log_message
 
 def create_indexing_logs(index_name):
     return ic.update_cosmos_with_download_files(index_name, download_directory)
@@ -106,15 +108,15 @@ def create_indexing_logs(index_name):
 
 indexing_document = create_indexing_logs(index_name) 
 
-print(f"\n\nIndexing Document:\n{indexing_document}\n\n")
+logging.info(f"\n\nIndexing Document:\n%s\n\n", indexing_document)
 
 if indexing_document is None:
-    print(f"Failed to create the document for index {index_name}")
+    logging.info(f"Failed to create the document for index %s", index_name)
 else:
     for root, dirs, files in os.walk(download_directory):
-            print(f"Found the following files: {files} in the downloads dir {download_directory}")
+            logging.info(f"Found the following files: %s in the downloads dir %s", files, download_directory)
             for file in files:
-                print(f"Looking at file: {file}")
+                logging.info(f"Looking at file: %s", file)
 
                 file_index = next((index for index, f in enumerate(indexing_document['files_uploaded']) if f['file_name'] == file.lower()), None)
 
@@ -126,23 +128,23 @@ else:
                             break
                 
                 if ingested == True: 
-                    print(f"Already ingested file: {file}. Skipping.")
+                    logging.info(f"Already ingested file: %s. Skipping.", file)
                     continue
 
                 if file.endswith('.ingested'): 
-                    # print(f"Ingested file flag found for: {file}. Skipping.")
-                    print(f"Extension 'ingested' not supporting: {file}. Skipping.")
+                    # logging.info(f"Ingested file flag found for: %s. Skipping.", file)
+                    logging.info(f"Extension 'ingested' not supporting: %s. Skipping.", file)
                     continue
                 
                 extension = os.path.splitext(os.path.basename(file))[1].strip().lower()
                 if extension not in ['.pdf', '.docx', '.xlsx', '.doc', '.xls', '.csv']: 
-                    print(f"Extension not supported: {file}. Skipping.")
+                    logging.info(f"Extension not supported: %s. Skipping.", file)
                     continue
 
                 if os.path.exists(os.path.join(root, file + '.ingested')): 
                     indexing_document['files_uploaded'][file_index]['status'] = 'Ingested'
                     cosmos.upsert_document(indexing_document, category_id=index_name)
-                    print(f"Ingested file flag found for: {file}. Skipping.")
+                    logging.info(f"Ingested file flag found for: %s. Skipping.", file)
                     continue
 
                 # try:
@@ -164,8 +166,4 @@ else:
                 #     indexing_document['files_uploaded'][file_index]['status'] = 'Failed'
                 #     indexing_document['files_uploaded'][file_index]['error'] = f'{e}'
                 #     cosmos.upsert_document(indexing_document, category_id=index_name)
-                #     print(f"Failed to ingest the file {file} with exception: {e}")
-
-
-
-
+                #     logging.info(f"Failed to ingest the file %s with exception: %s", file, e)

@@ -45,3 +45,6 @@ resource devresearchdocumentintelligence 'Microsoft.CognitiveServices/accounts@2
 
 output documentIntelligenceName string = devresearchdocumentintelligence.name
 output documentIntelligenceId string = devresearchdocumentintelligence.id
+output documentIntelligenceEndpoint string = devresearchdocumentintelligence.properties.endpoint
+#disable-next-line outputs-should-not-contain-secrets
+output documentIntelligenceKey string = devresearchdocumentintelligence.listKeys().key1

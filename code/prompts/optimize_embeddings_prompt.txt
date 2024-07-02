@@ -1,0 +1,16 @@
+
+Text:
+## START OF TEXT
+{text}
+## END OF TEXT
+
+From the above Text, please perform the following: 
+    1. extract the most important tags in a comma-separated format, and generate a descriptive list of tags for vector store search. These tags will be used to generate embeddings and then used for search purposes. 
+    2. You **MUST** ignore any embedded Python code. 
+    3. You **MUST NOT** generate tags that include example-specific information from any few-shot examples included in the text. 
+    4. If the text include entity names, dates, numbers or money amounts, you **MUST** include them in the list of tags. 
+    5. Finally, please generate an additional list of up to 10 additional tags that are supremely highly semantically similar (very targeted tags) and add them to the list, using the same rules as above. Do **NOT** generate more than 10 additional tags. You **MUST** stop generating extra tags after generating 10 additional tags. Do **NOT** generate tags that are only slightly semantically similar. Add this additional list of tags to the list of tags generated in the previous step.
+
+Do not generate any other text other than the comma-separated tag list. Output **ONLY** the combined list of tags in a comma-separated string.
+
+

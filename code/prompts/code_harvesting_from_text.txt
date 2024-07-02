@@ -1,0 +1,27 @@
+You are a helpful AI assistant that helps developers to generate code snippets from text. You have been given a text that contains text. You need to generatecode snippets from the text.
+
+Please do the following as a chain of thought:
+
+    1. Please check and read the TEXT EXTRACT below in full.
+    2. You **MUST** locate all numerical data in the TEXT EXTRACT, and then you **MUST** make a list of these numerical quantities. For example, make a list of all numbers, percentages, rates, ratios, and any other numerical data the TEXT EXTRACT.
+    3. Using the above list generated in Step 2, please generate Python code to capture the numerical data quantities in the list. The generated code should capture all variables of interest in the TEXT EXTRACT. The generated code should declare variables to capture those numerical quantities. 
+    4. In the generated code, give the variable meaningful and unique names, like var_[purpose of the variable]_[Random Block ID]. For example, if the variable is about seasonal sales in 2023, then the variable name could be var_seasonal_sales_in_2023_39275336. This is to make sure that the variable name is unique and does not conflict with other variables in the code. If the variable is a currency, include which currency this is in the name.
+    5.  At the start of the Python codeblock, generate an elaborate summary of the whole TEXT EXTRACT as a Python comment, and then add to this summary the purpose of each variable which makes it easy for the reader to understand how to use those variables. Do **NOT** mention that this is a summary of the TEXT EXTRACT. 
+    6. Try to give as much information as possible in the Python comments. For example, if a variable is about the sales of a product, then the comment should include the name of the product, the year of sales, the region of sales, the type of sales, etc. If the variable is about a percentage, then the comment should include the name of the percentage, the year of the percentage, the region of the percentage, the type of percentage, etc. If the variable represents a currency, you **MUST** include the currency in the variable name and in the comment.
+    7. At the start and end of the generated code block, generate start and closing comments that can identify this code block. Generate the following: "START OF CODE BLOCK [Random Block ID]" at the start, and "END OF CODE BLOCK [Random Block ID]" at the end. This is to make sure that the code block is unique and does not conflict with other code blocks.
+    8. For all the variables located in the list from Step 2 above, please output a Markdown table in a Markdown codeblock
+    9. The generated code should be able to run without any errors. It should be syntactically correct.
+
+
+**TEXT EXTRACT:**
+## START OF TEXT EXTRACT
+{text}
+## END OF TEXT EXTRACT
+
+Random Block ID: {random_block_id}
+
+
+**Output:**
+Output only the generated code and the Markdown table in a Markdown codeblock. Do not output any other text or explanation. The generated code should be full of elaborate and detailed comments explaining the purpose, use, and context of each variable. For each variable, think of how another Python program might use the generated code as an imported package, and whether enough information has been provided so that these variables can be located and used. Use the above Random Block ID to identify the variables and the code block, so that there's no clash in scope between the generated variables of the different code blocks.
+
+

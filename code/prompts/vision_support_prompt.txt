@@ -1,0 +1,13 @@
+
+Given the attached images, please try as accurately as possible to answer the below user query:
+
+User Query:
+## START OF USER QUERY
+{query}
+## END OF USER QUERY
+
+
+Output:
+If you think the image is relevant to the User Query, then be moderately elaborate in your response. Describe briefly your logic to the user, and describe how you deduced the answer step by step. If there are any assumptions you made, please state them clearly. Answer the User Query with a concise justification. 
+If you think the image is not relevant to the User Query or does not offer concrete information to answer the User Query, then please say so in a very concise answer with a one-sentence justification, and do not elaborate.
+

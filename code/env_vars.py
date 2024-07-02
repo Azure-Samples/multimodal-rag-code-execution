@@ -113,6 +113,7 @@ AML_TENANT_ID = os.environ.get('AML_TENANT_ID', '')
 AML_SERVICE_PRINCIPAL_ID = os.environ.get('AML_SERVICE_PRINCIPAL_ID', '')
 AML_PASSWORD = os.environ.get('AML_PASSWORD', '')
 AML_VMSIZE = os.environ.get('AML_VMSIZE', 'Standard_DS3_v2')
+AML_CLUSTER_NAME = os.environ.get('AML_CLUSTER_NAME','mm-doc-cpu-cluster')
 
 FULL_TEXT_TOKEN_LIMIT = int(os.environ.get('FULL_TEXT_TOKEN_LIMIT', '100000'))
 
@@ -132,3 +133,5 @@ AZURE_NEO4J_URI = os.environ.get('AZURE_NEO4J_URI', '')
 AZURE_NEO4J_USERNAME = os.environ.get('AZURE_NEO4J_USERNAME', '')
 AZURE_NEO4J_PASSWORD = os.environ.get('AZURE_NEO4J_PASSWORD', '')
 AZURE_NEO4J_DATABASE = os.environ.get('AZURE_NEO4J_DATABASE', '')
+
+APPLICATIONINSIGHTS_CONNECTION_STRING = os.environ.get('APPLICATIONINSIGHTS_CONNECTION_STRING', '')

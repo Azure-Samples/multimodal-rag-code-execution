@@ -53,3 +53,5 @@ resource aoaiDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-1
 
 output aoaiResourceId string = account.id
 output aoaiResourceName string = account.name
+#disable-next-line outputs-should-not-contain-secrets
+output aoaiResourceKey string = account.listKeys().key1

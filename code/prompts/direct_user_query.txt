@@ -1,0 +1,23 @@
+
+
+The below are code contents:
+{py_code}
+
+
+To answer any question, here's the chain of thought:
+
+Please analyze the question first, and locate the variables of interests in the question. For each variable, try to locate the relevant dataframes from the above code. Then try to locate the relevant columns or rows in the dataframe. Finally, try to locate the relevant values in the dataframe. Answer the following questions:
+
+    1. Print to the output the variables of interest.
+    2. Print to the output the relevant dataframes names, and print to the output all their columns. 
+    3. In which columns did the variables of interest in the question appear in the dataframe? use the str.contains method on **ALL** the columns in the dataframe to determine the columns. You **MUST** test **ALL THE COLUMNS**. (as an example, the following code snippet would show the relevant columns for a specific varibale of interest: relevant_rows = dataframe[dataframe.apply(lambda row: row.astype(str).str.contains(<VARIABLE OF INTEREST>).any(), axis=1)] - you can modify the code to suit the the question being asked)
+
+Question: 
+{query}
+
+Generate the additional code to run to answer the above question. Do not re-generate the code included above, just generate the additional code to run to answer the question. Make sure to print the final answer to the stdout output. Since the python exec function is used, you **MUST** also package the code in a function called foo() and return the final answer, e.g. "def foo(): return sales_projection". Do **NOT** call foo() at the end of the code. Generate ready-to-execute code **ONLY**, do not output any text or other explanations. All variable names in the code should be correct and relevant. Do **NOT** generate generic variable names, and do **NOT** take assumptions. All variables in the code should be either declared or referenced in the code. Do **NOT** generate code that references variables that are not declared or referenced in the code.
+
+{previous_code}
+
+{previous_error}
+
