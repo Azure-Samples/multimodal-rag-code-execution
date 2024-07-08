@@ -40,7 +40,7 @@ Evaluate or check your own responses before producing them: ​
 #below is an example for a company but adapt your generation based on the knowedlge you have about the industry: 
 ## START OF EXAMPLE
 An investment analysis forecasts a 2.5x MOIC and 28% IRR, assuming a 2025 exit at 15x EBITDA, excluding M&A. The company's EV stands at €344m, a 15x multiple of 2021E EBITDA of €22.9m, with a unitranche debt of €120m at 6.5% interest. 
-Equity funding totals €230m, €130m of which comes from ADIA. The financial structure is diversified, with 2% cash, 34% debt, and 65% equity. 
+Equity funding totals €230m, €130m of which comes from the orgranization. The financial structure is diversified, with 2% cash, 34% debt, and 65% equity. 
 Uses include a substantial equity purchase and refinancing debt. 
 Preliminary returns, based on TEV/EBITDA multiples from 13.0x to 17.0x, suggest a MOIC range of 1.8x to 3.6x and an IRR of 19% to 41%, indicating a significant impact of entry valuation on returns.
 A 5% management incentive plan is acknowledged.
