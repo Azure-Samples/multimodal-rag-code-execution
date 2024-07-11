@@ -7,9 +7,12 @@ param uniqueid string
 @description('The resource group location')
 param location string = resourceGroup().location
 
+@description('A prefix that will be prepended to resource names')
+param namePrefix string = 'dev'
+
 // variables
 // var storageName = 'st${uniqueid}'
-var storageName = 'st${uniqueid}'
+var storageName = '${namePrefix}st${uniqueid}'
 // var storageSkuName = 'Premium_LRS'
 
 

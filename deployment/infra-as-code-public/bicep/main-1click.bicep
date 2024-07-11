@@ -42,6 +42,7 @@ module storageModule 'storage.bicep' = {
   name: 'storageDeploy'
   params: {
     location: location
+    namePrefix: namePrefix
     uniqueid: uniqueid        
   }
 }
@@ -85,9 +86,12 @@ module webappModule 'webapp.bicep' = {
    dependsOn: [acr]
 }
 
-module openAIResource 'openai.bicep' = if (empty(openAIName) && !empty(newOpenAILocation)) {
+module openAIResource 'openai.bicep' = {
   name: 'openaiDeploy'
   params: {
+    openAIName: openAIName
+    openAIRGName: openAIRGName
+    namePrefix: namePrefix
     location: !empty(newOpenAILocation) ? newOpenAILocation : 'swedencentral'
     envName: namePrefix
   }
@@ -158,14 +162,8 @@ module script 'modules/script.bicep' = {
   ]
 }
 
-resource openAI 'Microsoft.CognitiveServices/accounts@2022-03-01' existing = if (!empty(openAIName) && !empty(openAIRGName)) {
-  name: openAIName
-  scope: resourceGroup(openAIRGName)
-}
-
-// Get the OpenAI resource name and key depending on whether the resource was created or already existed
-var oaiName = !empty(openAIName) ? openAI.name : openAIResource.outputs.aoaiResourceName
-var oaiKey = !empty(openAIName) ? openAI.listKeys().key1 : openAIResource.outputs.aoaiResourceKey
+var oaiName = openAIResource.outputs.aoaiResourceName
+var oaiKey = openAIResource.outputs.aoaiResourceKey
 
 module apiAppSettings 'modules/appsettings.bicep' = {
   name: 'appsettings'
@@ -208,7 +206,7 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       DI_ENDPOINT: documentInteligence.outputs.documentIntelligenceEndpoint
       DI_KEY: documentInteligence.outputs.documentIntelligenceKey
       DI_API_VERSION: '2024-02-29-preview'
-      AZURE_OPENAI_RESOURCE: openAI.name
+      AZURE_OPENAI_RESOURCE: oaiName
       AZURE_OPENAI_KEY: oaiKey
       AZURE_OPENAI_MODEL: 'gpt-4o'
       AZURE_OPENAI_RESOURCE_1: oaiName
