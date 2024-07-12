@@ -3,6 +3,10 @@ import os
 import uuid
 import requests
 import pyperclip as pc
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Set up logging format
 import logging
@@ -96,16 +100,31 @@ class APIClient:
             logging.error(f"Failed to generate new section: {e}")
             raise
 
-    def generate_content(self, content, index_name):
+    def generate_content(self, content, index_name, learnings = None, top=5, approx_tag_limit=5, conversation_history = [], user_id = "null", computation_approach = "AssistantsAPI", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, verbose = False):
         try:
             logging.info("Generating content")
             response = requests.post(f"{self.base_url}/search", 
                                      json={
-                                         "query": content, 
-                                         "index_name": index_name, 
-                                         "computation_approach": "AssistantsAPI", 
-                                         "computation_decision":"LLM"
+                                        "query": content,
+                                        "top": top,
+                                        "approx_tag_limit": approx_tag_limit,
+                                        "conversation_history": conversation_history,
+                                        "user_id": user_id,
+                                        "computation_approach": computation_approach,
+                                        "computation_decision": computation_decision,
+                                        "vision_support": vision_support,
+                                        "include_master_py": include_master_py,
+                                        "vector_directory": vector_directory,
+                                        "vector_type": vector_type,
+                                        "index_name": index_name,
+                                        "full_search_output": full_search_output,
+                                        "count": count,
+                                        "token_limit": token_limit,
+                                        "temperature": temperature,
+                                        "verbose": verbose
                                      })
+            
+            print(response)
             response.raise_for_status()
             return response.json()
         except HTTPError as e:
@@ -187,7 +206,7 @@ def generate_consolidated_content(content, sections):
     return content + "\n\n" + "\n\n".join(section_contents)
 
 def generate_content(content):
-    final_answer, references, output_excel, search_results, files  = api_client.generate_content(content, st.session_state.prompt_index)
+    final_answer, references, output_excel, search_results, files, steps  = api_client.generate_content(content, st.session_state.prompt_index)
     return final_answer
 
 def save_prompt(prompt, edited_sections, edited_content):
@@ -312,12 +331,12 @@ if category_name:
         st.session_state.processing = False
 
     consolidated_content = generate_consolidated_content(edited_content, edited_sections)
-    consolidated_prompt = secondCol.text_area("Consolidated prompt:", value=consolidated_content, height=1200, key="consolidatedContentText", disabled=True)
+    consolidated_prompt = secondCol.text_area("Consolidated prompt:", value=consolidated_content, height=1200, key="consolidatedContentText", disabled=False)
 
-    copy_col, test_prompt_col  = secondCol.columns([1, 1])
+    # copy_col, test_prompt_col  = secondCol.columns([1, 1])
 
-    test_prompt = test_prompt_col.button("Test prompt")
-    copy_prompt = copy_col.button("Copy Prompt")
+    test_prompt = secondCol.button("Test prompt")
+    # copy_prompt = copy_col.button("Copy Prompt")
  
     answer = ''
 
@@ -329,14 +348,14 @@ if category_name:
             with st.spinner('Generating results...'):
                 answer = generate_content(consolidated_content)
             
-    if copy_prompt:
-        pc.copy(consolidated_content)
-        st.success("Prompt copied to clipboard.")
+    # if copy_prompt:
+    #     pc.copy(consolidated_content)
+    #     st.success("Prompt copied to clipboard.")
 
     
-    test_output = outputCol.text_area("Test Output:", value=answer, height=1200, key="promptTestOutput", disabled=True)
+    test_output = outputCol.text_area("Test Output:", value=answer, height=1200, key="promptTestOutput", disabled=False)
 
-    outputCol.button("Copy Output", key="copy_consolidated_prompt", on_click=pc.copy, args=[st.session_state.promptTestOutput])
+    # outputCol.button("Copy Output", key="copy_consolidated_prompt", on_click=pc.copy, args=[st.session_state.promptTestOutput])
 else:
     st.markdown("## Please select a section to view or edit the prompt.")  
 
