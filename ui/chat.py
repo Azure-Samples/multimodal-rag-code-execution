@@ -1,5 +1,6 @@
 import os
 import requests
+import json
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -102,6 +103,20 @@ class APIClient:
             response = requests.post(f"{self.base_url}/search", json=query_params)
             response.raise_for_status()            
             return response.json()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"Error searching: {e}")
+            raise
+        
+    async def search_stream(self, query_params):
+        try:
+            with requests.post(f"{self.base_url}/search-stream", json=query_params, stream=True) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if line:  # filter out keep-alive new lines
+                        print(f"Streaming response: {line}")
+                        kind, content = json.loads(line)
+                        yield kind, content
+                            
         except requests.exceptions.HTTPError as e:
             logging.error(f"Error searching: {e}")
             raise
@@ -465,36 +480,40 @@ def get_asset_file(asset):
     except Exception as e:
         log_message(f"Error reading asset file: {e}", 'error')    
 
-def search(query, learnings = None, top=3, approx_tag_limit=3, conversation_history = [], user_id = None, computation_approach = "AssistantsAPI", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, verbose = False):
-    try:
-        return api_client.search({
-            "query": query,
-            "top": top,
-            "approx_tag_limit": approx_tag_limit,
-            "conversation_history": conversation_history,
-            "user_id": user_id,
-            "computation_approach": computation_approach,
-            "computation_decision": computation_decision,
-            "vision_support": vision_support,
-            "include_master_py": include_master_py,
-            "vector_directory": vector_directory,
-            "vector_type": vector_type,
-            "index_name": index_name,
-            "full_search_output": full_search_output,
-            "count": count,
-            "token_limit": token_limit,
-            "temperature": temperature,
-            "verbose": verbose
-        })
-    except Exception as e:
-        log_message(f"Error searching documents: {e}", 'error')
+async def search(query, learnings=None, top=3, approx_tag_limit=3, conversation_history=[], user_id=None, computation_approach="AssistantsAPI", computation_decision="LLM", vision_support=False, include_master_py=True, vector_directory=None, vector_type="AISearch", index_name='mm_doc_analysis', full_search_output=True, count=False, token_limit=100000, temperature=0.2, verbose=False):
+    async for kind, content in api_client.search_stream({
+        "query": query,
+        "top": top,
+        "approx_tag_limit": approx_tag_limit,
+        "conversation_history": conversation_history,
+        "user_id": user_id,
+        "computation_approach": computation_approach,
+        "computation_decision": computation_decision,
+        "vision_support": vision_support,
+        "include_master_py": include_master_py,
+        "vector_directory": vector_directory,
+        "vector_type": vector_type,
+        "index_name": index_name,
+        "full_search_output": full_search_output,
+        "count": count,
+        "token_limit": token_limit,
+        "temperature": temperature,
+        "verbose": verbose
+    }):
+        if kind == 'STEP':            
+            message, text = content
+            await post_message(message, text)
+        elif kind == 'RESULT':
+            return content
+        elif kind == 'ERROR':
+            raise Exception(content)          
 
 
 async def app_search(query: str):   
     session_id = conversations[cl.user_session.get("id")]
     log_message(f"Conversation History {session_id}")
 
-    final_answer, references, output_excel, search_results, files, steps = await cl.make_async(search)(
+    final_answer, references, output_excel, search_results, files = await search(
         query, 
         top=top_ns[cl.user_session.get("id")], 
         approx_tag_limit = approx_tag_limits[cl.user_session.get("id")],
@@ -508,10 +527,6 @@ async def app_search(query: str):
         index_name = index_names[cl.user_session.get("id")], 
         count=False, 
         verbose = False)
-    
-    if steps:
-        for [message, text] in steps:
-            post_message_sync(message, text)
 
     final_elements = []
 

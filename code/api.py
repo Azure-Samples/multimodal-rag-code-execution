@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException, UploadFile, Depends
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse, StreamingResponse
 import psutil
 from pydantic import BaseModel
 import re
@@ -26,17 +26,12 @@ from aml_job import AmlJob
 from env_vars import ROOT_PATH_INGESTION
 from utils.ingestion_cosmos_helper import IngestionCosmosHelper
 import threading
-
-# steps = {}
-# def append_step_message(message, text=None):
-#     current_thread_id = threading.get_ident()
-#     if current_thread_id in steps:
-#         steps[current_thread_id] = []
-#     steps[current_thread_id].append([message, text])
     
 # Ensure all doc_utils.logc calls are redirected to the append_log_message function
 import utils.logc
-# utils.logc.log_ui_func_hook = append_step_message
+import asyncio
+import threading
+
 # Dependency to modify log_ui_func_hook based on request data
 def modify_log_ui_func_hook(request: Request):
     steps = []
@@ -206,6 +201,67 @@ class SearchRequest(BaseModel):
     token_limit: int
     temperature: float
     verbose: bool
+   
+# Dependency to create a new queue and set the custom log function for the current request
+def set_custom_log_hook():
+    request_steps_queue = asyncio.Queue()  # Create a new queue for this request
+    utils.logc.log_ui_func_hook = lambda message, text=None: request_steps_queue.put_nowait(["STEP", [message, text]])
+    return request_steps_queue
+
+async def result_streamer(request_steps_queue: asyncio.Queue):
+    while True:
+        step = await request_steps_queue.get()
+        print(f"\n\nStep: {step}\n\n")
+        kind, content = step
+        if kind == "END":
+            break
+        yield json.dumps(step) + "\n" # NEW LINE DELIMITED JSON
+
+# Update the endpoint to use the modified dependency and generator
+@app.post("/search-stream")
+async def run_search_stream(request: SearchRequest, request_steps_queue=Depends(set_custom_log_hook)):
+    try:
+        # invoke search function matching the signature using the request object
+        logging.info(f"Running search with input: {request}")
+        def run_search_in_thread(request, request_steps_queue):
+            try:
+                final_answer, references, output_excel, search_results, files = search(
+                    query=request.query, 
+                    learnings=None, 
+                    top=request.top, 
+                    approx_tag_limit=request.approx_tag_limit, 
+                    conversation_history=request.conversation_history, 
+                    user_id=request.user_id, 
+                    computation_approach=request.computation_approach, 
+                    computation_decision=request.computation_decision, 
+                    vision_support=request.vision_support, 
+                    include_master_py=request.include_master_py, 
+                    vector_directory=os.path.join(ROOT_PATH_INGESTION, request.index_name), 
+                    vector_type=request.vector_type, 
+                    index_name=request.index_name, 
+                    full_search_output=request.full_search_output, 
+                    count=request.count, 
+                    token_limit=request.token_limit, 
+                    temperature=request.temperature, 
+                    verbose=request.verbose)
+                
+                # First put result in the queue, then signal the end of the stream
+                request_steps_queue.put_nowait(("RESULT", [final_answer, references, output_excel, search_results, files]))
+            except Exception as e:
+                logging.error(f"Error running search: {str(e)}", exc_info=True)
+                request_steps_queue.put_nowait(("ERROR", str(e), None))
+                raise HTTPException(status_code=500, detail=str(e))
+            finally:
+                request_steps_queue.put_nowait(("END", None))  # Signal the end of the stream
+
+         # Create a new thread to run the search function
+        search_thread = threading.Thread(target=run_search_in_thread, args=(request, request_steps_queue))
+        search_thread.start()
+
+        return StreamingResponse(result_streamer(request_steps_queue), media_type="application/x-ndjson")
+    except Exception as e:
+        logging.error(f"Error running search: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # A POST /search that takes a JSON with following structure:
 @app.post("/search")
