@@ -2,7 +2,7 @@ from invoke import task, run
 
 @task
 def start_main(c):
-    c.run("cd ui & python -m streamlit run -w main.py")
+    c.run("cd ui & python -m streamlit run main.py")
 
 @task
 def start_chat(c):

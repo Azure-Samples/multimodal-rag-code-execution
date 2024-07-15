@@ -84,7 +84,6 @@ logging.info("Current Working Directory: %s\n\n", os.getcwd())
 
 
 processing_logs = []
-
 def append_log_message(message, text=None):
     # Append new message to the session state list of log entries
     processing_logs.append(message + f": {text}" if text else "")
@@ -98,9 +97,10 @@ def append_log_message(message, text=None):
     if document is not None:
         document['log_entries'] = processing_logs
         cosmos.upsert_document(document, index_name)
-    
+
 # Ensure all doc_utils.logc calls are redirected to the append_log_message function
-utils.logc.log_ui_func_hook = append_log_message
+from utils.logc import log_hook_var
+log_hook_var.set(append_log_message)
 
 def create_indexing_logs(index_name):
     return ic.update_cosmos_with_download_files(index_name, download_directory)

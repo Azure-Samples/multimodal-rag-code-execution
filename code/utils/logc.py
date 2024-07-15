@@ -1,8 +1,12 @@
 import logging
+import contextvars
 from utils.bcolors import bcolors as bc
 from datetime import datetime
 
-log_ui_func_hook = None
+# Define a context variable for the log hook
+# This is required to specialize the logc function for the API to stream logs to the UI
+# and must be differently for each request
+log_hook_var = contextvars.ContextVar('log_hook', default=None)
 
 def get_current_time():
     return datetime.now().strftime("%d.%m.%Y_%H.%M.%S")
@@ -33,11 +37,11 @@ def logc(label, text = None, newline=False, timestamp=False, verbose=True):
             out_n = f"\n{label}{nls}"
             if verbose: logging.info(out_s)
 
+    log_ui_func_hook = log_hook_var.get()
     if log_ui_func_hook is not None:
         try:
             log_ui_func_hook(label, text)
         except Exception as e:
             logging.error(f"Error in log_ui_func_hook")
     else:
-        pass
-        # print("log_ui_func_hook is None")
+        logging.warning(f"Log hook not set. No logs will be streamed to the UI or stored on filesystem.")

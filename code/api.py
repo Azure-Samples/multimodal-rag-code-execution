@@ -32,12 +32,6 @@ import utils.logc
 import asyncio
 import threading
 
-# Dependency to modify log_ui_func_hook based on request data
-def modify_log_ui_func_hook(request: Request):
-    steps = []
-    utils.logc.log_ui_func_hook = lambda message, text=None: steps.append([message, text])
-    return steps
-
 # Global setup
 LOG_CONTAINER_NAME = os.environ.get("COSMOS_LOG_CONTAINER")
 
@@ -201,13 +195,26 @@ class SearchRequest(BaseModel):
     token_limit: int
     temperature: float
     verbose: bool
-   
-# Dependency to create a new queue and set the custom log function for the current request
-def set_custom_log_hook():
-    request_steps_queue = asyncio.Queue()  # Create a new queue for this request
-    utils.logc.log_ui_func_hook = lambda message, text=None: request_steps_queue.put_nowait(["STEP", [message, text]])
-    return request_steps_queue
 
+# This middleware will create a new queue for each request and attach it to the request state
+# This way, logc calls will log to this queue allowing the response to stream the steps to client before the final result
+from utils.logc import log_hook_var
+@app.middleware("http")
+async def log_middleware(request: Request, call_next):
+    request_steps_queue = asyncio.Queue()  # Create a new queue for this request
+    log_hook = lambda message, text=None: request_steps_queue.put_nowait(["STEP", [message, text]])
+    token = log_hook_var.set(log_hook)
+    try:
+        request.state.request_steps_queue = request_steps_queue
+        response = await call_next(request)
+    finally:
+        log_hook_var.reset(token)
+        
+    return response
+
+# Generator function to stream the steps to the client
+# The generator will yield each step as it is logged and then the final result at the end
+# Expected steps are tuples of (kind, content) where kind is either "STEP" or "RESULT", or "END" to signal the end of the stream
 async def result_streamer(request_steps_queue: asyncio.Queue):
     while True:
         step = await request_steps_queue.get()
@@ -217,12 +224,15 @@ async def result_streamer(request_steps_queue: asyncio.Queue):
             break
         yield json.dumps(step) + "\n" # NEW LINE DELIMITED JSON
 
-# Update the endpoint to use the modified dependency and generator
+# SEARCH endpoint that streams the steps to the client
 @app.post("/search-stream")
-async def run_search_stream(request: SearchRequest, request_steps_queue=Depends(set_custom_log_hook)):
+async def run_search_stream(request: SearchRequest):
     try:
         # invoke search function matching the signature using the request object
         logging.info(f"Running search with input: {request}")
+        # Provided by the middleware above
+        request_steps_queue = request.state.request_steps_queue
+        # Search must be run in a separate thread to allow the steps to be streamed to the client
         def run_search_in_thread(request, request_steps_queue):
             try:
                 final_answer, references, output_excel, search_results, files = search(
@@ -252,19 +262,30 @@ async def run_search_stream(request: SearchRequest, request_steps_queue=Depends(
                 request_steps_queue.put_nowait(("ERROR", str(e), None))
                 raise HTTPException(status_code=500, detail=str(e))
             finally:
-                request_steps_queue.put_nowait(("END", None))  # Signal the end of the stream
+                # Signal the end of the stream
+                # This must be done in a finally block to ensure the stream is closed even if an exception occurs
+                request_steps_queue.put_nowait(("END", None)) 
 
          # Create a new thread to run the search function
         search_thread = threading.Thread(target=run_search_in_thread, args=(request, request_steps_queue))
         search_thread.start()
 
+        # Return the streaming response
+        # NOTE: this must be returned immediately to allow the client to start receiving the stream
+        # This is why a separate thread is used to run the search function
         return StreamingResponse(result_streamer(request_steps_queue), media_type="application/x-ndjson")
     except Exception as e:
         logging.error(f"Error running search: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# Dependency to modify log_ui_func_hook based on request data
+def modify_log_ui_func_hook(request: Request):
+    steps = []
+    utils.logc.log_ui_func_hook = lambda message, text=None: steps.append([message, text])
+    return steps
 # A POST /search that takes a JSON with following structure:
-@app.post("/search")
+@app.post("/search", description="OBSOLETE, use /search-stream instead")
 def run_search(request: SearchRequest, steps = Depends(modify_log_ui_func_hook)):
     try:
         # invoke search function matching the signature using the request object
