@@ -54,6 +54,8 @@ function DeployWebApp($webAppName, $dockerImageName, $dockerFile, $sourceFolder,
             --container-registry-user $ACR_NAME `
             --container-registry-password $acrPassword
 
+        az webapp restart --name $webAppName --resource-group $RG
+
         Write-Host "$dockerImageName build completed and deployed to Azure Web App $webAppName" -ForegroundColor Green
     } else {
         Write-Host "$dockerImageName build skipped by the user." -ForegroundColor Yellow

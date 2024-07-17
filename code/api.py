@@ -12,7 +12,7 @@ import shutil
 import json
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 # setup logging
 from log_utils import setup_logger
@@ -199,18 +199,6 @@ class SearchRequest(BaseModel):
 # This middleware will create a new queue for each request and attach it to the request state
 # This way, logc calls will log to this queue allowing the response to stream the steps to client before the final result
 from utils.logc import log_hook_var
-@app.middleware("http")
-async def log_middleware(request: Request, call_next):
-    request_steps_queue = asyncio.Queue()  # Create a new queue for this request
-    log_hook = lambda message, text=None: request_steps_queue.put_nowait(["STEP", [message, text]])
-    token = log_hook_var.set(log_hook)
-    try:
-        request.state.request_steps_queue = request_steps_queue
-        response = await call_next(request)
-    finally:
-        log_hook_var.reset(token)
-        
-    return response
 
 # Generator function to stream the steps to the client
 # The generator will yield each step as it is logged and then the final result at the end
@@ -226,34 +214,38 @@ async def result_streamer(request_steps_queue: asyncio.Queue):
 
 # SEARCH endpoint that streams the steps to the client
 @app.post("/search-stream")
-async def run_search_stream(request: SearchRequest):
+async def run_search_stream(request: Request):
     try:
+        # Parse request body as SearchRequest
+        payload = SearchRequest(**await request.json())
         # invoke search function matching the signature using the request object
-        logging.info(f"Running search with input: {request}")
+        logging.info(f"Running search with input: {payload}")
         # Provided by the middleware above
-        request_steps_queue = request.state.request_steps_queue
+        steps_queue = asyncio.Queue()
         # Search must be run in a separate thread to allow the steps to be streamed to the client
-        def run_search_in_thread(request, request_steps_queue):
+        def run_search_in_thread(input: SearchRequest, request_steps_queue: asyncio.Queue):
+            log_hook = lambda message, text=None: request_steps_queue.put_nowait(["STEP", [message, text]])
+            token = log_hook_var.set(log_hook)
             try:
                 final_answer, references, output_excel, search_results, files = search(
-                    query=request.query, 
+                    query=input.query, 
                     learnings=None, 
-                    top=request.top, 
-                    approx_tag_limit=request.approx_tag_limit, 
-                    conversation_history=request.conversation_history, 
-                    user_id=request.user_id, 
-                    computation_approach=request.computation_approach, 
-                    computation_decision=request.computation_decision, 
-                    vision_support=request.vision_support, 
-                    include_master_py=request.include_master_py, 
-                    vector_directory=os.path.join(ROOT_PATH_INGESTION, request.index_name), 
-                    vector_type=request.vector_type, 
-                    index_name=request.index_name, 
-                    full_search_output=request.full_search_output, 
-                    count=request.count, 
-                    token_limit=request.token_limit, 
-                    temperature=request.temperature, 
-                    verbose=request.verbose)
+                    top=input.top, 
+                    approx_tag_limit=input.approx_tag_limit, 
+                    conversation_history=input.conversation_history, 
+                    user_id=input.user_id, 
+                    computation_approach=input.computation_approach, 
+                    computation_decision=input.computation_decision, 
+                    vision_support=input.vision_support, 
+                    include_master_py=input.include_master_py, 
+                    vector_directory=os.path.join(ROOT_PATH_INGESTION, input.index_name), 
+                    vector_type=input.vector_type, 
+                    index_name=input.index_name, 
+                    full_search_output=input.full_search_output, 
+                    count=input.count, 
+                    token_limit=input.token_limit, 
+                    temperature=input.temperature, 
+                    verbose=input.verbose)
                 
                 # First put result in the queue, then signal the end of the stream
                 request_steps_queue.put_nowait(("RESULT", [final_answer, references, output_excel, search_results, files]))
@@ -265,15 +257,16 @@ async def run_search_stream(request: SearchRequest):
                 # Signal the end of the stream
                 # This must be done in a finally block to ensure the stream is closed even if an exception occurs
                 request_steps_queue.put_nowait(("END", None)) 
+                log_hook_var.reset(token)
 
          # Create a new thread to run the search function
-        search_thread = threading.Thread(target=run_search_in_thread, args=(request, request_steps_queue))
+        search_thread = threading.Thread(target=run_search_in_thread, args=(payload, steps_queue))
         search_thread.start()
 
         # Return the streaming response
         # NOTE: this must be returned immediately to allow the client to start receiving the stream
-        # This is why a separate thread is used to run the search function
-        return StreamingResponse(result_streamer(request_steps_queue), media_type="application/x-ndjson")
+        # This is why a separate thread is used to run the search function, headers={"Transfer-Encoding": "identity"}
+        return StreamingResponse(result_streamer(steps_queue), media_type="application/x-ndjson")
     except Exception as e:
         logging.error(f"Error running search: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

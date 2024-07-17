@@ -5,7 +5,6 @@ import json
 import logging
 from doc_utils import *
 from processor import *
-import utils.logc
 from utils.ingestion_cosmos_helper import *
 from log_utils import setup_logger
 

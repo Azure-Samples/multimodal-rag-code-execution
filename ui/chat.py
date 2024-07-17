@@ -1,9 +1,10 @@
 import os
 import requests
+import httpx
 import json
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 import logging
 from ui_log_utils import setup_logger
@@ -109,15 +110,15 @@ class APIClient:
         
     async def search_stream(self, query_params):
         try:
-            with requests.post(f"{self.base_url}/search-stream", json=query_params, stream=True) as response:
-                response.raise_for_status()
-                for line in response.iter_lines():
-                    if line:  # filter out keep-alive new lines
-                        print(f"Streaming response: {line}")
-                        kind, content = json.loads(line)
-                        yield kind, content
+            async with httpx.AsyncClient() as client:
+                async with client.stream("POST", f"{self.base_url}/search-stream", json=query_params, timeout=3 * 60.0) as response:
+                    async for line in response.aiter_lines():
+                        if line:  # filter out keep-alive new lines
+                            print(f"Streaming response: {line}")
+                            kind, content = json.loads(line)
+                            yield kind, content
                             
-        except requests.exceptions.HTTPError as e:
+        except httpx.HTTPError as e:
             logging.error(f"Error searching: {e}")
             raise
 
@@ -549,7 +550,7 @@ async def app_search(query: str):
             else:
                 final_elements.append(cl.File(name="Results File", url=url, display="inline"))
         
-    id_m = await cl.Message(content=final_answer, elements = final_elements).send()
+    await cl.Message(content=final_answer, elements = final_elements).send()
 
     pdfs = [p['document_path'] for p in references]
     pdfs = list(set(pdfs))

@@ -6,8 +6,9 @@ def start_main(c):
 
 @task
 def start_chat(c):
-    c.run("cd ui & python -m chainlit run -w chat.py")
+    c.run("cd ui & python -m chainlit run chat.py")
 
 @task
 def start_api(c, port=9000):
-    c.run(f"cd code && python -m uvicorn api:app --host 0.0.0.0 --port {port}")
+    c.run(f"cd code && python -m uvicorn api:app --reload --host 0.0.0.0 --port {port}")
+    

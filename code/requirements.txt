@@ -36,6 +36,8 @@ pyperclip
 
 # APIs
 uvicorn
+gunicorn
+uvicorn-worker
 fastapi
 python-multipart
 colorlog

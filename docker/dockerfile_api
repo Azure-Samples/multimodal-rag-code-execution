@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
 
 # Step 4 - Install pip dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir gunicorn
 
 # Step 5 - Copy the rest of the files
 COPY . .
@@ -29,4 +30,4 @@ EXPOSE 80
 WORKDIR /app
 
 # do not change the arguments
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "80"]
+CMD ["/usr/local/bin/gunicorn", "-c", "gunicorn.conf.py", "api:app"]
