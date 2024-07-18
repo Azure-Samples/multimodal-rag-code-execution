@@ -18,10 +18,10 @@ param namePrefix string = 'dev'
 @allowed(['swedencentral', 'eastus', ''])
 param newOpenAILocation string = ''
 
+@description('True to avoid building images from the repo. In this case images must be published via push.ps1 script')
+param skipImageBuild bool = false
+
 var uniqueid = uniqueString(resourceGroup().id)
-// Fixed for now
-var containerRegistryName = ''
-var containerRegistryPassword = ''
 var di_location = 'westeurope'
 
 // ---- Log Analytics workspace ----
@@ -47,7 +47,7 @@ module storageModule 'storage.bicep' = {
   }
 }
 
-module acr 'registry.bicep' = if (empty(containerRegistryName)) {
+module acr 'registry.bicep' = {
   name: 'acrDeploy'
   params: {
     location: location
@@ -56,7 +56,7 @@ module acr 'registry.bicep' = if (empty(containerRegistryName)) {
   }
 }
 
-module buildImages 'modules/build-images.bicep' = if (empty(containerRegistryName)) {
+module buildImages 'modules/build-images.bicep' = if (!skipImageBuild) {
   name: 'buildImages'
   params: {
     acrName: acr.outputs.containerRegistryName
@@ -66,8 +66,8 @@ module buildImages 'modules/build-images.bicep' = if (empty(containerRegistryNam
   ]
 }
 
-var acrNameToUse = !empty(containerRegistryName) ? containerRegistryName : acr.outputs.containerRegistryName
-var acrPasswordToUse = !empty(containerRegistryPassword) ? containerRegistryPassword : acr.outputs.containerRegistryPassword
+var acrNameToUse = acr.outputs.containerRegistryName
+var acrPasswordToUse = acr.outputs.containerRegistryPassword
 
 // Deploy a web app
 module webappModule 'webapp.bicep' = {
@@ -184,9 +184,7 @@ module apiAppSettings 'modules/appsettings.bicep' = {
       AML_CLUSTER_NAME: 'mm-doc-cpu-cluster'
       AML_VMSIZE: 'STANDARD_D2_V2'
       PYTHONUNBUFFERED: '1'
-      // AML_PASSWORD: script.outputs.password // This will be empty since Bicep cannot provision secrets, set-sp-secret.sh will be used to set the secret
-      // AML_TENANT_ID: script.outputs.tenantId // Set in post deployment
-      // AML_SERVICE_PRINCIPAL_ID: script.outputs.appId // Set in post deployment
+      AZURE_CLIENT_ID: webappModule.outputs.userIdentityClientId // this is the managed identity, required by AML SDK
       INITIAL_INDEX: 'rag-data'
       AML_SUBSCRIPTION_ID: subscription().subscriptionId
       AML_RESOURCE_GROUP: resourceGroup().name
@@ -244,7 +242,5 @@ module apiAppSettings 'modules/appsettings.bicep' = {
   }
 }
 
-// output spId string = script.outputs.appId
-output spName string = script.outputs.appName
-output apiAppName string = webappModule.outputs.appNameApi
-output postDeployScript string = './set-sp-secret.sh ${script.outputs.appName} ${webappModule.outputs.appNameApi} ${machineLearning.outputs.workspaceName} ${resourceGroup().name}'
+output chatUrl string = webappModule.outputs.chatUrl
+output mainUrl string = webappModule.outputs.mainUrl

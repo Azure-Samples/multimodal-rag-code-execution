@@ -65,6 +65,7 @@ The following parameters are available for customization:
 registry will be created and images will be built pushed to it via cloning the GitHub repository.
 - `namePrefix`: Prefix for all resources created by the deployment. Default is `dev`.
 - `newOpenAILocation`: Location for the new Azure OpenAI resource. Default is empty and will be ignored unless `openAIName` is blank.
+- `skipImagesBUild`: `True` not to build images from the remote repository. Default is `False`. If set to `True`, the deployment will not create a container registry and you will need to build the images manually (see below).
 
 ## Deployment steps (local)
 
@@ -98,21 +99,6 @@ registry will be created and images will be built pushed to it via cloning the G
 
     ```
 
-1. Finalize deployment
-
-    After the deployment is complete, you will need to run a post-deployment script to create the secret and assign it to the API WebApp.
-    The `<appId>`, `<api-webapp-name>` and `<resource-group-name>` values are found int the deployment output of the previous steps, either when the script is ran locally, or in the Cloud shell, or in the Azure Portal.
-
-    Make **sure** to run the below in a Git Bash shell, or Cloud shell. This will not work locally in a Powershell.
-
-    1. Run `chmod +x ./set-sp-secret.sh`
-    1. Run `./set-sp-secret.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
-
-        Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
-
-<br/>
-<br/>
-
 ### Screenshots of the Deployment
 
 <br/>
@@ -133,21 +119,6 @@ Check all resources being deployed:
 </p>
 <br/>
 
-Once succeeded, click on the "main-1click":
-
-<br />
-<p align="center">
-<img src="../images/depl-image4.png" width="500" />
-</p>
-<br/>
-
-Go to Outputs, and copy the PostDeployScript (this key has been recycled):
-
-<br />
-<p align="center">
-<img src="../images/depl-image5.png" width="800" />
-</p>
-<br/>
 
 ### Troubleshooting
 
@@ -190,7 +161,7 @@ Please note images will be built and pushed to the container registry sequential
 
 ### Option 2: Rebuilding from local
 
-This is the recommended way to update the images if you have made changes to the code.
+This is the recommended way to update the images if you have made changes to the code, or if you chose not to build from the remote repository.
 
 1. Clone the GitHub repository
 
@@ -213,3 +184,21 @@ This is the recommended way to update the images if you have made changes to the
     - target resorce group must have been created by the deployment script
     - images will be built and pushed to the container registry sequentially. This process will take about 10 minutes.
     - All WebApps will restart to use the new images
+
+## Local development
+
+If you want to develop locally using resources you deployed, you must first create a Service Principal and assign it Contributor permissions on the resource group and AML Workspace. Otherwise the API won't have access to the AML Workspace.
+
+Then, configure the following environment variables in a `.env` file:
+
+```env
+AML_PASSWORD=
+AML_SERVICE_PRINCIPAL_ID=
+AML_TENANT_ID=
+```
+
+You can use the `set-sp-secret.sh` script to create the SP and a secret with the right permissions (can be run in Cloud Shell):
+
+```bash
+./set-sp-secret.sh <sp-name> <resource-group-name>
+```

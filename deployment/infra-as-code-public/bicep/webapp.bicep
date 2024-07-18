@@ -552,7 +552,10 @@ output appName string = webApp.name
 output appName2 string = webApp2.name
 @description('The name of the web app.')
 output appNameApi string = webAppApi.name
+output chatUrl string = webApp.properties.defaultHostName
+output mainUrl string = webApp2.properties.defaultHostName
 @description('The connection string of the app insights.')
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
 
 output userIdentityId string = appServiceManagedIdentity.properties.principalId
+output userIdentityClientId string = appServiceManagedIdentity.properties.clientId

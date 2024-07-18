@@ -5,7 +5,7 @@ from azureml.core import Workspace, Experiment, Environment, ScriptRunConfig, Da
 from azureml.core.compute import ComputeTarget, AmlCompute
 from azureml.core.compute_target import ComputeTargetException
 from azureml.exceptions import UserErrorException
-from azureml.core.authentication import ServicePrincipalAuthentication
+from azureml.core.authentication import ServicePrincipalAuthentication, MsiAuthentication
 
 from env_vars import *
 
@@ -35,10 +35,11 @@ class AmlJob():
         self.resource_group = resource_group
         self.workspace_name = workspace_name
                 
-        svc_pr = ServicePrincipalAuthentication(
+        auth = ServicePrincipalAuthentication(
             tenant_id=AML_TENANT_ID,
             service_principal_id=AML_SERVICE_PRINCIPAL_ID,
-            service_principal_password=AML_PASSWORD)
+            service_principal_password=AML_PASSWORD
+        ) if AML_SERVICE_PRINCIPAL_ID else MsiAuthentication(identity_config={"client_id": os.getenv("AZURE_CLIENT_ID")})
 
         try:
             logging.info(f'Accessing workspace {workspace_name} using environment variables.')
@@ -46,7 +47,7 @@ class AmlJob():
                     subscription_id=subscription_id,
                     resource_group=resource_group,
                     workspace_name=workspace_name,
-                    auth=svc_pr
+                    auth=auth
                 )            
         except Exception as e:
             logging.error(f"Could not access AML Workspace: {str(e)}")
