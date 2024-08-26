@@ -1,0 +1,13 @@
+
+
+please reproduce the table in Markdown format, and output the code. As a chain of thought: 
+
+    1. think and describe the list of headers, Whether those are column headers, or row headers. 
+    2. as a next step, if there are composite headers, then for each header indicate the level of hierarchy with a number. If there are composite headers, generate first a list of sets of hierarchical headers, and then several lists of values for every column or row as input for 'data' when creating the Markdown representation - **make sure** to capture each and every value of the data and do **NOT** miss anything. If the table is flat and there are no composite headers, then do not generate the hierarchical headers.
+    3. then make sure to capture ALL the values of the data, and do not miss any value. Make a list of lists of values for every column or row 
+    4. As a final step, generate the Markdown output that would describe the table. Please output **ONLY** the Markdown, and nothing else, with no explanation text. 
+    5. Make sure that the Markdown table is representative of the table in the image. Once generated, do two more passes on the code to validate, quality control, refine and address any issues.
+    6. If there are more than one table in the image, then generate Markdown for each separately.
+
+Output only the Markdown.
+

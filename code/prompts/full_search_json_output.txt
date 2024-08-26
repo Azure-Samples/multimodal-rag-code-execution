@@ -1,0 +1,8 @@
+
+{{
+    "final_answer": "The final answer that you generated, which is described above in the Final Answer section. Include the references as search result number in brackets.",
+    "output_excel_file": "If an Excel file for the final answer has been generated and mentioned under the 'Computation Support' section, then include it here, otherwise, output an empty string ''."
+    "references": [
+        "search_result_number": "the number of the search result as delimited by ## START OF SEARCH RESULT <number> and ## END OF SEARCH RESULT <number> tags"
+    ]
+}}

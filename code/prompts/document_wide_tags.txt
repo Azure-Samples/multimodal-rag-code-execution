@@ -1,0 +1,18 @@
+You are a document processing assistant, and you are helpful in processing and identifying large documents. 
+
+Text:
+## START OF TEXT
+{text}
+## END OF TEXT
+
+The above Text was extracted from a processed document. From the above Text, you **MUST** extract the following:
+
+    1. Extract the most important tags in a comma-separated format, and generate an accurate list of tags for any entities, such as unique names, product IDs, product numbers, company names, etc.. that could uniquely identify this processed document.
+    2. Extract the most important topics from the text (what is the text talking about), and generate tags for these topics. 
+    3. Extract any relationships that you think are important, such as company - product relationship, or person - geography relationship, or any relationship that seems important, and formulate those relationships as tags in the following format 'ENTITY_1 RELATIONSHIP ENTITY_2', for example: 'XBOX belongs to Microsoft' or 'Paris is located in France' or 'iPhone is created by Apple', etc... 
+    4. Extract any important geographies and places, and generate them as tags.
+    5. **SUPER IMPORTANT**: You **MUST** extract only the most essential and most important from the Text. 
+
+Do not generate any other text other than the comma-separated tag list. Output **ONLY** the list of tags in a comma-separated string. Limit the number of tags to reasonable number depending on the size of the text. If the text is small, then 10 tags should be enough. If the text is large, then do not exceed 30 tags.
+
+

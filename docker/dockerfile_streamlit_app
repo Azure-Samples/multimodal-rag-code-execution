@@ -1,0 +1,30 @@
+FROM python:3.10-slim
+
+# Step 1 - Install dependencies
+WORKDIR /app
+
+# Step 2 - Copy only requirements.txt
+COPY requirements.txt /app
+
+# Step 3 - Install OS dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    xclip \
+    xsel \
+    software-properties-common \
+    git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Step 4 - Install pip dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Step 5 - Copy the rest of the files
+COPY . .
+ENV PYTHONUNBUFFERED=1
+
+# Step 6 - Run Streamlit
+EXPOSE 80
+
+CMD ["streamlit", "run", "./main.py", "--server.port=80", "--server.address=0.0.0.0", "--server.enableXsrfProtection", "false"]

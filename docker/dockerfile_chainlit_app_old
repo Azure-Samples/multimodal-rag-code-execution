@@ -1,0 +1,57 @@
+# Use a specific version of the python image for more predictable builds
+#FROM python:3.10.13-slim-bookworm
+FROM python:3.11-slim-bookworm
+
+
+# Create a non-root user 'appuser' and set the home directory
+RUN adduser --disabled-password --gecos '' --home /home/appuser appuser
+
+# Install system dependencies
+# Combine update, install, and cleanup steps to minimize image layers and reduce size
+RUN apt-get update && apt-get install -y \
+    graphviz \
+    libgraphviz-dev \
+    # python-tk \
+    # python3-tk \
+    tk-dev \
+    libffi-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*  # Clean up to reduce image size
+
+# Set the working directory
+WORKDIR /home/appuser/app/
+
+# Set the PYTHONPATH environment variable to include the /home/appuser/app/code directory
+ENV PATH="/home/appuser/.local/bin:$PATH"
+ENV PYTHONPATH="${PYTHONPATH}:/home/appuser/app/code:/home/appuser/app/code/utils"
+ENV PYTHONUNBUFFERED=1
+# Upgrade pip to the latest version
+RUN pip install --upgrade pip
+
+# Copy just the requirements.txt first to leverage Docker cache
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --requirement requirements.txt \
+    && rm -rf /root/.cache/pip  # Clean up pip cache to reduce image size
+
+# Pre-create directories that the application will need at runtime, ensuring correct ownership
+RUN mkdir -p /home/appuser/app/.files && chown -R appuser:appuser /home/appuser/app
+
+# Copy the application code and other files with the correct ownership
+COPY --chown=appuser:appuser ./ui/ ./ui/
+COPY --chown=appuser:appuser ./code/ ./code/
+COPY --chown=appuser:appuser ./ui/chainlit.md /home/appuser/app/code/chainlit.md
+COPY --chown=appuser:appuser ./ui/chainlit.md /home/appuser/app/chainlit.md
+COPY --chown=appuser:appuser ./ui/chainlit.md /home/appuser/app/ui/pages/chainlit.md
+
+# Switch to the non-root user for subsequent commands and container runtime
+USER appuser
+
+# Expose the application port
+EXPOSE 8000
+
+# Use sh -c to ensure commands are run properly
+# CMD ["sh", "-c", "python -m chainlit run ./ui/chat.py"]
+# Or if your application can be started directly without the shell, you can use:
+CMD ["chainlit", "run", "./ui/chat.py", "--port=8000"]

@@ -1,0 +1,1 @@
+az bicep build --file main-1click.bicep

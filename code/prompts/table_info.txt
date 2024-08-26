@@ -1,0 +1,17 @@
+
+
+## START OF INFOBLOCK {number}
+{filename}
+Document Filename: {proc_filename}
+Chunk Number: {chunk_number}
+
+{text}
+
+{markdown}
+
+{mermaid}
+
+{codeblock}
+
+## END OF INFOBLOCK 
+

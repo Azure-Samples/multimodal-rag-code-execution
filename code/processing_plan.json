@@ -1,0 +1,27 @@
+{
+    ".pdf": {
+        "gpt-4-vision": [
+            "create_pdf_chunks", "pdf_extract_high_res_chunk_images", "pdf_extract_text", "pdf_extract_images", "delete_pdf_chunks", "post_process_images", "extract_tables_from_images", "post_process_tables", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary"
+        ],
+        "document-intelligence": [
+            "create_pdf_chunks", "pdf_extract_high_res_chunk_images", "pdf_extract_text", "pdf_extract_images", "delete_pdf_chunks", "extract_doc_using_doc_int", "create_doc_chunks_with_doc_int_markdown", "post_process_images", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary"
+        ],
+        "hybrid": [
+            "create_pdf_chunks", "pdf_extract_high_res_chunk_images", "delete_pdf_chunks", "extract_doc_using_doc_int", "create_doc_chunks_with_doc_int_markdown", "post_process_images", "post_process_tables", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary"
+        ]
+    },
+    ".docx": {
+        "py-docx": [
+            "extract_docx_using_py_docx", "create_doc_chunks_with_doc_int_markdown", "post_process_images", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary"
+        ],
+        "document-intelligence": [
+            "extract_doc_using_doc_int", "create_doc_chunks_with_doc_int_markdown", "post_process_images", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary"
+        ]
+    },
+    ".xlsx": {
+        "openpyxl": [
+            "extract_xlsx_using_openpyxl", "create_table_doc_chunks_markdown", "create_image_doc_chunks", "generate_tags_for_all_chunks", "generate_document_wide_tags", "generate_document_wide_summary"
+        ]
+    }
+}
+

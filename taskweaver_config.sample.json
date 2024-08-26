@@ -1,0 +1,16 @@
+{
+    "llm.api_base": "https://<resource>.openai.azure.com/",
+    "llm.api_key":  "<key>",
+    "llm.api_type": "azure",
+    "llm.api_version": "2024-02-15-preview",
+    "llm.model": "gpt-4",
+    "llm.embedding_api_type": "openai",
+    "llm.embedding_model": "text-embedding-ada-002",
+    "session.code_interpreter_only":"false",
+    "code_generator.enable_auto_plugin_selection":"false",
+    "code_generator.auto_plugin_selection_topk":5,
+    "code_generator.prompt_compression":"true",
+    "round_compressor.rounds_to_compress":3,
+    "round_compressor.rounds_to_retain":4,
+    "session.max_internal_chat_round_num":20
+}
