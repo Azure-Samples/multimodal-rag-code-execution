@@ -1,111 +1,41 @@
-/*
-  Deploy a web app with a managed identity, diagnostic, and a private endpoint
-*/
-@description('The name of the storage account')
-param mlWorkspaceName string
-@description('The name of the storage account')
-param storageAccount string
-
-@description('The name of the container registry')
+param uniqueId string
+param prefix string
+param uamiId string
+param uamiClientId string
+param openAiName string
+param openAiApiKey string
+param applicationInsightsInstrumentationKey string
 param containerRegistryName string
-@description('The password of the container registry')
 @secure()
 param containerRegistryPassword string
-
-@description('A prefix that will be prepended to resource names')
-param namePrefix string = 'dev'
-
-@description('This is the base name for each Azure resource name (6-12 chars)')
-param uniqueid string
-
-@description('The resource group location')
 param location string = resourceGroup().location
-
-@description('The name of the storage account')
+param logAnalyticsWorkspaceName string
+param mlWorkspaceName string
 param storageName string
-
-@description('The name of the Log Analytics workspace for monitoring logs')
-param logWorkspaceName string
+param storageKey string
+param cosmosDbUri string
+param cosmosDbKey string
+param cosmosdbName string
+param documentIntelligenceEndpoint string
+param documentIntelligenceKey string
+param aiSearchEndpoint string
+param aiSearchAdminKey string
+param aiSearchRegion string
+param accountsVisionEndpoint string
+param accountsVisionKey string
 
 // Variables
+var chatAppName = '${prefix}-app-chat-${uniqueId}'
+var mainAppName = '${prefix}-app-main-${uniqueId}'
+var apiAppName = '${prefix}-app-api-${uniqueId}'
 
-var appName = '${namePrefix}-app-chat-${uniqueid}'
-var appName2 = '${namePrefix}-app-main-${uniqueid}'
-var appNameApi = '${namePrefix}-app-api-${uniqueid}'
-
-var appServicePlanName = 'asp-${appName}'
-var appServiceManagedIdentityName = 'id-${appName}'
-// var packageLocation = 'https://${storageName}.blob.${environment().suffixes.storage}/deploy/${publishFileName}'
-var appInsightsName= 'appinsights-${appName}'
+var appServicePlanName = 'asp-${chatAppName}'
 
 
 // ---- Existing resources ----
-
-resource storage 'Microsoft.Storage/storageAccounts@2023-01-01' existing =  {
-  name: storageName
-}
-
 resource logWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existing = {
-  name: logWorkspaceName
+  name: logAnalyticsWorkspaceName
 }
-
-resource azureMlWorkspace 'Microsoft.MachineLearningServices/workspaces@2021-04-01' existing = {
-  name: mlWorkspaceName
-}
-
-// Built-in Azure RBAC role that is applied to a Key storage to grant data reader permissions. 
-resource blobDataReaderRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
-  name: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
-  scope: subscription()
-}
-
-// ---- Web App resources ----
-
-// Managed Identity for App Service
-resource appServiceManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: appServiceManagedIdentityName
-  location: location
-}
-
-// Grant the App Service managed identity storage data reader role permissions
-resource blobDataReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: storage
-  name: guid(resourceGroup().id, appServiceManagedIdentity.name, blobDataReaderRole.id)
-  properties: {
-    roleDefinitionId: blobDataReaderRole.id
-    principalType: 'ServicePrincipal'
-    principalId: appServiceManagedIdentity.properties.principalId
-  }
-}
-
-resource contributorRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
-  scope: subscription()
-  name: 'b24988ac-6180-42a0-ab88-20f7382dd24c' // Contributor role ID
-}
-
-resource mlContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: azureMlWorkspace 
-  name: guid(resourceGroup().id, appServiceManagedIdentity.name, contributorRole.id)
-  properties: {
-    roleDefinitionId: contributorRole.id
-    principalType: 'ServicePrincipal'
-    principalId: appServiceManagedIdentity.properties.principalId
-  }
-}
-
-// Grant the App Service managed identity access to the container registry
-// resource acrPullRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
-//   scope: subscription()
-//   name: '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull role ID
-// }
-// resource acrRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
-//   name: guid(acr.id, appServiceManagedIdentity.name, 'AcrPull')
-//   scope: acr
-//   properties: {
-//     roleDefinitionId: acrPullRole.id
-//     principalId: appServiceManagedIdentity.properties.principalId
-//   }
-// }
 
 
 //App service plan
@@ -136,19 +66,19 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
 
 // Web App
 resource webApp 'Microsoft.Web/sites@2022-09-01' = {
-  name: appName
+  name: chatAppName
   location: location
   kind: 'app,linux,container'
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${appServiceManagedIdentity.id}': {}
+      '${uamiId}': {}
     }
   }
   properties: {
     serverFarmId: appServicePlan.id    
     httpsOnly: false
-    keyVaultReferenceIdentity: appServiceManagedIdentity.id
+    keyVaultReferenceIdentity: uamiId
     hostNamesDisabled: false
     siteConfig: {
       acrUseManagedIdentityCreds: false
@@ -160,25 +90,22 @@ resource webApp 'Microsoft.Web/sites@2022-09-01' = {
     }
     storageAccountRequired: false  
   }
-  dependsOn: [    
-    blobDataReaderRoleAssignment
-  ]
 }
 
 resource webApp2 'Microsoft.Web/sites@2022-09-01' = {
-  name: appName2
+  name: mainAppName
   location: location
   kind: 'app,linux,container'
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${appServiceManagedIdentity.id}': {}
+      '${uamiId}': {}
     }
   }
   properties: {
     serverFarmId: appServicePlan.id    
     httpsOnly: false
-    keyVaultReferenceIdentity: appServiceManagedIdentity.id
+    keyVaultReferenceIdentity: uamiId
     hostNamesDisabled: false
     siteConfig: {
       acrUseManagedIdentityCreds: false
@@ -190,25 +117,22 @@ resource webApp2 'Microsoft.Web/sites@2022-09-01' = {
     }
     storageAccountRequired: false
   }
-  dependsOn: [    
-    blobDataReaderRoleAssignment
-  ]
 }
 
 resource webAppApi 'Microsoft.Web/sites@2022-09-01' = {
-  name: appNameApi
+  name: apiAppName
   location: location
   kind: 'app,linux,container'
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${appServiceManagedIdentity.id}': {}
+      '${uamiId}': {}
     }
   }
   properties: {
     serverFarmId: appServicePlan.id    
     httpsOnly: false
-    keyVaultReferenceIdentity: appServiceManagedIdentity.id
+    keyVaultReferenceIdentity: uamiId
     hostNamesDisabled: false
     siteConfig: {
       acrUseManagedIdentityCreds: false
@@ -220,9 +144,6 @@ resource webAppApi 'Microsoft.Web/sites@2022-09-01' = {
     }
     storageAccountRequired: false
   }
-  dependsOn: [    
-    blobDataReaderRoleAssignment
-  ]
 }
 
 
@@ -231,14 +152,13 @@ resource appsettings 'Microsoft.Web/sites/config@2022-09-01' = {
   name: 'appsettings'
   parent: webApp
   properties: {
-    APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
-    APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
+    APPINSIGHTS_INSTRUMENTATIONKEY: applicationInsightsInstrumentationKey
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
     DOCKER_ENABLE_CI: '1'
     DOCKER_REGISTRY_SERVER_USERNAME: containerRegistryName
     DOCKER_REGISTRY_SERVER_PASSWORD: containerRegistryPassword
     DOCKER_REGISTRY_SERVER_URL: 'https://${containerRegistryName}.azurecr.io'
-    API_BASE_URL: 'https://${appNameApi}.azurewebsites.net'
+    API_BASE_URL: 'https://${apiAppName}.azurewebsites.net'
   }
 }
 
@@ -247,14 +167,13 @@ resource appsettings2 'Microsoft.Web/sites/config@2022-09-01' = {
   name: 'appsettings'
   parent: webApp2
   properties: {
-    APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
-    APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
+    APPINSIGHTS_INSTRUMENTATIONKEY: applicationInsightsInstrumentationKey
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'    
     DOCKER_ENABLE_CI: '1'
     DOCKER_REGISTRY_SERVER_USERNAME: containerRegistryName
     DOCKER_REGISTRY_SERVER_PASSWORD: containerRegistryPassword
     DOCKER_REGISTRY_SERVER_URL: 'https://${containerRegistryName}.azurecr.io'
-    API_BASE_URL: 'https://${appNameApi}.azurewebsites.net'
+    API_BASE_URL: 'https://${apiAppName}.azurewebsites.net'
   }
 }
 // App Settings
@@ -262,13 +181,73 @@ resource appsettingsApi 'Microsoft.Web/sites/config@2022-09-01' = {
   name: 'appsettings'
   parent: webAppApi
   properties: {
-    APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
-    APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
+    APPINSIGHTS_INSTRUMENTATIONKEY: applicationInsightsInstrumentationKey
     ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
-    DOCKER_ENABLE_CI: '1'
+    // must be set again since chances are existing might be reset
     DOCKER_REGISTRY_SERVER_USERNAME: containerRegistryName
     DOCKER_REGISTRY_SERVER_PASSWORD: containerRegistryPassword
     DOCKER_REGISTRY_SERVER_URL: 'https://${containerRegistryName}.azurecr.io'
+    TEXT_CHUNK_SIZE: '800'
+    TEXT_CHUNK_OVERLAP: '128'
+    TENACITY_TIMEOUT: '200'
+    TENACITY_STOP_AFTER_DELAY: '300'
+    AML_CLUSTER_NAME: 'mm-doc-cpu-cluster'
+    AML_VMSIZE: 'STANDARD_D2_V2'
+    PYTHONUNBUFFERED: '1'
+    AZURE_CLIENT_ID: uamiClientId // this is the managed identity, required by AML SDK
+    INITIAL_INDEX: 'rag-data'
+    AML_SUBSCRIPTION_ID: subscription().subscriptionId
+    AML_RESOURCE_GROUP: resourceGroup().name
+    AML_WORKSPACE_NAME: mlWorkspaceName
+    AZURE_FILE_SHARE_ACCOUNT: storageName
+    AZURE_FILE_SHARE_NAME: storageName
+    AZURE_FILE_SHARE_KEY: storageKey
+    PYTHONPATH: './code/:../code:../TaskWeaver:./code/utils:../code/utils:../../code:../../code/utils'
+    COSMOS_URI: cosmosDbUri
+    COSMOS_KEY: cosmosDbKey
+    COSMOS_DB_NAME: cosmosdbName
+    COSMOS_CONTAINER_NAME: 'prompts'
+    COSMOS_CATEGORYID: 'prompts'
+    COSMOS_LOG_CONTAINER: 'logs'
+    ROOT_PATH_INGESTION: '/data/data'
+    PROMPTS_PATH: 'prompts'
+    DI_ENDPOINT: documentIntelligenceEndpoint
+    DI_KEY: documentIntelligenceKey
+    DI_API_VERSION: '2024-02-29-preview'
+    AZURE_OPENAI_RESOURCE: openAiName
+    AZURE_OPENAI_KEY: openAiApiKey
+    AZURE_OPENAI_MODEL: 'gpt-4o'
+    AZURE_OPENAI_RESOURCE_1: openAiName
+    AZURE_OPENAI_KEY_1: openAiApiKey
+    AZURE_OPENAI_RESOURCE_2: ''
+    AZURE_OPENAI_KEY_2: ''
+    AZURE_OPENAI_RESOURCE_3: ''
+    AZURE_OPENAI_KEY_3: ''
+    AZURE_OPENAI_RESOURCE_4: ''
+    AZURE_OPENAI_KEY_4: ''
+    AZURE_OPENAI_EMBEDDING_MODEL: 'text-embedding-3-large'
+    AZURE_OPENAI_MODEL_VISION: 'gpt-4o'
+    AZURE_OPENAI_API_VERSION: '2024-05-01-preview'
+    AZURE_OPENAI_TEMPERATURE: '0'
+    AZURE_OPENAI_TOP_P: '1.0'
+    AZURE_OPENAI_MAX_TOKENS: '1000'
+    AZURE_OPENAI_STOP_SEQUENCE: ''
+    AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE: openAiName
+    AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY: openAiApiKey
+    AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION: '2023-12-01-preview'
+    COG_SERV_ENDPOINT: aiSearchEndpoint
+    COG_SERV_KEY: aiSearchAdminKey
+    COG_SERV_LOCATION: aiSearchRegion
+    AZURE_VISION_ENDPOINT: accountsVisionEndpoint
+    AZURE_VISION_KEY: accountsVisionKey
+    AZURE_OPENAI_ASSISTANTSAPI_ENDPOINT: ''
+    AZURE_OPENAI_ASSISTANTSAPI_KEY: ''
+    OPENAI_API_KEY: ''
+    COG_SEARCH_ENDPOINT: aiSearchEndpoint
+    COG_SEARCH_ADMIN_KEY: aiSearchAdminKey
+    COG_VEC_SEARCH_API_VERSION: '2023-11-01'
+    COG_SEARCH_ENDPOINT_PROD: aiSearchEndpoint
+    COG_SEARCH_ADMIN_KEY_PROD: aiSearchAdminKey
   }
 }
 
@@ -482,25 +461,14 @@ resource appServicePlanAutoScaleSettings 'Microsoft.Insights/autoscalesettings@2
   ]
 }
 
-// Application insights resource
-resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
-  name: appInsightsName
-  location: location
-  kind: 'web'
-  properties: {
-    Application_Type: 'web'
-    WorkspaceResourceId: logWorkspace.id
-  }
-}
-
 // Only API mounts the Azure Files share
 
 var fileshare = {
-  accountName: storageAccount
+  accountName: storageName
   mountPath: '/data'
-  shareName: storageAccount
+  shareName: storageName
   type: 'AzureFiles'
-  accessKey: listKeys(resourceId('Microsoft.Storage/storageAccounts', storageAccount), '2023-01-01').keys[0].value
+  accessKey: storageKey
 }
 
 resource webAppConfigApi 'Microsoft.Web/sites/config@2023-01-01' = {
@@ -517,45 +485,32 @@ resource webAppConfigApi 'Microsoft.Web/sites/config@2023-01-01' = {
 
 resource webAppHostNameBinding 'Microsoft.Web/sites/hostNameBindings@2023-01-01' = {
   parent: webApp
-  name: '${appName}.azurewebsites.net'
+  name: '${chatAppName}.azurewebsites.net'
   properties: {
     hostNameType: 'Verified'
-    siteName: appName
+    siteName: chatAppName
   }
 }
 
 resource webAppHostNameBinding2 'Microsoft.Web/sites/hostNameBindings@2023-01-01' = {
   parent: webApp2
-  name: '${appName2}.azurewebsites.net'
+  name: '${mainAppName}.azurewebsites.net'
   properties: {
     hostNameType: 'Verified'
-    siteName: appName2
+    siteName: mainAppName
   }
 }
 
 resource webAppHostNameBindingApi 'Microsoft.Web/sites/hostNameBindings@2023-01-01' = {
   parent: webAppApi
-  name: '${appNameApi}.azurewebsites.net'
+  name: '${apiAppName}.azurewebsites.net'
   properties: {
     hostNameType: 'Verified'
-    siteName: appNameApi
+    siteName: apiAppName
   }
 }
 
-// Output
 
-@description('The name of the app service plan.')
-output appServicePlanName string = appServicePlan.name
-@description('The name of the web app.')
-output appName string = webApp.name
-@description('The name of the web app.')
-output appName2 string = webApp2.name
-@description('The name of the web app.')
-output appNameApi string = webAppApi.name
+// Output
 output chatUrl string = webApp.properties.defaultHostName
 output mainUrl string = webApp2.properties.defaultHostName
-@description('The connection string of the app insights.')
-output appInsightsConnectionString string = appInsights.properties.ConnectionString
-
-output userIdentityId string = appServiceManagedIdentity.properties.principalId
-output userIdentityClientId string = appServiceManagedIdentity.properties.clientId

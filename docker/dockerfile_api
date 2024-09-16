@@ -19,7 +19,6 @@ RUN apt-get update && apt-get install -y \
 
 # Step 4 - Install pip dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir gunicorn
 
 # Step 5 - Copy the rest of the files
 COPY . .

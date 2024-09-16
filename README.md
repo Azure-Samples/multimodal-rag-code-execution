@@ -11,8 +11,6 @@ Multimodal Document Analysis with RAG and Code Execution: using Text, Images and
 1. **Content Generation**: The solution can be used to output most of the contents needed for standardized formats, such as memos or PowerPoint presentations that highlights essential facts about the ingested data
 1. **Analytical Queries with OpenAI Assistants API and Taskweaver**: Develop an advanced feature allowing analysts to interact with the multimodal data using a chat interface integrated with a Code Interpreter. This tool will support complex analytical queries, including calculations and on-the-fly graph and file generation.
 
-
-
 ## Deployment steps (Azure Portal)
 
 1. Click the "Deploy to Azure" button

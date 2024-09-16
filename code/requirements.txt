@@ -43,6 +43,7 @@ python-multipart
 colorlog
 invoke
 azure-monitor-opentelemetry
+azure-mgmt-appcontainers
 
 ## Use 2023-10-31-preview
 azure-core

@@ -68,6 +68,23 @@ async def validation_exception_handler(request, exc):
 
 # API Endpoints
 
+# A GET operation to get job runners
+@app.get("/job_runners")
+def get_job_runners():
+    try:
+        logging.info("Getting job runners")
+        list = []
+        if os.environ.get("AML_RESOURCE_GROUP") and os.environ.get("AML_SUBSCRIPTION_ID") and os.environ.get("AML_WORKSPACE_NAME"):
+            list.append("Azure Machine Learning")
+        if os.environ.get("INGESTION_JOB_NAME"):
+            list.append("Container App Job")
+        if os.environ.get("LOCAL_TESTING"):
+            list.append("Subprocess (Local Testing)")
+        return list
+    except Exception as e:
+        logging.error(f"Error getting job runners: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # A GET operation to get all prompts
 @app.get("/prompt")
 def get_prompts():
@@ -430,12 +447,12 @@ def get_indexing_status(index_name: str):
 
 # A POST operation to update AmlJob status
 @app.post("/index/{index_name}/status")
-def update_aml_job_status(index_name: str, request: Request):
+def update_job_status(index_name: str, request: Request):
     try:
-        logging.info("Updating AmlJob status")
+        logging.info("Updating Job status")
         return ic.update_aml_job_status(index_name, request.get("status"))
     except Exception as e:
-        logging.error(f"Error updating AmlJob status: {str(e)}", exc_info=True)
+        logging.error(f"Error updating Job status: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # A DELETE operation to clear indexing status
@@ -511,12 +528,27 @@ def submit_local_job(index_name: str, request: JobRequest):
     return process.pid
 
 @app.get("/job/{job_id}")
-def get_aml_job_status(job_id: str):
+def get_job_status(job_id: str):    
+    from azure.mgmt.appcontainers import ContainerAppsAPIClient
+    from azure.identity import DefaultAzureCredential
+    from env_vars import AML_RESOURCE_GROUP, AML_SUBSCRIPTION_ID
+    
     try:
-        logging.info(f"Getting AmlJob status using run_id {job_id}")
-        return aml_job.check_job_status_using_run_id(job_id)
+        logging.info(f"Getting Job status with ID {job_id}")
+        job_name = os.getenv("INGESTION_JOB_NAME")
+        job_status = None
+        
+        if job_name in job_id:
+            client = ContainerAppsAPIClient(credential=DefaultAzureCredential(), subscription_id=AML_SUBSCRIPTION_ID)
+            job = client.job_execution(AML_RESOURCE_GROUP, job_name, job_id)
+            job_status = job.additional_properties['properties']['status'] 
+        else:
+            job_status = aml_job.check_job_status_using_run_id(job_id)
+            
+        logging.info(f"Job '{job_id}' status: {job_status}")
+        return job_status
     except Exception as e:
-        logging.error(f"Error getting AmlJob ID: {str(e)}", exc_info=True)
+        logging.error(f"Error getting Job status ID: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/local_job/{pid}")
@@ -568,4 +600,48 @@ def get_cosmos_log(index_name: str):
         return cosmos_log.read_document(index_name, index_name)
     except Exception as e:
         logging.error(f"Error getting cosmos log: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# A POST method to execute a container apps job
+@app.post("/index/{index_name}/container_apps_job")
+def container_apps_job(index_name: str, request: JobRequest):
+    from azure.mgmt.appcontainers import ContainerAppsAPIClient
+    from azure.mgmt.appcontainers.models import JobExecutionBase, JobExecutionTemplate
+    from azure.core.polling import LROPoller
+    from azure.identity import DefaultAzureCredential
+    from env_vars import AML_RESOURCE_GROUP, AML_SUBSCRIPTION_ID
+    
+    try:
+        logging.info("Executing container apps job")
+        
+        
+        ingestion_directory, download_directory = ensure_download_dictory(index_name)
+        gpt4_models = get_models()
+        
+        dict = request.model_dump()
+        dict['download_directory'] = download_directory
+        dict['ingestion_directory'] = ingestion_directory
+        dict['vision_models'] = gpt4_models
+        dict['models'] = gpt4_models
+        
+        client = ContainerAppsAPIClient(credential=DefaultAzureCredential(), subscription_id=AML_SUBSCRIPTION_ID)
+        
+        job = client.jobs.get(AML_RESOURCE_GROUP, os.getenv("INGESTION_JOB_NAME"))
+        job.template.containers[0].args = ["ingest_doc.py", "--ingestion_params_dict", json.dumps(dict)]
+        template = JobExecutionTemplate(containers=job.template.containers)
+        poller: LROPoller[JobExecutionBase] = client.jobs.begin_start(
+            resource_group_name=AML_RESOURCE_GROUP, 
+            job_name= os.getenv("INGESTION_JOB_NAME"),
+            template=template)
+        
+        res: JobExecutionBase = poller.result()
+        logging.info(f"Submit job result: {res}")
+        run_id = res.name
+        
+        ic.update_aml_job_id(index_name, run_id, status = "running")
+        
+        return run_id
+    except Exception as e:   
+        logging.error(f"Error executing container apps job: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
