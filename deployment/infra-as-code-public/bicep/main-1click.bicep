@@ -12,6 +12,8 @@ param location string = resourceGroup().location
 param aiSearchRegion string = 'eastus'
 
 @description('A prefix that will be prepended to resource names')
+@minLength(2)
+@maxLength(10)
 param namePrefix string = 'dev'
 
 @description('Location for a new Azure OpenAI resource. Leave openAIName and openAIRGName empty to deploy a new resource.')
@@ -20,6 +22,9 @@ param newOpenAILocation string = ''
 
 @description('True to avoid building images from the repo. In this case images must be published via push.ps1 script')
 param skipImageBuild bool = false
+
+@description('True to deploy web apps instead of container apps')
+param useWebApps bool = false
 
 var uniqueid = uniqueString(resourceGroup().id)
 var di_location = 'westeurope'
@@ -34,6 +39,17 @@ resource logWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
       name: 'PerGB2018'
     }
     retentionInDays: 30
+  }
+}
+
+// Application insights resource
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: '${namePrefix}-appin-${uniqueid}'
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logWorkspace.id
   }
 }
 
@@ -64,26 +80,6 @@ module buildImages 'modules/build-images.bicep' = if (!skipImageBuild) {
   dependsOn: [
     acr
   ]
-}
-
-var acrNameToUse = acr.outputs.containerRegistryName
-var acrPasswordToUse = acr.outputs.containerRegistryPassword
-
-// Deploy a web app
-module webappModule 'webapp.bicep' = {
-  name: 'webappDeploy'
-  params: {
-    location: location
-    uniqueid: uniqueid            
-    storageName: storageModule.outputs.storageName            
-    logWorkspaceName: logWorkspace.name
-    containerRegistryName: acrNameToUse
-    containerRegistryPassword: acrPasswordToUse
-    storageAccount:storageModule.outputs.storageName  
-    namePrefix:namePrefix
-    mlWorkspaceName: machineLearning.outputs.workspaceName
-   }
-   dependsOn: [acr]
 }
 
 module openAIResource 'openai.bicep' = {
@@ -142,7 +138,8 @@ module machineLearning 'machine_learning.bicep' =  {
     machineLearningName: 'mlws' 
     uniqueid:  uniqueid
     location: location
-    logWorkspaceName: logWorkspace.name
+    appInsightsId: appInsights.id
+    acrId: acr.outputs.containerRegistryId
   }
 }
 
@@ -151,96 +148,84 @@ module script 'modules/script.bicep' = {
   name: 'script'
   params: {
     uniqueid: uniqueid
-    machineLearningName: machineLearning.outputs.workspaceName
     storageName: storageModule.outputs.storageName
-    chatAppName: webappModule.outputs.appName
-    mainAppName: webappModule.outputs.appName2
-    apiAppName: webappModule.outputs.appNameApi
   }
   dependsOn: [
-    machineLearning, webappModule, storageModule
+    storageModule
   ]
 }
 
-var oaiName = openAIResource.outputs.aoaiResourceName
-var oaiKey = openAIResource.outputs.aoaiResourceKey
-
-module apiAppSettings 'modules/appsettings.bicep' = {
-  name: 'appsettings'
-  dependsOn: [script, webappModule, storageModule, cosmosDbModule, machineLearning, documentInteligence, azureVisionResource, ai_search]
+module uami 'uami.bicep' = {
+  name: 'uami'
   params: {
-    targetWebAppName: webappModule.outputs.appNameApi
-    allSettings: {
-      APPLICATIONINSIGHTS_CONNECTION_STRING: webappModule.outputs.appInsightsConnectionString
-      ApplicationInsightsAgent_EXTENSION_VERSION: '~2'
-      // must be set again since chances are existing might be reset
-      DOCKER_REGISTRY_SERVER_USERNAME: acrNameToUse
-      DOCKER_REGISTRY_SERVER_PASSWORD: acrPasswordToUse
-      DOCKER_REGISTRY_SERVER_URL: 'https://${acrNameToUse}.azurecr.io'
-      TEXT_CHUNK_SIZE: '800'
-      TEXT_CHUNK_OVERLAP: '128'
-      TENACITY_TIMEOUT: '200'
-      TENACITY_STOP_AFTER_DELAY: '300'
-      AML_CLUSTER_NAME: 'mm-doc-cpu-cluster'
-      AML_VMSIZE: 'STANDARD_D2_V2'
-      PYTHONUNBUFFERED: '1'
-      AZURE_CLIENT_ID: webappModule.outputs.userIdentityClientId // this is the managed identity, required by AML SDK
-      INITIAL_INDEX: 'rag-data'
-      AML_SUBSCRIPTION_ID: subscription().subscriptionId
-      AML_RESOURCE_GROUP: resourceGroup().name
-      AML_WORKSPACE_NAME: machineLearning.outputs.workspaceName
-      AZURE_FILE_SHARE_ACCOUNT: storageModule.outputs.storageName
-      AZURE_FILE_SHARE_NAME: storageModule.outputs.storageName
-      AZURE_FILE_SHARE_KEY: storageModule.outputs.storageKey
-      PYTHONPATH: './code/:../code:../TaskWeaver:./code/utils:../code/utils:../../code:../../code/utils'
-      COSMOS_URI: cosmosDbModule.outputs.cosmosDbUri
-      COSMOS_KEY: cosmosDbModule.outputs.cosmosDbKey
-      COSMOS_DB_NAME: cosmosDbModule.outputs.cosmosdbName
-      COSMOS_CONTAINER_NAME: 'prompts'
-      COSMOS_CATEGORYID: 'prompts'
-      COSMOS_LOG_CONTAINER: 'logs'
-      ROOT_PATH_INGESTION: '/data/data'
-      PROMPTS_PATH: 'prompts'
-      DI_ENDPOINT: documentInteligence.outputs.documentIntelligenceEndpoint
-      DI_KEY: documentInteligence.outputs.documentIntelligenceKey
-      DI_API_VERSION: '2024-02-29-preview'
-      AZURE_OPENAI_RESOURCE: oaiName
-      AZURE_OPENAI_KEY: oaiKey
-      AZURE_OPENAI_MODEL: 'gpt-4o'
-      AZURE_OPENAI_RESOURCE_1: oaiName
-      AZURE_OPENAI_KEY_1: oaiKey
-      AZURE_OPENAI_RESOURCE_2: ''
-      AZURE_OPENAI_KEY_2: ''
-      AZURE_OPENAI_RESOURCE_3: ''
-      AZURE_OPENAI_KEY_3: ''
-      AZURE_OPENAI_RESOURCE_4: ''
-      AZURE_OPENAI_KEY_4: ''
-      AZURE_OPENAI_EMBEDDING_MODEL: 'text-embedding-3-large'
-      AZURE_OPENAI_MODEL_VISION: 'gpt-4o'
-      AZURE_OPENAI_API_VERSION: '2024-05-01-preview'
-      AZURE_OPENAI_TEMPERATURE: '0'
-      AZURE_OPENAI_TOP_P: '1.0'
-      AZURE_OPENAI_MAX_TOKENS: '1000'
-      AZURE_OPENAI_STOP_SEQUENCE: ''
-      AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE: oaiName
-      AZURE_OPENAI_EMBEDDING_MODEL_RESOURCE_KEY: oaiKey
-      AZURE_OPENAI_EMBEDDING_MODEL_API_VERSION: '2023-12-01-preview'
-      COG_SERV_ENDPOINT: ai_search.outputs.aiSearchEndpoint
-      COG_SERV_KEY: ai_search.outputs.aiSearchAdminKey
-      COG_SERV_LOCATION: aiSearchRegion
-      AZURE_VISION_ENDPOINT: azureVisionResource.outputs.accountsVisionEndpoint
-      AZURE_VISION_KEY: azureVisionResource.outputs.accountsVisionKey
-      AZURE_OPENAI_ASSISTANTSAPI_ENDPOINT: ''
-      AZURE_OPENAI_ASSISTANTSAPI_KEY: ''
-      OPENAI_API_KEY: ''
-      COG_SEARCH_ENDPOINT: ai_search.outputs.aiSearchEndpoint
-      COG_SEARCH_ADMIN_KEY: ai_search.outputs.aiSearchAdminKey
-      COG_VEC_SEARCH_API_VERSION: '2023-11-01'
-      COG_SEARCH_ENDPOINT_PROD: ai_search.outputs.aiSearchEndpoint
-      COG_SEARCH_ADMIN_KEY_PROD: ai_search.outputs.aiSearchAdminKey
-    }
+    location: location
+    uniqueId: uniqueid
+    prefix: namePrefix
+    storageName: storageModule.outputs.storageName
+    mlWorkspaceName: machineLearning.outputs.workspaceName
+    acrName: acr.outputs.containerRegistryName
   }
 }
 
-output chatUrl string = webappModule.outputs.chatUrl
-output mainUrl string = webappModule.outputs.mainUrl
+module aca 'aca.bicep' = if (!useWebApps) {
+  name: 'aca'
+  params: {
+    location: location
+    uniqueId: uniqueid
+    prefix: namePrefix
+    skipImagePulling: skipImageBuild
+    uamiId: uami.outputs.uamiId
+    uamiClientId: uami.outputs.uamiClientId
+    aiSearchAdminKey: ai_search.outputs.aiSearchAdminKey
+    aiSearchEndpoint: ai_search.outputs.aiSearchEndpoint
+    aiSearchRegion: aiSearchRegion
+    cosmosDbKey: cosmosDbModule.outputs.cosmosDbKey
+    cosmosdbName: cosmosDbModule.outputs.cosmosdbName
+    cosmosDbUri: cosmosDbModule.outputs.cosmosDbUri
+    openAiApiKey: openAIResource.outputs.aoaiResourceKey
+    openAiName: openAIResource.outputs.aoaiResourceName
+    storageKey: storageModule.outputs.storageKey
+    storageName: storageModule.outputs.storageName
+    documentIntelligenceEndpoint: documentInteligence.outputs.documentIntelligenceEndpoint
+    documentIntelligenceKey: documentInteligence.outputs.documentIntelligenceKey
+    accountsVisionEndpoint: azureVisionResource.outputs.accountsVisionEndpoint
+    accountsVisionKey: azureVisionResource.outputs.accountsVisionKey
+    mlWorkspaceName: machineLearning.outputs.workspaceName
+    logAnalyticsWorkspaceName: logWorkspace.name
+    containerRegistry: acr.outputs.containerRegistryName
+    applicationInsightsInstrumentationKey: appInsights.properties.InstrumentationKey
+  }
+}
+
+module webapps 'webapp.bicep' = if (useWebApps) {
+  name: 'webapp'
+  params: {
+    location: location
+    uniqueId: uniqueid
+    prefix: namePrefix
+    uamiId: uami.outputs.uamiId
+    uamiClientId: uami.outputs.uamiClientId
+    aiSearchAdminKey: ai_search.outputs.aiSearchAdminKey
+    aiSearchEndpoint: ai_search.outputs.aiSearchEndpoint
+    aiSearchRegion: aiSearchRegion
+    cosmosDbKey: cosmosDbModule.outputs.cosmosDbKey
+    cosmosdbName: cosmosDbModule.outputs.cosmosdbName
+    cosmosDbUri: cosmosDbModule.outputs.cosmosDbUri
+    openAiApiKey: openAIResource.outputs.aoaiResourceKey
+    openAiName: openAIResource.outputs.aoaiResourceName
+    storageKey: storageModule.outputs.storageKey
+    storageName: storageModule.outputs.storageName
+    documentIntelligenceEndpoint: documentInteligence.outputs.documentIntelligenceEndpoint
+    documentIntelligenceKey: documentInteligence.outputs.documentIntelligenceKey
+    accountsVisionEndpoint: azureVisionResource.outputs.accountsVisionEndpoint
+    accountsVisionKey: azureVisionResource.outputs.accountsVisionKey
+    mlWorkspaceName: machineLearning.outputs.workspaceName
+    logAnalyticsWorkspaceName: logWorkspace.name
+    containerRegistryName: acr.outputs.containerRegistryName
+    containerRegistryPassword: acr.outputs.containerRegistryPassword
+    applicationInsightsInstrumentationKey: appInsights.properties.InstrumentationKey
+  }
+}
+
+output chatUrl string = !useWebApps ? aca.outputs.chatContainerAppUrl : webapps.outputs.chatUrl
+output mainUrl string = !useWebApps ? aca.outputs.mainContainerAppUrl : webapps.outputs.mainUrl

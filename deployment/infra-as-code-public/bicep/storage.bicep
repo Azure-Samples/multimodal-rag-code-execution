@@ -8,6 +8,8 @@ param uniqueid string
 param location string = resourceGroup().location
 
 @description('A prefix that will be prepended to resource names')
+@minLength(2)
+@maxLength(10)
 param namePrefix string = 'dev'
 
 // variables

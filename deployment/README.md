@@ -2,15 +2,9 @@
 
 The new way to deploy this solutions is using the 1-click deployment. This is the recommended way to deploy this solution.
 
-## Known limitations
-
-Due to an [upstream Bicep limitations with Service Principals](https://learn.microsoft.com/en-us/graph/templates/known-issues-graph-bicep?view=graph-bicep-1.0#application-passwords-are-not-supported-for-applications-and-service-principals), the 1-click deployment will NOT be able to create a secret. You will need to run a post-deployment script to create the secret and assign it to the API WebApp in order to complete the deployment.
-
 ## Pre-requisites
 
-- You will need to have an Azure subscription and be able to create resources in it. At least a resource group is required, and the user must have `Owner` permissions.
-- Addiitonally, you will need to have privileges to create an app registration/service principal.
-- Using Cloud Shell is also recommend to finalize the deployment.
+- You will need to have an Azure subscription and be able to create resources in it. At least a resource group is required, and the user must have `Owner` permissions on it.
 
 ## Deployment steps (Azure Portal)
 
@@ -20,42 +14,9 @@ Due to an [upstream Bicep limitations with Service Principals](https://learn.mic
 
 1. Fill in parameters
 
-    There no special parameters for this deployment. Optional parameters are available to customize the deployment (see below). Typically, only `openAIName` and `openAIRGName` are used to reuse an existing Azure OpenAI resource.
+    There are no special parameters for this deployment. Optional parameters are available to customize the deployment (see below). Typically, only `openAIName` and `openAIRGName` are used to reuse an existing Azure OpenAI resource.
 
     Average deployment time is 10 minutes when no existing container registry is set.
-
-1. Finalize deployment
-
-    After the deployment is complete, you will need to run a post-deployment script to create the secret and assign it to the API WebApp.
-
-    1. Open the **Azure Cloud Shell (Bash)**
-    1. Upload the [`set-sp-secret.sh`](deployment/infra-as-code-public/bicep/set-sp-secret.sh) script to the Cloud Shell
-    1. Run `chmod +x ./set-sp-secret.sh`
-    1. Run `dos2unix ./set-sp-secret.sh`
-    1. Run `./set-sp-secret.sh <app-name> <api-webapp-name> <ml-workspace-name> <resource-group-name>`.
-
-    Values can be found in the deployment outputs: go to the resource group, select the deployment `main-1click`, and click on the `Outputs` tab.
-
-
-<br />
-
-**Note**: Upload script to cloud shell.
-<br />
-<p align="center">
-<img src="../images/depl-image6.png" width="800" />
-</p>
-<br/>
-
-
-**Note**: Copy and paste the script call with the correct values.
-<br />
-<p align="center">
-<img src="../images/depl-image5.png" width="800" />
-</p>
-<br/>
-
-
-
 
 ## Customization
 
@@ -65,7 +26,9 @@ The following parameters are available for customization:
 registry will be created and images will be built pushed to it via cloning the GitHub repository.
 - `namePrefix`: Prefix for all resources created by the deployment. Default is `dev`.
 - `newOpenAILocation`: Location for the new Azure OpenAI resource. Default is empty and will be ignored unless `openAIName` is blank.
-- `skipImagesBUild`: `True` not to build images from the remote repository. Default is `False`. If set to `True`, the deployment will not create a container registry and you will need to build the images manually (see below).
+- `skipImagesBuild`: `True` not to build images from the remote repository. Default is `False`. If set to `True`, the deployment will not 
+create a container registry and you will need to build the images manually (see below).
+- `useWebApps`: `True` to provision Azure WebApps instead of Container App to host images. Default is `False`.
 
 ## Deployment steps (local)
 
@@ -101,8 +64,6 @@ registry will be created and images will be built pushed to it via cloning the G
 
 ### Screenshots of the Deployment
 
-<br/>
-
 In the Azure portal, go to Deployments:
 
 <br />
@@ -118,7 +79,6 @@ Check all resources being deployed:
 <img src="../images/depl-image2.png" width="800" />
 </p>
 <br/>
-
 
 ### Troubleshooting
 
@@ -172,18 +132,18 @@ This is the recommended way to update the images if you have made changes to the
     ```
 
 1. Make all required changes to the code
-1. Run the `push.ps1` script using PowerShell
+1. Run the `publish-aca.ps1` script using PowerShell (or `publish-webapp.ps1` in case of WebApps)
 
     ```powershell
     # Make sure to run from root of the repository
-    .\deployment\push.ps1 -RG <resource-group-name>
+    .\deployment\publish-aca.ps1 -RG <resource-group-name>
     ```
 
     **NOTES**
     - script assumes you have the Azure CLI installed and logged in to the correct subscription
     - target resorce group must have been created by the deployment script
     - images will be built and pushed to the container registry sequentially. This process will take about 10 minutes.
-    - All WebApps will restart to use the new images
+    - All Container/Web Apps will restart to use the new images
 
 ## Local development
 

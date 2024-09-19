@@ -4,6 +4,12 @@ param namePrefix string = 'dev'
 @description('The name of the Azure Container Registry')
 param machineLearningName string = 'di'
 
+@description('The Application Insights resource ID')
+param appInsightsId string
+
+@description('The Azure Container Registry resource ID')
+param acrId string
+
 @description('A unique identifier that will be appended to resource names')
 param uniqueid string
 
@@ -12,38 +18,6 @@ param location string
 
 // existing resource name params 
 var varMachineLearning = '${namePrefix}${machineLearningName}${uniqueid}'
-
-param logWorkspaceName string = ''
-
-var varMLAppInsightsName = '${namePrefix}-ml-app-ins-${uniqueid}'
-
-resource logWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existing = {
-  name: logWorkspaceName
-}
-
-
-// Container Registry
-module acr 'modules/container-registry.bicep' ={
-  name: 'ml-acr-deployment'
-  params: {
-    containerRegistryName: 'acrml'
-    // vnet: vnet.outputs.details
-    location: location
-    uniqueid: uniqueid
-  }
-}
-
-
-
-resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
-  name: varMLAppInsightsName
-  location: location
-  kind: 'web'
-  properties: {
-    Application_Type: 'web'
-    WorkspaceResourceId: logWorkspace.id
-  }
-}
 
 // Storage
 module storage 'modules/storage.bicep' = {
@@ -71,8 +45,8 @@ module workspace 'modules/ml-workspace.bicep' = {
   params:{
     workspaceName: varMachineLearning
     storageId: storage.outputs.storageAccountId
-    appInsightsId: appInsights.id
-    containerRegistryId: acr.outputs.acrId
+    appInsightsId: appInsightsId
+    containerRegistryId: acrId
     keyVaultId: keyvault.outputs.keyVaultId        
     location: location    
   }

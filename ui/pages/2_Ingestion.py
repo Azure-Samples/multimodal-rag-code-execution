@@ -38,6 +38,14 @@ class APIClient:
     def __init__(self):
         self.base_url = os.getenv("API_BASE_URL").strip("/")
         
+    def get_job_runners(self):
+        try:
+            response = requests.get(f"{self.base_url}/job_runners")
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error retrieving job runners: {e}")
+            return None
     def get_processing_plan(self):
         try:
             response = requests.get(f"{self.base_url}/processing_plan")
@@ -137,6 +145,15 @@ class APIClient:
             logging.error(f"Error submitting ingestion job: {e}")
             return None
     
+    def submit_aca_ingestion_job(self, index_name, ingestion_params_dict):
+        try:
+            response = requests.post(f"{self.base_url}/index/{index_name}/container_apps_job", json=ingestion_params_dict)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error submitting ingestion job: {e}")
+            return None
+    
     def submit_local_ingestion_job(self, index_name, ingestion_params_dict):
         try:
             response = requests.post(f"{self.base_url}/index/{index_name}/local_job", json=ingestion_params_dict)
@@ -220,7 +237,7 @@ def log_message(message, level = "info"):
 
 retry = 0
 
-st.title("Document Ingestion - v.1.0.2")
+st.title("Document Ingestion - v.1.1.0")
 col1, col2 = st.columns(2)
 
 hybrid_label = "Hybrid (choose if pptx file is tidy - default option)"
@@ -247,16 +264,16 @@ if "available_models" not in st.session_state:
     gpt4_models = api_client.get_models()
     st.session_state.available_models = len([1 for x in gpt4_models if x['AZURE_OPENAI_RESOURCE'] is not None])
 
-
-# number_threads = col2.slider("Number of threads:", 1, available_models, available_models)
 number_threads = col2.text_input("Number of threads:", st.session_state.available_models, disabled=True)
 pdf_password = col2.text_input("PDF password:")
-job_execution = col2.selectbox("Job Execution:", ["Azure Machine Learning", "Subprocess (Local Testing)"] )
+job_runners = api_client.get_job_runners()
+job_execution = col2.selectbox("Job Execution:", job_runners)
 uploaded_files = col2.file_uploader("Choose a file(s) :file_folder:", accept_multiple_files=True)
 
 
 st.session_state.num_threads = number_threads
-st.session_state.aml_job_run_id = None
+st.session_state.job_id = None
+st.session_state.job_type = None
 
 def proc_plan_chance():
     st.session_state.proc_plans = st.session_state.processingPlansKey 
@@ -334,23 +351,24 @@ def check_if_indexing_in_progress():
             job_id = document['job_id']
             job_status = document['job_status']
             log_message(f"Job ID Found in Cosmos {job_id}")
-            st.session_state.aml_job_run_id = job_id
+            st.session_state.job_id = job_id
+            st.session_state.job_type = job_type = "aca" if "ingestion-job" in job_id else "aml"
 
             if (job_id != '') and (job_status == 'running'):
                 try:    
-                    status = api_client.get_job_status(st.session_state.aml_job_run_id)
-                    log_message(f"Checking Run_ID: {job_id}, status {status}")
+                    status = api_client.get_job_status(job_id)
+                    log_message(f"Checking {job_type} job ID: {job_id}, status {status}")
 
-                    if status not in ["Completed", "Failed", "Canceled"]:
-                        st.session_state.job_status = f"AML Job is: {status}"
-                        st.session_state.warning = st.sidebar.info(f"AML Job is: {status}", icon="ℹ️")
+                    if status not in ["Completed", "Failed", "Canceled", "Succeeded"]:
+                        st.session_state.job_status = f"{job_type} Job is: {status}"
+                        st.session_state.warning = st.sidebar.info(f"{job_type} Job is: {status}", icon="ℹ️")
                     else:
                         st.session_state.indexing = False
                         update_file_list_UI(do_check_job_status=False)
                         api_client.update_index_status(index_name, "not_running")
 
                 except Exception as e:
-                    log_message(f"Error getting AML job status: {e}", level="error")
+                    log_message(f"Error getting {job_type} job status: {e}", level="error")
 
     except Exception as e:
         log_message(f"Error getting log document: {e}", level="error")
@@ -361,19 +379,36 @@ def check_job_status():
 
     with st.spinner("Please wait ..."):
         
-        log_message("check_job_status::spinner")        
+        log_message("check_job_status::spinner")     
+        job_type = st.session_state.job_type
+        job_id = st.session_state.job_id 
 
-        if st.session_state.aml_job_run_id is not None:
-            status = api_client.get_job_status(st.session_state.aml_job_run_id)
+        if job_type == 'aml':
+            status = api_client.get_job_status(job_id)
             log_message(f"Status of AML Job {status}")
-            log_message(f"AML Job Run ID: {st.session_state.aml_job_run_id}")
+            log_message(f"AML Job Run ID: {job_id}")
             st.session_state.warning.empty()
             st.session_state.job_status = f"AML Job is: {status}"
             st.session_state.warning = st.sidebar.info(f"AML Job is: {status}", icon="ℹ️")
 
             if  status in ["Completed", "Failed", "Canceled"]:
                 st.session_state.indexing = False
-                st.session_state.aml_job_run_id = None
+                st.session_state.job_id = None
+                check_if_indexing_in_progress()
+                # update_file_list_UI()
+                api_client.update_index_status(index_name, "not_running")
+        
+        if job_type == 'aca':
+            status = api_client.get_job_status(job_id)
+            log_message(f"Status of ACA Job {status}")
+            log_message(f"ACA Job Run ID: {job_id}")
+            st.session_state.warning.empty()
+            st.session_state.job_status = f"ACA Job is: {status}"
+            st.session_state.warning = st.sidebar.info(f"ACA Job is: {status}", icon="ℹ️")
+
+            if  status in ["Succeeded", "Failed", "Stopped"]:
+                st.session_state.indexing = False
+                st.session_state.job_id = None
                 check_if_indexing_in_progress()
                 # update_file_list_UI()
                 api_client.update_index_status(index_name, "not_running")
@@ -393,7 +428,7 @@ def check_job_status():
             else:
                 st.session_state.warning = st.sidebar.info(f"Python Subprocess is: Running", icon="ℹ️")
 
-        if st.session_state.aml_job_run_id is None:
+        if job_id is None:
             st.session_state.indexing = False
             check_if_indexing_in_progress()
             # update_file_list_UI()
@@ -531,12 +566,16 @@ if start_ingestion:
 
             try:
                 if job_execution == "Azure Machine Learning":                    
-                    st.session_state.aml_job_run_id = api_client.submit_ingestion_job(index_name, ingestion_params_dict)
+                    st.session_state.job_id = api_client.submit_ingestion_job(index_name, ingestion_params_dict)
+                    st.session_state.job_type = "aml"
+                    
+                elif job_execution == "Container App Job":                    
+                    st.session_state.job_id = api_client.submit_aca_ingestion_job(index_name, ingestion_params_dict)
+                    st.session_state.job_type = "aca"
                 
                 elif job_execution == "Subprocess (Local Testing)":
-                    process_id = api_client.submit_local_ingestion_job(index_name, ingestion_params_dict)
-
-                    st.session_state.process_id = process_id
+                    st.session_state.process_id = api_client.submit_local_ingestion_job(index_name, ingestion_params_dict)
+                    st.session_state.job_type = "local"
                 else:
                     st.session_state.warning = st.sidebar.warning("This Job Execution mode is not supported yet.")
 
