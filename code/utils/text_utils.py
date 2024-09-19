@@ -120,6 +120,16 @@ def extract_markdown_table_as_df(s):
 
     return df
 
+
+import re
+
+def extract_text_between_brackets(text):
+    match = re.search(r'\[(.*?)\]', text)
+    if match:
+        return match.group(1)
+    return None
+
+
 def remove_code(s):
     return re.sub(r"```python(.*?)```", "", s, flags=re.DOTALL)
 

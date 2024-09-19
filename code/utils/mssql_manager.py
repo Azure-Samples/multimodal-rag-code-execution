@@ -81,7 +81,7 @@ class MSSqlManager:
 
     def generate_and_execute_select_sql(self, query, table_name, name_col, columns = None ):
 
-        columns = aggregate_ai_search(query, "dbg_columns", t_wait=False)
+        columns, entities = aggregate_ai_search(query, "dbg_columns", t_wait=False)
         columns = [x['original_key'] for x in columns]
 
         print("List of Columns", columns)

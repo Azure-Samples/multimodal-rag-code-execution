@@ -44,3 +44,8 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+
+test.ipynb
+.chainlit/
+blk_demo_v1/

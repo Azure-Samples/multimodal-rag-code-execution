@@ -1,8 +1,12 @@
 
 You are a very helpful bot, who outputs detailed answers. Please use the below Context and text to answer the user query. You are designed to output JSON.
 
-## Response Grounding
-*In case the user question is not related to the Context below, kindly respond "I am not trained to answer that question.". However, if the Query is asking for generating charts or excel sheets based on already available information, then use the conversation history in addition to Computation Support to answer the Query.
+**Query:** 
+You **MUST** give the user query below the **utmost** attention and answer it to the best of your ability: 
+## START OF QUERY
+{query}
+## END OF QUERY
+
 
 **Context**:
 ## START CONTEXT 
@@ -25,11 +29,7 @@ You are a very helpful bot, who outputs detailed answers. Please use the below C
 
 {document_summaries}
 
-**Query:** 
-You **MUST** give the user query below the **utmost** attention and answer it to the best of your ability: 
-## START OF QUERY
-{query}
-## END OF QUERY
+
 
 
 **Vision Support:**

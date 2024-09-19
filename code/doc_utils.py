@@ -68,7 +68,7 @@ from utils.file_utils import (
 from utils.text_utils import (
     extract_code, get_token_count, limit_token_count, recover_json, extract_markdown, extract_markdown_table, 
     extract_markdown_table_as_df, extract_extracted_text, remove_extracted_text, remove_code, extract_mermaid, 
-    extract_chunk_number, clean_up_text)
+    extract_chunk_number, clean_up_text, extract_text_between_brackets)
 from utils.openai_utils import (
     gpt4_models, 
     get_chat_completion, 
@@ -82,6 +82,8 @@ from utils.code_exec_utils import (
     try_code_interpreter_for_tables_using_python_exec, 
     try_code_interpreter_for_tables_using_taskweaver)
 from utils.assistants_utils import try_code_interpreter_for_tables_using_assistants_api
+from utils.bing_search import BingSearchAPI
+
 
 # Begin main
 
@@ -2674,7 +2676,7 @@ def aggregate_ai_search(query, index_name, top=5, approx_tag_limit=20, computati
     if verbose: logc("Found the following asset results:", [r['asset_path'] for r in unique_results])
     # for r in unique_results: logc(r['asset_path'])
 
-    return unique_results
+    return unique_results, entities
 
 def check_if_computation_is_needed(query):
     messages = []
@@ -2762,7 +2764,7 @@ def get_history_as_string(conversation_history):
 
     return history
 
-def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_history = [], user_id = None, computation_approach = "AssistantsAPI", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, verbose = False):
+def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_history = [], user_id = None, computation_approach = "AssistantsAPI", computation_decision = "LLM", vision_support = False, include_master_py=True, vector_directory = None, vector_type = "AISearch", index_name = 'mm_doc_analysis', full_search_output = True, count=False, token_limit = 100000, temperature = 0.2, web_search=ENABLE_WEB_SEARCH_BING,  verbose = False):
     global search_context_extension, search_system_prompt, search_prompt #FIXME: Remove this global variable
 
     if vector_directory is None:
@@ -2777,8 +2779,9 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
     files = []
 
     results = []
+    entities = [query]
     if vector_type == "AISearch":
-        results = aggregate_ai_search(query, index_name, top=top, approx_tag_limit=approx_tag_limit, computation_approach=computation_approach, count=count, temperature=temperature, verbose = verbose)
+        results, entities = aggregate_ai_search(query, index_name, top=top, approx_tag_limit=approx_tag_limit, computation_approach=computation_approach, count=count, temperature=temperature, verbose = verbose)
         text_results = [result['text'] for result in results] # FIXME
 
 
@@ -2874,6 +2877,20 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
 
         context_array.append(search_context)
 
+    web_search_context = ""
+    web_results = []
+
+    if web_search:
+        bs = BingSearchAPI(BING_SUBSCRIPTION_KEY)
+        web_context = []
+
+        for e in entities:
+            web_context.extend(bs.search(e, count=5))
+
+        web_results = [f"## START OF SEARCH RESULT NUMBER {str(i + len(context_array))}\n\n{c}\n\n## END OF SEARCH RESULT NUMBER {str(i + len(context_array))}" for i, c in enumerate(web_context)]
+        context_array.extend(web_results)
+        # web_search_context = "\n\n".join(web_results)
+
 
     context_window = []
     token_window = 0 
@@ -2901,7 +2918,11 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
     if learnings is not None:
         query = search_learnings_template.format(user_query=query, learnings=learnings)
         if verbose: logc("Improved Query", query)
-         
+    
+
+
+
+
     if full_search_output:
         full_search_prompt = search_prompt.format(context=context, query=query, vision_support =  vision_support_result, computation_support=computation_support, search_json_output=full_search_json_output, document_summaries=document_summaries)
     else:
@@ -2920,22 +2941,34 @@ def search(query, learnings = None, top=7, approx_tag_limit=15, conversation_his
     if verbose: logc("Final Prompt", f"{result.choices[0].message.content}")
 
     final_json = recover_json(result.choices[0].message.content)
-    # logc("Final Answer in JSON", final_json)
+    print("Final Answer in JSON", final_json)
 
 
     for r in final_json['references']:
         num = int(r['search_result_number'])
-        result = unique_results[num]
 
-        r['asset'] = result['asset_path']
-        r['document_path'] = result['document_path']
-        r['original_document'] = result['filename']
-        r['section'] = result['chunk_number']
-        r['type'] = result['type']
-        r['search_result_number'] = num
-        r['sas_link'] = generate_file_sas_full_link(result['document_path'])
+        if num < len(unique_results):
+            result = unique_results[num]
 
-    logc("Final Answer in JSON", final_json)
+            r['asset'] = result['asset_path']
+            r['document_path'] = result['document_path']
+            r['original_document'] = result['filename']
+            r['section'] = result['chunk_number']
+            r['type'] = result['type']
+            r['search_result_number'] = num
+            r['sas_link'] = generate_file_sas_full_link(result['document_path'])
+        else:
+            result = context_array[num]
+            r['asset'] = result
+            r['document_path'] = extract_text_between_brackets(result)
+            r['original_document'] = extract_text_between_brackets(result)
+            r['section'] = num
+            r['type'] = "Web Search Result"
+            r['search_result_number'] = num
+            r['sas_link'] = extract_text_between_brackets(result)
+
+
+    print("Final Answer in JSON", final_json)
 
 
     try:
