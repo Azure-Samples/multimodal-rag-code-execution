@@ -4,6 +4,14 @@ param location string = resourceGroup().location
 param storageName string
 param mlWorkspaceName string
 param acrName string
+param identityName string = '${prefix}uami${uniqueId}'
+
+resource userAssignedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2018-11-30' = {
+  name: identityName
+  location: location
+}
+
+
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-01-01' existing =  {
   name: storageName
@@ -73,3 +81,6 @@ resource rgContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@20
 
 output uamiId string = uami.id
 output uamiClientId string = uami.properties.clientId
+output identityId string = userAssignedIdentity.id
+output clientId string = userAssignedIdentity.properties.clientId
+output principalId string = userAssignedIdentity.properties.principalId

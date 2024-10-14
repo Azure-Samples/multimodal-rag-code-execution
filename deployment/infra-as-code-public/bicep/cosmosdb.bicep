@@ -1,6 +1,7 @@
 
 @description('This is the base name for each Azure resource name (6-12 chars)')
 param uniqueid string
+param userAssignedIdentityPrincipalId string
 
 param namePrefix string ='dev'
 
@@ -40,7 +41,7 @@ resource cosmosdb 'Microsoft.DocumentDB/databaseAccounts@2024-02-15-preview' = {
     enableMaterializedViews: false
     defaultIdentity: 'FirstPartyIdentity'
     networkAclBypass: 'None'
-    disableLocalAuth: false
+    disableLocalAuth: true
     enablePartitionMerge: false
     enablePerRegionPerPartitionAutoscale: false
     enableBurstCapacity: false
@@ -84,6 +85,24 @@ resource cosmosdb 'Microsoft.DocumentDB/databaseAccounts@2024-02-15-preview' = {
   identity: {
     type: 'None'
   }
+}
+
+
+// Assign the User Assigned Identity Contributor role to the Cosmos DB account
+resource cosmosDbAccountRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
+  name: guid(cosmosdb.id, userAssignedIdentityPrincipalId, 'cosmosDbContributor')
+  scope: cosmosdb
+  properties: {
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c') // Role definition ID for Contributor
+    principalId: userAssignedIdentityPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+var cosmosDataContributor = '00000000-0000-0000-0000-000000000002'
+resource sqlRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2021-04-15' = {
+  name: guid(cosmosDataContributor, userAssignedIdentityPrincipalId, cosmosdb.id)
+  parent: cosmosdb
 }
 
 output cosmosdbName string = cosmosdb.name

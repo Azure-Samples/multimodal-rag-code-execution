@@ -109,6 +109,7 @@ module cosmosDbModule 'cosmosdb.bicep' =  {
     location: location
     uniqueid: uniqueid
     namePrefix:namePrefix
+    userAssignedIdentityPrincipalId: uami.outputs.principalId
   }
 }
 
