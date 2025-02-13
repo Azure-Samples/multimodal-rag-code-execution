@@ -8,7 +8,7 @@ param openAIRGName string = ''
 param location string = resourceGroup().location
 
 @description('The region for the Azure AI Search service')
-@allowed(['francecentral', 'eastus', 'japaneast'])
+@allowed(['francecentral', 'eastus', 'eastus2', 'japaneast'])
 param aiSearchRegion string = 'eastus'
 
 @description('A prefix that will be prepended to resource names')
