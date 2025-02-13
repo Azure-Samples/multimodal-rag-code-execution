@@ -1,0 +1,50 @@
+on:
+  workflow_dispatch:
+  # Uncomment the below line to run the workflow on commit
+  # push:
+  #   # Run when commits are pushed to mainline branch
+  #   # Set this to the mainline branch you are using
+  #   branches:
+  #     - main
+
+  # Set this permission if you are using a Federated Credential.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # azd build-in variables.
+    # This variables are always set by `azd pipeline config`
+    # You can set them as global env (apply to all steps) or you can add them to individual steps' environment
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      openAIName: ${{ secrets.openAIName }}
+      openAIRGName: ${{ secrets.openAIRGName }}
+      ## Define the additional variables or secrets that are required globally (provision and deploy)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure CLI script
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            $rgExists = az group exists -n "rg-$Env:AZURE_ENV_NAME"
+            if (-not $rgExists) {
+              az group create --name "rg-$Env:AZURE_ENV_NAME" --location $Env:AZURE_LOCATION
+            }
+            az deployment group create --resource-group "rg-$Env:AZURE_ENV_NAME" --template-file deployment/infra-as-code-public/bicep/main-1click.bicep --parameters aiSearchRegion=$env:AZURE_LOCATION openAIName=$Env:openAIName openAIRGName=$Env:openAIRGName
