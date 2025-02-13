@@ -43,8 +43,14 @@ jobs:
         with:
           azcliversion: latest
           inlineScript: |
-            $rgExists = az group exists -n "rg-$Env:AZURE_ENV_NAME"
-            if (-not $rgExists) {
-              az group create --name "rg-$Env:AZURE_ENV_NAME" --location $Env:AZURE_LOCATION
-            }
-            az deployment group create --resource-group "rg-$Env:AZURE_ENV_NAME" --template-file deployment/infra-as-code-public/bicep/main-1click.bicep --parameters aiSearchRegion=$env:AZURE_LOCATION openAIName=$Env:openAIName openAIRGName=$Env:openAIRGName
+            #!/bin/bash
+            
+            rgExists=$(az group exists -n "rg-$AZURE_ENV_NAME")
+            if [ "$rgExists" = "false" ]; then
+              az group create --name "rg-$AZURE_ENV_NAME" --location "$AZURE_LOCATION"
+            fi
+            
+            az deployment group create \
+              --resource-group "rg-$AZURE_ENV_NAME" \
+              --template-file deployment/infra-as-code-public/bicep/main-1click.bicep \
+              --parameters aiSearchRegion="$AZURE_LOCATION" openAIName="$openAIName" openAIRGName="$openAIRGName"
