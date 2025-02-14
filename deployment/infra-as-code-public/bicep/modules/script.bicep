@@ -15,11 +15,20 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2021-06-01' existing 
   name: storageName
 }
 
-resource ownerRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource scriptRoleAssignment1 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: resourceGroup()
-  name: guid(resourceGroup().id, scriptIdentity.id, 'owner')
+  name: guid(resourceGroup().id, scriptIdentity.id, 'storageaccountcontributor')
   properties: {
-    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', '8e3af657-a8ff-443c-a75c-2fe8c4bcb635')
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', '17d1049b-9a84-46fb-8f53-869881c3d3ab')
+    principalType: 'ServicePrincipal'
+    principalId: scriptIdentity.properties.principalId
+  }
+}
+resource scriptRoleAssignment2 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: resourceGroup()
+  name: guid(resourceGroup().id, scriptIdentity.id, 'fileshareswrite')
+  properties: {
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', '0c867c2a-1d8c-454a-a3db-ab2ea1bdc8bb')
     principalType: 'ServicePrincipal'
     principalId: scriptIdentity.properties.principalId
   }
