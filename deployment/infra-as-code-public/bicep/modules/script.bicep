@@ -33,6 +33,15 @@ resource scriptRoleAssignment2 'Microsoft.Authorization/roleAssignments@2022-04-
     principalId: scriptIdentity.properties.principalId
   }
 }
+resource scriptRoleAssignment3 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: resourceGroup()
+  name: guid(resourceGroup().id, scriptIdentity.id, 'reader')
+  properties: {
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')
+    principalType: 'ServicePrincipal'
+    principalId: scriptIdentity.properties.principalId
+  }
+}
 
 resource dataFolderScript 'Microsoft.Resources/deploymentScripts@2019-10-01-preview' = {
   name: 'create-data-folder'
