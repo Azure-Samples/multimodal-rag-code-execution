@@ -130,7 +130,7 @@ The user has two options:
 1. The user can deploy the solution to an Azure Web App. In the `deployment` folder, the user can the `deployment.sh` bash script to deploy the web app.
 
 
-## Azure Arquitecture Review:
+## Azure Architecture Review:
 
 This repository contains the Bicep code to deploy an Azure App Services baseline architecture with zonal redundancy and the Azure Open Ai resource deployed in the four regions that are currently (**as of Jan 2024**) supported to run the GPT -4 Vision model.
 

@@ -5,3 +5,4 @@ pyperclip
 colorlog
 chainlit==1.0.502
 streamlit>=1.31.1
+pydantic==2.10.1

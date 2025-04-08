@@ -7,7 +7,7 @@ This document outlines the primary commands and options available in the testing
 | **cmd index**         | Type `cmd index` to change the name of the AI Search index.                                     |
 | **cmd password**      | Type `cmd password` to change the PDF password (if PDFs are password-protected).                |
 | **cmd tag_limit**     | Type `cmd tag_limit` to change the upper limits of the generated tags per query for the search.   |
-| **cmd topN**          | Type `cmd topN` to change how many top N results to fetch while executing the search.   |
+| **cmd top_n**          | Type `cmd top_n` to change how many top N results to fetch while executing the search.   |
 | **cmd pdf_mode**      | Type `cmd pdf_mode` to change the PDF extraction mode. Allowed values are 'gpt-4-vision' or 'document-intelligence'.   |
 | **cmd docx_mode**     | Type `cmd docx_mode` to change the docx extraction mode. Allowed values are 'document-intelligence' or 'py-docx'.   |
 | **cmd threads**       | Type `cmd threads` to change the number of threads. Allows for multi-threading during ingestion. Make sure that AZURE_OPENAI_RESOURCE_x and AZURE_OPENAI_KEY_x are properly configured in your .env file.     |
