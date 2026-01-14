@@ -3,5 +3,5 @@ requests>=2.31.0
 httpx
 pyperclip
 colorlog
-chainlit==1.0.502
+chainlit==2.8.5
 streamlit>=1.31.1
